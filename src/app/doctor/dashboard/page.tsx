@@ -86,7 +86,7 @@ export default function DoctorDashboardPage() {
                   My Practice
                 </CardTitle>
                 <Briefcase className="h-4 w-4 text-muted-foreground" />
-              </Header>
+              </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">Cardiology</div>
                 <p className="text-xs text-muted-foreground">
