@@ -104,13 +104,13 @@ export function DoctorProfileForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="consultationFee">Consultation Fee (USD)*</Label>
+              <Label htmlFor="consultationFee">Minimal Consultation Fee (INR)*</Label>
                <Input
                 id="consultationFee"
                 name="consultationFee"
                 type="number"
-                step="0.01"
-                placeholder="e.g., 50"
+                step="1"
+                placeholder="e.g., 100"
                 className="bg-secondary/50"
                 required
               />
