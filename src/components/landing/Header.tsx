@@ -16,6 +16,7 @@ import { Stethoscope, LogOut, UserCircle, LayoutDashboard } from 'lucide-react';
 import { useAuthState } from '@/hooks/use-auth-state';
 import { signOut } from '@/lib/firebase/auth';
 import { useRouter } from 'next/navigation';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const UserMenu = ({ user }) => {
   const router = useRouter();
@@ -75,7 +76,7 @@ const UserMenu = ({ user }) => {
 };
 
 export const Header = () => {
-  const { user, loading } = useAuthState();
+  const { user, role, loading } = useAuthState();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -85,21 +86,27 @@ export const Header = () => {
           <span className="text-lg font-bold font-headline">SwasthyaNet</span>
         </Link>
         <nav className="hidden items-center gap-6 text-sm md:flex">
-          <Link
-            href="/symptom-checker"
-            className="text-foreground/60 transition-colors hover:text-foreground/80"
-          >
-            Symptom Checker
-          </Link>
-          <Link
-            href="/find-a-doctor"
-            className="text-foreground/60 transition-colors hover:text-foreground/80"
-          >
-            Find a Doctor
-          </Link>
+          {(!user || role === 'patient') && (
+             <>
+              <Link
+                href="/symptom-checker"
+                className="text-foreground/60 transition-colors hover:text-foreground/80"
+              >
+                Symptom Checker
+              </Link>
+              <Link
+                href="/find-a-doctor"
+                className="text-foreground/60 transition-colors hover:text-foreground/80"
+              >
+                Find a Doctor
+              </Link>
+            </>
+          )}
         </nav>
         <div className="flex flex-1 items-center justify-end space-x-4">
-          {loading ? null : user ? (
+          {loading ? (
+             <Skeleton className="h-8 w-8 rounded-full" />
+          ) : user ? (
             <UserMenu user={user} />
           ) : (
             <>
