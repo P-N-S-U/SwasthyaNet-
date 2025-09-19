@@ -1,3 +1,28 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-dashboard",
+      "description": "A preview of the SwasthyaNet application dashboard.",
+      "imageUrl": "https://picsum.photos/seed/hero-image/1200/600",
+      "imageHint": "dashboard healthcare"
+    },
+    {
+      "id": "testimonial-1",
+      "description": "Profile picture for a testimonial.",
+      "imageUrl": "https://picsum.photos/seed/person1/100/100",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "testimonial-2",
+      "description": "Profile picture for a testimonial.",
+      "imageUrl": "https://picsum.photos/seed/person2/100/100",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "testimonial-3",
+      "description": "Profile picture for a testimonial.",
+      "imageUrl": "https://picsum.photos/seed/person3/100/100",
+      "imageHint": "person portrait"
+    }
+  ]
 }
