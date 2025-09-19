@@ -10,6 +10,8 @@ import { Loader2, Calendar, Users, Briefcase } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { AppointmentsChart } from '@/components/doctor/AppointmentsChart';
+import { RecentPatients } from '@/components/doctor/RecentPatients';
 
 export default function DoctorDashboardPage() {
   const { user, loading } = useAuthState();
@@ -39,7 +41,7 @@ export default function DoctorDashboardPage() {
               Doctor Dashboard
             </h1>
             <p className="mt-2 text-lg text-foreground/70">
-              Manage your patients and appointments.
+              Welcome back, Dr. {user.displayName || 'User'}!
             </p>
           </div>
 
@@ -61,7 +63,7 @@ export default function DoctorDashboardPage() {
                 </Button>
               </CardContent>
             </Card>
-            
+
             <Card className="border-border/30 bg-background">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
@@ -71,7 +73,7 @@ export default function DoctorDashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">1,250</div>
-                 <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   +50 new this month
                 </p>
                 <Button asChild size="sm" variant="outline" className="mt-4">
@@ -95,6 +97,25 @@ export default function DoctorDashboardPage() {
                 <Button asChild size="sm" variant="outline" className="mt-4">
                   <Link href="#">Edit Profile</Link>
                 </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-5">
+            <Card className="col-span-1 lg:col-span-3">
+              <CardHeader>
+                <CardTitle>Weekly Appointments</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AppointmentsChart />
+              </CardContent>
+            </Card>
+            <Card className="col-span-1 lg:col-span-2">
+              <CardHeader>
+                <CardTitle>Recent Patients</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RecentPatients />
               </CardContent>
             </Card>
           </div>
