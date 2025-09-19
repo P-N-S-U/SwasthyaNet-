@@ -25,7 +25,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
     if (photoURL) dataToUpdate.photoURL = photoURL;
     
     if (Object.keys(dataToUpdate).length > 0) {
-        await updateDoc(userRef, dataToUpdate);
+        await updateDoc(userRef, dataToUpdate, { merge: true });
     }
 
     revalidatePath('/profile');

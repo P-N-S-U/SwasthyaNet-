@@ -29,7 +29,10 @@ function initializeAdminApp(): App | null {
             return null;
         }
     } else {
-        console.warn("Firebase Admin SDK not initialized. Missing environment variables.");
+        // Do not log in production environments
+        if (process.env.NODE_ENV !== 'production') {
+            console.warn("Firebase Admin SDK not initialized. Missing environment variables. Server-side authentication will be unavailable.");
+        }
         return null;
     }
 }
@@ -54,10 +57,12 @@ export async function getSession(): Promise<DecodedIdToken | null> {
   }
 
   try {
+    // verifySessionCookie() will check if the cookie is valid and not expired.
     const decodedIdToken = await adminAuth.verifySessionCookie(sessionCookie, true);
     return decodedIdToken;
   } catch (error) {
     // Session cookie is invalid or expired.
+    // In a real app, you might want to log this for debugging.
     // console.error('Error verifying session cookie:', error);
     return null;
   }
