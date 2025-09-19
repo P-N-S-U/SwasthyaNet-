@@ -10,15 +10,29 @@ import {
   sendSignInLinkToEmail,
   isSignInWithEmailLink,
   signInWithEmailLink,
+  User,
 } from 'firebase/auth';
 import { auth } from './firebase';
 import { createUserInFirestore } from './firestore';
 
 const actionCodeSettings = {
-  url: typeof window !== 'undefined' ? `${window.location.origin}/auth/finish-signin` : 'http://localhost:9002/auth/finish-signin',
+  url:
+    typeof window !== 'undefined'
+      ? `${window.location.origin}/auth/finish-signin`
+      : 'http://localhost:9002/auth/finish-signin',
   handleCodeInApp: true,
 };
 
+async function createSessionCookie(user: User) {
+  const idToken = await user.getIdToken(true);
+  await fetch('/api/auth/session', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ idToken }),
+  });
+}
 
 export async function signUpWithEmail(email, password, additionalData) {
   try {
@@ -28,14 +42,17 @@ export async function signUpWithEmail(email, password, additionalData) {
       password
     );
     const user = userCredential.user;
-    
+
     // Update Firebase Auth profile
     await updateProfile(user, {
       displayName: additionalData.displayName,
     });
-    
+
     // Create user document in Firestore
     await createUserInFirestore(user, additionalData);
+
+    // Create session cookie
+    await createSessionCookie(user);
 
     return { user, error: null };
   } catch (error) {
@@ -50,6 +67,8 @@ export async function signInWithEmail(email, password) {
       email,
       password
     );
+    const user = userCredential.user;
+    await createSessionCookie(user);
     return { user: userCredential.user, error: null };
   } catch (error) {
     return { user: null, error };
@@ -79,7 +98,9 @@ export async function completeSignInWithLink(link: string) {
       // User opened the link on a different device. To prevent session fixation
       // attacks, ask the user to provide the email again. For simplicity,
       // we'll throw an error here. A real app might prompt for it.
-      throw new Error('Email not found. Please try signing in on the same device.');
+      throw new Error(
+        'Email not found. Please try signing in on the same device.'
+      );
     }
     const userCredential = await signInWithEmailLink(auth, email, link);
     window.localStorage.removeItem('emailForSignIn');
@@ -87,6 +108,7 @@ export async function completeSignInWithLink(link: string) {
     const user = userCredential.user;
     // For passwordless sign-in, we need to handle user creation in Firestore if it's their first time.
     await createUserInFirestore(user, { role: 'patient' });
+    await createSessionCookie(user);
 
     return { user, error: null };
   } catch (error) {
@@ -94,17 +116,18 @@ export async function completeSignInWithLink(link: string) {
   }
 }
 
-
 export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
-    
+
     // For Google sign-in, we'll default the role to 'patient'.
     // A more sophisticated app might ask for the role after sign-up.
     const additionalData = { role: 'patient' };
     await createUserInFirestore(user, additionalData);
+
+    await createSessionCookie(user);
 
     return { user, error: null };
   } catch (error) {
@@ -115,6 +138,8 @@ export async function signInWithGoogle() {
 export async function signOut() {
   try {
     await firebaseSignOut(auth);
+    // Fetch to the API route to clear the cookie
+    await fetch('/api/auth/session', { method: 'DELETE' });
     return { success: true, error: null };
   } catch (error) {
     return { success: false, error };
