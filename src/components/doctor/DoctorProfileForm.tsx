@@ -104,7 +104,7 @@ export function DoctorProfileForm() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="consultationFee">Minimal Consultation Fee (INR)*</Label>
+              <Label htmlFor="consultationFee">Minimal Consultation Fee (₹)*</Label>
                <Input
                 id="consultationFee"
                 name="consultationFee"
