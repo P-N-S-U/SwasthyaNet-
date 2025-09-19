@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
-import { Loader2, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 
@@ -43,7 +43,7 @@ export default function SchedulePage() {
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             <div className="md:col-span-2">
-              <Card>
+              <Card className="border-border/30 bg-background">
                 <CardHeader>
                   <CardTitle>Full Calendar</CardTitle>
                 </CardHeader>
@@ -52,36 +52,44 @@ export default function SchedulePage() {
                     mode="single"
                     selected={date}
                     onSelect={setDate}
-                    className="rounded-md border"
+                    className="rounded-md border border-border/30"
                   />
                 </CardContent>
               </Card>
             </div>
             <div>
-              <Card>
+              <Card className="border-border/30 bg-background">
                 <CardHeader>
-                  <CardTitle>Upcoming</CardTitle>
+                  <CardTitle>Appointments for Today</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-10 w-10 flex-col items-center justify-center rounded-md bg-primary text-primary-foreground">
-                        <span className="text-xs">JUL</span>
-                        <span className="text-lg font-bold">28</span>
+                  <div className="space-y-6">
+                    <div className="flex items-start gap-4 rounded-lg bg-secondary/50 p-4">
+                      <div className="flex h-12 w-12 flex-col items-center justify-center rounded-md bg-primary text-primary-foreground">
+                        <span className="text-sm">JUL</span>
+                        <span className="text-xl font-bold">28</span>
                       </div>
                       <div>
-                        <p className="font-semibold">Consultation with Liam Johnson</p>
-                        <p className="text-sm text-muted-foreground">10:00 AM - 10:30 AM</p>
+                        <p className="font-semibold">
+                          Consultation with Liam Johnson
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          10:00 AM - 10:30 AM
+                        </p>
                       </div>
                     </div>
-                     <div className="flex items-start gap-4">
-                      <div className="flex h-10 w-10 flex-col items-center justify-center rounded-md bg-primary text-primary-foreground">
-                        <span className="text-xs">JUL</span>
-                        <span className="text-lg font-bold">28</span>
+                    <div className="flex items-start gap-4 rounded-lg bg-secondary/50 p-4">
+                      <div className="flex h-12 w-12 flex-col items-center justify-center rounded-md bg-primary text-primary-foreground">
+                        <span className="text-sm">JUL</span>
+                        <span className="text-xl font-bold">28</span>
                       </div>
                       <div>
-                        <p className="font-semibold">Follow-up with Emma Brown</p>
-                        <p className="text-sm text-muted-foreground">11:00 AM - 11:15 AM</p>
+                        <p className="font-semibold">
+                          Follow-up with Emma Brown
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          11:00 AM - 11:15 AM
+                        </p>
                       </div>
                     </div>
                   </div>
