@@ -5,10 +5,9 @@ import { revalidatePath } from 'next/cache';
 import { updateProfile as firebaseUpdateProfile } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase/firebase';
-import { getAuthenticatedUser } from '@genkit-ai/next/auth';
 
 export async function updateProfile(prevState: any, formData: FormData) {
-  const user = await getAuthenticatedUser();
+  const user = auth.currentUser;
   if (!user) {
     return {
       error: 'You must be logged in to update your profile.',
@@ -20,13 +19,11 @@ export async function updateProfile(prevState: any, formData: FormData) {
   const photoURL = formData.get('photoURL') as string;
 
   try {
-    if (auth.currentUser) {
-        if (displayName) {
-             await firebaseUpdateProfile(auth.currentUser, { displayName });
-        }
-       if (photoURL) {
-            await firebaseUpdateProfile(auth.currentUser, { photoURL });
-       }
+    if (displayName) {
+        await firebaseUpdateProfile(user, { displayName });
+    }
+    if (photoURL) {
+        await firebaseUpdateProfile(user, { photoURL });
     }
 
     const userRef = doc(db, 'users', user.uid);
@@ -50,7 +47,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
 }
 
 export async function updateDoctorProfile(prevState: any, formData: FormData) {
-  const user = await getAuthenticatedUser();
+  const user = auth.currentUser;
   if (!user) {
     return {
       error: 'You must be logged in to update your profile.',
