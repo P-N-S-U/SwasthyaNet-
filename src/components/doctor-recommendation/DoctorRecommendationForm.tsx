@@ -1,6 +1,7 @@
 'use client';
 
-import { useActionState, useFormStatus } from 'react-dom';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { getDoctorRecommendations } from '@/app/find-a-doctor/actions';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
