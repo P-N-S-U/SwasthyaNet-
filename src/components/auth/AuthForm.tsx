@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -7,6 +8,7 @@ import {
   signInWithEmail,
   signUpWithEmail,
   signInWithGoogle,
+  sendSignInLink,
 } from '@/lib/firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -71,6 +73,10 @@ const signUpSchema = z.object({
   }),
 });
 
+const emailLinkSchema = z.object({
+  email: z.string().email({ message: 'Invalid email address.' }),
+});
+
 export function AuthForm() {
   const { toast } = useToast();
   const router = useRouter();
@@ -84,6 +90,11 @@ export function AuthForm() {
   const signUpForm = useForm<z.infer<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
     defaultValues: { fullName: '', email: '', password: '', role: 'patient' },
+  });
+
+  const emailLinkForm = useForm<z.infer<typeof emailLinkSchema>>({
+    resolver: zodResolver(emailLinkSchema),
+    defaultValues: { email: '' },
   });
 
   const handleSignIn = async (values: z.infer<typeof signInSchema>) => {
@@ -145,12 +156,31 @@ export function AuthForm() {
     }
     setIsLoading(false);
   };
+  
+  const handleSendSignInLink = async (values: z.infer<typeof emailLinkSchema>) => {
+    setIsLoading(true);
+    const { error } = await sendSignInLink(values.email);
+    if (error) {
+      toast({
+        title: 'Failed to Send Link',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Check Your Email',
+        description: 'A sign-in link has been sent to your email address.',
+      });
+    }
+    setIsLoading(false);
+  };
 
   return (
     <Tabs defaultValue="signin" className="w-full">
-      <TabsList className="grid w-full grid-cols-2">
+      <TabsList className="grid w-full grid-cols-3">
         <TabsTrigger value="signin">Sign In</TabsTrigger>
         <TabsTrigger value="signup">Sign Up</TabsTrigger>
+        <TabsTrigger value="link">Passwordless</TabsTrigger>
       </TabsList>
       <TabsContent value="signin">
         <Card className="border-none bg-secondary/50">
@@ -356,6 +386,50 @@ export function AuthForm() {
                 >
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Create Account
+                </Button>
+              </CardFooter>
+            </form>
+          </Form>
+        </Card>
+      </TabsContent>
+      <TabsContent value="link">
+        <Card className="border-none bg-secondary/50">
+          <CardHeader>
+            <CardTitle className="font-headline">Passwordless Sign-In</CardTitle>
+            <CardDescription>
+              We'll send a magic link to your email. No password needed.
+            </CardDescription>
+          </CardHeader>
+          <Form {...emailLinkForm}>
+            <form onSubmit={emailLinkForm.handleSubmit(handleSendSignInLink)}>
+              <CardContent className="space-y-4">
+                <FormField
+                  control={emailLinkForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="m@example.com"
+                          {...field}
+                          disabled={isLoading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </CardContent>
+              <CardFooter>
+                <Button
+                  className="w-full bg-primary hover:bg-primary/90"
+                  type="submit"
+                  disabled={isLoading}
+                >
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Send Sign-In Link
                 </Button>
               </CardFooter>
             </form>

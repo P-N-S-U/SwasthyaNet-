@@ -7,9 +7,18 @@ import {
   GoogleAuthProvider,
   signOut as firebaseSignOut,
   updateProfile,
+  sendSignInLinkToEmail,
+  isSignInWithEmailLink,
+  signInWithEmailLink,
 } from 'firebase/auth';
 import { auth } from './firebase';
 import { createUserInFirestore } from './firestore';
+
+const actionCodeSettings = {
+  url: typeof window !== 'undefined' ? `${window.location.origin}/auth/finish-signin` : 'http://localhost:9002/auth/finish-signin',
+  handleCodeInApp: true,
+};
+
 
 export async function signUpWithEmail(email, password, additionalData) {
   try {
@@ -46,6 +55,45 @@ export async function signInWithEmail(email, password) {
     return { user: null, error };
   }
 }
+
+export async function sendSignInLink(email: string) {
+  try {
+    await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+    // Save the email locally so you don't need to ask the user for it again
+    // on the same device.
+    window.localStorage.setItem('emailForSignIn', email);
+    return { error: null };
+  } catch (error) {
+    return { error };
+  }
+}
+
+export function isSignInLink(link: string) {
+  return isSignInWithEmailLink(auth, link);
+}
+
+export async function completeSignInWithLink(link: string) {
+  try {
+    let email = window.localStorage.getItem('emailForSignIn');
+    if (!email) {
+      // User opened the link on a different device. To prevent session fixation
+      // attacks, ask the user to provide the email again. For simplicity,
+      // we'll throw an error here. A real app might prompt for it.
+      throw new Error('Email not found. Please try signing in on the same device.');
+    }
+    const userCredential = await signInWithEmailLink(auth, email, link);
+    window.localStorage.removeItem('emailForSignIn');
+
+    const user = userCredential.user;
+    // For passwordless sign-in, we need to handle user creation in Firestore if it's their first time.
+    await createUserInFirestore(user, { role: 'patient' });
+
+    return { user, error: null };
+  } catch (error) {
+    return { user: null, error };
+  }
+}
+
 
 export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider();
