@@ -59,7 +59,7 @@ export default function DoctorDashboardPage() {
                   +2 from last week
                 </p>
                 <Button asChild size="sm" className="mt-4">
-                  <Link href="#">View Schedule</Link>
+                  <Link href="/doctor/schedule">View Schedule</Link>
                 </Button>
               </CardContent>
             </Card>
@@ -95,7 +95,7 @@ export default function DoctorDashboardPage() {
                   General Hospital
                 </p>
                 <Button asChild size="sm" variant="outline" className="mt-4">
-                  <Link href="#">Edit Profile</Link>
+                  <Link href="/profile">Edit Profile</Link>
                 </Button>
               </CardContent>
             </Card>
