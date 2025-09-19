@@ -22,3 +22,17 @@ export async function createUserInFirestore(user, additionalData = {}) {
     }
   }
 }
+
+export async function getUserRole(userId) {
+  if (!userId) return null;
+  const userRef = doc(db, 'users', userId);
+  const docSnap = await getDoc(userRef);
+
+  if (docSnap.exists()) {
+    return docSnap.data().role;
+  } else {
+    // This might happen if the user record wasn't created properly.
+    console.warn('No user document found for UID:', userId);
+    return null;
+  }
+}
