@@ -57,6 +57,21 @@ const specializations = [
   'General Physician',
 ];
 
+const qualificationsList = [
+  'MBBS',
+  'MD',
+  'MS',
+  'DM',
+  'MCh',
+  'DNB',
+  'PhD',
+  'BDS',
+  'MDS',
+  'FNB',
+  'MRCP',
+  'FRCS',
+];
+
 export function DoctorProfileForm() {
   const [state, formAction] = useFormState(updateDoctorProfile, initialState);
   const { toast } = useToast();
@@ -115,7 +130,13 @@ export function DoctorProfileForm() {
                 placeholder="e.g., MD, PhD, MBBS"
                 className="bg-secondary/50"
                 required
+                list="qualifications-list"
               />
+              <datalist id="qualifications-list">
+                {qualificationsList.map((qual) => (
+                  <option key={qual} value={qual} />
+                ))}
+              </datalist>
             </div>
             <div className="space-y-2">
               <Label htmlFor="experience">Years of Experience*</Label>
