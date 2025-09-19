@@ -5,32 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { updateProfile as firebaseUpdateProfile } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase/firebase';
-import { getAuth } from 'firebase-admin/auth';
-import {getApp, getApps, initializeApp} from 'firebase-admin/app';
-import { UserRecord } from 'firebase-admin/auth';
-
-let app;
-if (!getApps().length) {
-    app = initializeApp();
-} else {
-    app = getApp();
-}
-
-async function getAuthenticatedUser(): Promise<UserRecord | null> {
-    try {
-        const user = auth.currentUser;
-        if (!user) {
-            return null;
-        }
-        const token = await user.getIdToken();
-        if (!token) return null;
-        return await getAuth(app).verifyIdToken(token);
-    } catch (error) {
-        console.error('Error getting authenticated user:', error);
-        return null;
-    }
-}
-
+import { getAuthenticatedUser } from '@genkit-ai/next/auth';
 
 export async function updateProfile(prevState: any, formData: FormData) {
   const user = await getAuthenticatedUser();
