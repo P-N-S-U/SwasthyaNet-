@@ -38,6 +38,25 @@ function SubmitButton() {
   );
 }
 
+const specializations = [
+  'Cardiology',
+  'Dermatology',
+  'Neurology',
+  'Pediatrics',
+  'Orthopedics',
+  'Gynecology',
+  'Oncology',
+  'Psychiatry',
+  'Endocrinology',
+  'Gastroenterology',
+  'Pulmonology',
+  'Nephrology',
+  'Urology',
+  'Ophthalmology',
+  'Otolaryngology (ENT)',
+  'General Physician',
+];
+
 export function DoctorProfileForm() {
   const [state, formAction] = useFormState(updateDoctorProfile, initialState);
   const { toast } = useToast();
@@ -80,7 +99,13 @@ export function DoctorProfileForm() {
                 placeholder="e.g., Cardiology"
                 className="bg-secondary/50"
                 required
+                list="specializations-list"
               />
+               <datalist id="specializations-list">
+                {specializations.map((spec) => (
+                  <option key={spec} value={spec} />
+                ))}
+              </datalist>
             </div>
             <div className="space-y-2">
               <Label htmlFor="qualifications">Qualifications*</Label>
