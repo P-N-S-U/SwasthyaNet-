@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
 import { Header } from '@/components/landing/Header';
@@ -9,14 +9,20 @@ import { Footer } from '@/components/landing/Footer';
 import { Loader2, User, Mail, Calendar } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getUserRole } from '@/lib/firebase/firestore';
+import { DoctorProfileForm } from '@/components/doctor/DoctorProfileForm';
 
 export default function ProfilePage() {
   const { user, loading } = useAuthState();
   const router = useRouter();
+  const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/auth');
+    }
+    if (user) {
+      getUserRole(user.uid).then(setRole);
     }
   }, [user, loading, router]);
 
@@ -33,7 +39,7 @@ export default function ProfilePage() {
     return email.substring(0, 2).toUpperCase();
   };
 
-  const registrationDate = user.metadata.creationTime 
+  const registrationDate = user.metadata.creationTime
     ? new Date(user.metadata.creationTime).toLocaleDateString()
     : 'Not available';
 
@@ -42,44 +48,52 @@ export default function ProfilePage() {
       <Header />
       <main className="flex-grow bg-secondary/30 py-12 md:py-20">
         <div className="container">
-          <Card className="mx-auto max-w-2xl border-border/30 bg-background">
-            <CardHeader className="text-center">
-              <div className="mx-auto mb-4">
-                <Avatar className="h-24 w-24 border-4 border-primary">
-                  <AvatarImage src={user.photoURL} alt={user.displayName} />
-                  <AvatarFallback className="text-3xl">
-                    {getInitials(user.email)}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-              <CardTitle className="text-3xl font-bold font-headline">
-                {user.displayName || 'User Profile'}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="mt-4 space-y-6">
-              <div className="flex items-center gap-4 rounded-lg bg-secondary/50 p-4">
-                <Mail className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium">{user.email}</p>
+          <div className="mx-auto max-w-2xl space-y-8">
+            <Card className="border-border/30 bg-background">
+              <CardHeader className="text-center">
+                <div className="mx-auto mb-4">
+                  <Avatar className="h-24 w-24 border-4 border-primary">
+                    <AvatarImage src={user.photoURL} alt={user.displayName} />
+                    <AvatarFallback className="text-3xl">
+                      {getInitials(user.email)}
+                    </AvatarFallback>
+                  </Avatar>
                 </div>
-              </div>
-              <div className="flex items-center gap-4 rounded-lg bg-secondary/50 p-4">
-                <User className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Full Name</p>
-                  <p className="font-medium">{user.displayName || 'Not set'}</p>
+                <CardTitle className="text-3xl font-bold font-headline">
+                  {user.displayName || 'User Profile'}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="mt-4 space-y-6">
+                <div className="flex items-center gap-4 rounded-lg bg-secondary/50 p-4">
+                  <Mail className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Email</p>
+                    <p className="font-medium">{user.email}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-4 rounded-lg bg-secondary/50 p-4">
-                <Calendar className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Member Since</p>
-                  <p className="font-medium">{registrationDate}</p>
+                <div className="flex items-center gap-4 rounded-lg bg-secondary/50 p-4">
+                  <User className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Full Name</p>
+                    <p className="font-medium">
+                      {user.displayName || 'Not set'}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="flex items-center gap-4 rounded-lg bg-secondary/50 p-4">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      Member Since
+                    </p>
+                    <p className="font-medium">{registrationDate}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {role === 'doctor' && <DoctorProfileForm />}
+          </div>
         </div>
       </main>
       <Footer />
