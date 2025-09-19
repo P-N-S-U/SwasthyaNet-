@@ -30,7 +30,7 @@ export default function FinishSignInPage() {
               title: 'Signed In Successfully',
               description: 'Welcome!',
             });
-            router.push('/');
+            router.push('/dashboard');
           }
         })
         .catch(err => {

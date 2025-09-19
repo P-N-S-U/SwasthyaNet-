@@ -111,7 +111,7 @@ export function AuthForm() {
         title: 'Signed In Successfully',
         description: "Welcome back!",
       });
-      router.push('/');
+      router.push('/dashboard');
     }
     setIsLoading(false);
   };
@@ -133,7 +133,7 @@ export function AuthForm() {
         title: 'Account Created',
         description: "You've successfully signed up!",
       });
-      router.push('/');
+      router.push('/dashboard');
     }
     setIsLoading(false);
   };
@@ -152,7 +152,7 @@ export function AuthForm() {
         title: 'Signed In Successfully',
         description: 'Welcome!',
       });
-      router.push('/');
+      router.push('/dashboard');
     }
     setIsLoading(false);
   };
