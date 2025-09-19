@@ -1,6 +1,6 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState, useFormStatus } from 'react-dom';
 import { getDoctorRecommendations } from '@/app/find-a-doctor/actions';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -32,7 +32,7 @@ function SubmitButton() {
 }
 
 export function DoctorRecommendationForm() {
-  const [state, formAction] = useFormState(
+  const [state, formAction] = useActionState(
     getDoctorRecommendations,
     initialState
   );

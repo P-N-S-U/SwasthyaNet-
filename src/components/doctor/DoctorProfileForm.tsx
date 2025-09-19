@@ -1,7 +1,8 @@
 
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState, useEffect } from 'react';
+import { useFormStatus } from 'react-dom';
 import { updateDoctorProfile } from '@/app/profile/actions';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -17,7 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Loader2, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect } from 'react';
+
 
 const initialState = {
   data: null,
@@ -73,7 +74,7 @@ const qualificationsList = [
 ];
 
 export function DoctorProfileForm() {
-  const [state, formAction] = useFormState(updateDoctorProfile, initialState);
+  const [state, formAction] = useActionState(updateDoctorProfile, initialState);
   const { toast } = useToast();
 
   useEffect(() => {
