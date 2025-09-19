@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Form,
@@ -60,10 +61,14 @@ const signInSchema = z.object({
 });
 
 const signUpSchema = z.object({
+  fullName: z.string().min(3, { message: 'Full name is required.' }),
   email: z.string().email({ message: 'Invalid email address.' }),
   password: z
     .string()
     .min(6, { message: 'Password must be at least 6 characters.' }),
+  role: z.enum(['patient', 'doctor'], {
+    required_error: 'You need to select a role.',
+  }),
 });
 
 export function AuthForm() {
@@ -78,7 +83,7 @@ export function AuthForm() {
 
   const signUpForm = useForm<z.infer<typeof signUpSchema>>({
     resolver: zodResolver(signUpSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { fullName: '', email: '', password: '', role: 'patient' },
   });
 
   const handleSignIn = async (values: z.infer<typeof signInSchema>) => {
@@ -102,7 +107,10 @@ export function AuthForm() {
 
   const handleSignUp = async (values: z.infer<typeof signUpSchema>) => {
     setIsLoading(true);
-    const { error } = await signUpWithEmail(values.email, values.password);
+    const { error } = await signUpWithEmail(values.email, values.password, {
+      displayName: values.fullName,
+      role: values.role,
+    });
     if (error) {
       toast({
         title: 'Sign Up Failed',
@@ -254,6 +262,23 @@ export function AuthForm() {
                 </div>
                 <FormField
                   control={signUpForm.control}
+                  name="fullName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full Name</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="John Doe"
+                          {...field}
+                          disabled={isLoading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={signUpForm.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
@@ -282,6 +307,41 @@ export function AuthForm() {
                           {...field}
                           disabled={isLoading}
                         />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={signUpForm.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>You are a...</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex space-x-4"
+                          disabled={isLoading}
+                        >
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="patient" />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              Patient
+                            </FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-2 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="doctor" />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              Doctor
+                            </FormLabel>
+                          </FormItem>
+                        </RadioGroup>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
