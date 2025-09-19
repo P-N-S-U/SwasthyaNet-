@@ -2,7 +2,7 @@
 import 'server-only';
 import { cookies } from 'next/headers';
 import { initializeApp, getApps, App, cert } from 'firebase-admin/app';
-import { getAuth, DecodedIdToken } from 'firebase-admin/auth';
+import { getAuth, Auth, DecodedIdToken } from 'firebase-admin/auth';
 
 // This is a server-only module. It can't be used in a client component.
 
@@ -14,36 +14,28 @@ const serviceAccount = {
     : undefined,
 };
 
-let adminApp: App;
+function initializeAdminApp(): App | null {
+    if (getApps().length > 0) {
+        return getApps()[0];
+    }
 
-if (!getApps().length) {
-    // Check if all required service account properties are available
     if (serviceAccount.projectId && serviceAccount.clientEmail && serviceAccount.privateKey) {
-        adminApp = initializeApp({
-            credential: cert(serviceAccount),
-        });
+        try {
+            return initializeApp({
+                credential: cert(serviceAccount),
+            });
+        } catch(error: any) {
+            console.error("Firebase Admin SDK initialization error:", error.message);
+            return null;
+        }
     } else {
         console.warn("Firebase Admin SDK not initialized. Missing environment variables.");
-        // Mock app for environments where it's not configured
-        adminApp = {
-            name: '[MOCK]',
-            options: {},
-            auth: () => getAuth(),
-            projectManagement: () => null,
-            securityRules: () => null,
-            storage: () => null,
-            firestore: () => null,
-            database: () => null,
-            instanceId: () => null,
-            machineLearning: () => null,
-        } as unknown as App;
+        return null;
     }
-} else {
-    adminApp = getApps()[0];
 }
 
-
-export const adminAuth = getAuth(adminApp);
+const adminApp = initializeAdminApp();
+export const adminAuth: Auth | null = adminApp ? getAuth(adminApp) : null;
 
 /**
  * Gets the current user's session from the cookies.
@@ -51,9 +43,8 @@ export const adminAuth = getAuth(adminApp);
  * @returns The user's session, or null if not authenticated.
  */
 export async function getSession(): Promise<DecodedIdToken | null> {
-  // If the admin app wasn't initialized, we can't get a session.
-  if (adminApp.name === '[MOCK]') {
-    console.warn("Cannot get session: Firebase Admin SDK not initialized.");
+  // If the adminAuth service is not available, we can't get a session.
+  if (!adminAuth) {
     return null;
   }
 
@@ -66,7 +57,8 @@ export async function getSession(): Promise<DecodedIdToken | null> {
     const decodedIdToken = await adminAuth.verifySessionCookie(sessionCookie, true);
     return decodedIdToken;
   } catch (error) {
-    console.error('Error verifying session cookie:', error);
+    // Session cookie is invalid or expired.
+    // console.error('Error verifying session cookie:', error);
     return null;
   }
 }

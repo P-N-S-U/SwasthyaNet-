@@ -2,9 +2,8 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { updateProfile as firebaseUpdateProfile } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase/firebase';
+import { db } from '@/lib/firebase/firebase';
 import { getSession } from '@/lib/firebase/session';
 
 export async function updateProfile(prevState: any, formData: FormData) {
@@ -20,10 +19,6 @@ export async function updateProfile(prevState: any, formData: FormData) {
   const photoURL = formData.get('photoURL') as string;
 
   try {
-    // Note: firebaseUpdateProfile only works on the client with a full auth instance.
-    // Here on the server, we just update Firestore. The auth profile can be updated
-    // client-side if needed, but often the Firestore data is what's displayed.
-
     const userRef = doc(db, 'users', session.uid);
     const dataToUpdate: { displayName?: string; photoURL?: string } = {};
     if (displayName) dataToUpdate.displayName = displayName;
