@@ -1,3 +1,4 @@
+
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
@@ -16,7 +17,8 @@ export async function createUserInFirestore(user, additionalData = {}) {
         photoURL,
         createdAt,
         role: additionalData.role || 'patient', // Default role to patient
-      });
+        ...additionalData
+      }, { merge: true });
     } catch (error) {
       console.error('Error creating user document:', error);
     }
@@ -35,4 +37,16 @@ export async function getUserRole(userId) {
     console.warn('No user document found for UID:', userId);
     return null;
   }
+}
+
+export async function getUserProfile(userId) {
+    if (!userId) return null;
+    const userRef = doc(db, 'users', userId);
+    const docSnap = await getDoc(userRef);
+
+    if (docSnap.exists()) {
+        return docSnap.data();
+    } else {
+        return null;
+    }
 }

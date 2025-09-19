@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -85,6 +86,9 @@ export async function updateDoctorProfile(prevState: any, formData: FormData) {
   const specialization = formData.get('specialization') as string;
   const clinic = formData.get('clinic') as string;
   const bio = formData.get('bio') as string;
+  const experience = formData.get('experience') as string;
+  const qualifications = formData.get('qualifications') as string;
+  const consultationFee = formData.get('consultationFee') as string;
 
   try {
     const userRef = doc(db, 'users', user.uid);
@@ -92,17 +96,24 @@ export async function updateDoctorProfile(prevState: any, formData: FormData) {
         specialization?: string;
         clinic?: string;
         bio?: string;
+        experience?: number;
+        qualifications?: string;
+        consultationFee?: number;
     } = {};
 
     if (specialization) dataToUpdate.specialization = specialization;
     if (clinic) dataToUpdate.clinic = clinic;
     if (bio) dataToUpdate.bio = bio;
+    if (experience) dataToUpdate.experience = parseInt(experience, 10);
+    if (qualifications) dataToUpdate.qualifications = qualifications;
+    if (consultationFee) dataToUpdate.consultationFee = parseFloat(consultationFee);
     
     if (Object.keys(dataToUpdate).length > 0) {
-        await updateDoc(userRef, dataToUpdate);
+        await updateDoc(userRef, dataToUpdate, { merge: true });
     }
 
     revalidatePath('/profile');
+    revalidatePath('/doctor/dashboard');
     return { error: null, data: 'Professional profile updated successfully.' };
 
   } catch (error) {

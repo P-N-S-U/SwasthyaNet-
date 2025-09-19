@@ -13,7 +13,6 @@ import {
   CardTitle,
   CardFooter
 } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Loader2, Save } from 'lucide-react';
@@ -66,19 +65,56 @@ export function DoctorProfileForm() {
           Professional Information
         </CardTitle>
         <CardDescription>
-          Complete your professional profile to help patients find you.
+          This information will be displayed to patients. Please complete it to
+          start accepting appointments.
         </CardDescription>
       </CardHeader>
       <form action={formAction}>
         <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="specialization">Specialization</Label>
-            <Input
-              id="specialization"
-              name="specialization"
-              placeholder="e.g., Cardiology"
-              className="bg-secondary/50"
-            />
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="specialization">Specialization*</Label>
+              <Input
+                id="specialization"
+                name="specialization"
+                placeholder="e.g., Cardiology"
+                className="bg-secondary/50"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="qualifications">Qualifications*</Label>
+              <Input
+                id="qualifications"
+                name="qualifications"
+                placeholder="e.g., MD, PhD, MBBS"
+                className="bg-secondary/50"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="experience">Years of Experience*</Label>
+              <Input
+                id="experience"
+                name="experience"
+                type="number"
+                placeholder="e.g., 10"
+                className="bg-secondary/50"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="consultationFee">Consultation Fee (USD)*</Label>
+               <Input
+                id="consultationFee"
+                name="consultationFee"
+                type="number"
+                step="0.01"
+                placeholder="e.g., 50"
+                className="bg-secondary/50"
+                required
+              />
+            </div>
           </div>
           <div className="space-y-2">
             <Label htmlFor="clinic">Clinic / Hospital Name</Label>
@@ -99,9 +135,10 @@ export function DoctorProfileForm() {
               rows={4}
             />
           </div>
+           <p className="text-xs text-muted-foreground">* Required fields</p>
         </CardContent>
         <CardFooter>
-            <SubmitButton />
+          <SubmitButton />
         </CardFooter>
       </form>
     </Card>

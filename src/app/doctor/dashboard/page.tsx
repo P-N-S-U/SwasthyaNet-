@@ -1,29 +1,52 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
-import { Loader2, Calendar, Users, Briefcase } from 'lucide-react';
+import {
+  Loader2,
+  Calendar,
+  Users,
+  Briefcase,
+  AlertTriangle,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { AppointmentsChart } from '@/components/doctor/AppointmentsChart';
 import { RecentPatients } from '@/components/doctor/RecentPatients';
+import { getUserProfile } from '@/lib/firebase/firestore';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function DoctorDashboardPage() {
   const { user, loading } = useAuthState();
   const router = useRouter();
+  const [profile, setProfile] = useState<any>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/auth');
     }
+    if (user) {
+      getUserProfile(user.uid).then(userProfile => {
+        setProfile(userProfile);
+        setProfileLoading(false);
+      });
+    }
   }, [user, loading, router]);
 
-  if (loading || !user) {
+  const isProfileComplete =
+    profile &&
+    profile.specialization &&
+    profile.qualifications &&
+    profile.experience &&
+    profile.consultationFee;
+
+  if (loading || !user || profileLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -45,8 +68,26 @@ export default function DoctorDashboardPage() {
             </p>
           </div>
 
+          {!isProfileComplete && (
+            <Alert variant="destructive" className="mb-8 border-amber-500/50 text-amber-400 [&>svg]:text-amber-400">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle className="font-bold">
+                Complete Your Profile to Unlock All Features
+              </AlertTitle>
+              <AlertDescription>
+                Please provide your professional details to start accepting
+                appointments.
+                <Button asChild size="sm" className="ml-4">
+                  <Link href="/profile">Go to Profile</Link>
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-            <Card className="border-border/30 bg-background">
+            <Card
+              className={`border-border/30 bg-background ${!isProfileComplete && 'opacity-50'}`}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   Upcoming Appointments
@@ -58,7 +99,7 @@ export default function DoctorDashboardPage() {
                 <p className="text-xs text-muted-foreground">
                   +2 from last week
                 </p>
-                <Button asChild size="sm" className="mt-4">
+                <Button asChild size="sm" className="mt-4" disabled={!isProfileComplete}>
                   <Link href="/doctor/schedule">View Schedule</Link>
                 </Button>
               </CardContent>
@@ -90,9 +131,11 @@ export default function DoctorDashboardPage() {
                 <Briefcase className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">Cardiology</div>
+                <div className="text-xl font-bold">
+                  {profile?.specialization || 'Not Set'}
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  General Hospital
+                  {profile?.clinic || 'General Hospital'}
                 </p>
                 <Button asChild size="sm" variant="outline" className="mt-4">
                   <Link href="/profile">Edit Profile</Link>
@@ -102,7 +145,7 @@ export default function DoctorDashboardPage() {
           </div>
 
           <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-5">
-            <Card className="col-span-1 lg:col-span-3">
+            <Card className={`col-span-1 lg:col-span-3 ${!isProfileComplete && 'opacity-50'}`}>
               <CardHeader>
                 <CardTitle>Weekly Appointments</CardTitle>
               </CardHeader>
