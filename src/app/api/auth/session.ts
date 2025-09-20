@@ -1,3 +1,4 @@
+
 // /src/app/api/auth/session.ts
 import { NextResponse } from 'next/server';
 import { createSessionCookie, clearSessionCookie, getSession } from '@/lib/firebase/server-auth';
