@@ -49,7 +49,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
     const joinCall = async () => {
       try {
         await answerCall(params.id);
-        setCallStatus('Connected');
+        // setCallStatus is handled by onCallConnected callback
       } catch (error) {
         console.error('Error joining call:', error);
         toast({

@@ -7,10 +7,10 @@ import {
   onSnapshot,
   updateDoc,
   deleteDoc,
-  getDocs,
-  query,
-  where,
+  getDoc,
+  setDoc,
   writeBatch,
+  getDocs,
 } from 'firebase/firestore';
 
 const servers = {
@@ -47,32 +47,32 @@ export const registerEventHandlers = (
 };
 
 const setupStreams = async () => {
-  localStream = await navigator.mediaDevices.getUserMedia({
-    video: true,
-    audio: true,
-  });
-  remoteStream = new MediaStream();
-
-  localStream.getTracks().forEach(track => {
-    pc.addTrack(track, localStream!);
-  });
-
-  pc.ontrack = event => {
-    event.streams[0].getTracks().forEach(track => {
-      remoteStream!.addTrack(track);
+    pc = new RTCPeerConnection(servers);
+    localStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
     });
-  };
+    remoteStream = new MediaStream();
 
-  if (localVideoRef?.current) {
-    localVideoRef.current.srcObject = localStream;
-  }
-  if (remoteVideoRef?.current) {
-    remoteVideoRef.current.srcObject = remoteStream;
-  }
+    localStream.getTracks().forEach(track => {
+        pc.addTrack(track, localStream!);
+    });
+
+    pc.ontrack = event => {
+        event.streams[0].getTracks().forEach(track => {
+            remoteStream!.addTrack(track);
+        });
+    };
+
+    if (localVideoRef?.current) {
+        localVideoRef.current.srcObject = localStream;
+    }
+    if (remoteVideoRef?.current) {
+        remoteVideoRef.current.srcObject = remoteStream;
+    }
 };
 
 export const createCall = async (callId: string) => {
-  pc = new RTCPeerConnection(servers);
   await setupStreams();
 
   const callDoc = doc(db, 'calls', callId);
@@ -91,7 +91,7 @@ export const createCall = async (callId: string) => {
     type: offerDescription.type,
   };
 
-  await updateDoc(callDoc, { offer, id: callId }, { merge: true });
+  await setDoc(callDoc, { offer, id: callId });
 
   onSnapshot(callDoc, snapshot => {
     const data = snapshot.data();
@@ -115,7 +115,6 @@ export const createCall = async (callId: string) => {
 };
 
 export const answerCall = async (callId: string) => {
-  pc = new RTCPeerConnection(servers);
   await setupStreams();
 
   const callDoc = doc(db, 'calls', callId);
@@ -126,10 +125,14 @@ export const answerCall = async (callId: string) => {
     event.candidate && addDoc(answerCandidates, event.candidate.toJSON());
   };
 
-  const callData = (await (await getDocs(query(collection(db, 'calls'), where('id', '==', callId)))).docs[0].data());
+  const callSnap = await getDoc(callDoc);
+  const callData = callSnap.data();
 
-  const offerDescription = callData.offer;
-  await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
+  if(callData?.offer) {
+    const offerDescription = callData.offer;
+    await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
+  }
+
 
   const answerDescription = await pc.createAnswer();
   await pc.setLocalDescription(answerDescription);
@@ -160,21 +163,28 @@ export const hangup = async (callId: string) => {
     localStream.getTracks().forEach(track => track.stop());
   }
 
-  const callDoc = doc(db, 'calls', callId);
-  const offerCandidates = collection(callDoc, 'offerCandidates');
-  const answerCandidates = collection(callDoc, 'answerCandidates');
+  try {
+    const callDoc = doc(db, 'calls', callId);
+    if ((await getDoc(callDoc)).exists()){
+        const offerCandidates = collection(callDoc, 'offerCandidates');
+        const answerCandidates = collection(callDoc, 'answerCandidates');
+    
+        const batch = writeBatch(db);
+    
+        const offerCandidatesSnapshot = await getDocs(offerCandidates);
+        offerCandidatesSnapshot.forEach(doc => batch.delete(doc.ref));
+    
+        const answerCandidatesSnapshot = await getDocs(answerCandidates);
+        answerCandidatesSnapshot.forEach(doc => batch.delete(doc.ref));
+    
+        batch.delete(callDoc);
+    
+        await batch.commit();
+    }
+  } catch (error) {
+      console.error("Error hanging up call:", error);
+  }
 
-  const batch = writeBatch(db);
-
-  const offerCandidatesSnapshot = await getDocs(offerCandidates);
-  offerCandidatesSnapshot.forEach(doc => batch.delete(doc.ref));
-
-  const answerCandidatesSnapshot = await getDocs(answerCandidates);
-  answerCandidatesSnapshot.forEach(doc => batch.delete(doc.ref));
-
-  batch.delete(callDoc);
-
-  await batch.commit();
 
   localStream = null;
   remoteStream = null;

@@ -51,7 +51,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
     const startCall = async () => {
       try {
         await createCall(params.id);
-        setCallStatus('Waiting for doctor...');
+        // setCallStatus is handled by onCallCreated callback
       } catch (error) {
         console.error('Error starting call:', error);
         toast({
