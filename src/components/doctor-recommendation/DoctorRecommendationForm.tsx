@@ -4,12 +4,14 @@
 import { useActionState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { getDoctorRecommendations } from '@/app/find-a-doctor/actions';
+import { bookAppointment } from '@/app/actions/appointments';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, Search, User, Stethoscope } from 'lucide-react';
+import { Loader2, Search, User, Stethoscope, CalendarPlus } from 'lucide-react';
 import { Badge } from '../ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 const initialState = {
   data: null,
@@ -31,6 +33,46 @@ function SubmitButton() {
       )}
       Find Doctors
     </Button>
+  );
+}
+
+function BookAppointmentButton({ doctorId }: { doctorId: string }) {
+  const { pending } = useFormStatus();
+  const { toast } = useToast();
+
+  const handleBookAppointment = async (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append('doctorId', doctorId);
+    
+    const result = await bookAppointment(null, formData);
+
+    if (result.error) {
+      toast({
+        title: 'Booking Failed',
+        description: result.error,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Success!',
+        description: 'Appointment booked successfully.',
+      });
+    }
+  };
+
+  return (
+    <form onSubmit={handleBookAppointment}>
+      <input type="hidden" name="doctorId" value={doctorId} />
+      <Button variant="outline" size="sm" type="submit" disabled={pending}>
+        {pending ? (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        ) : (
+          <CalendarPlus className="mr-2 h-4 w-4" />
+        )}
+        Book Appointment
+      </Button>
+    </form>
   );
 }
 
@@ -106,9 +148,7 @@ export function DoctorRecommendationForm() {
                        <Badge variant="outline" className="ml-2">{doctor.specialization}</Badge>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm">
-                    Book Appointment
-                  </Button>
+                  <BookAppointmentButton doctorId={doctor.id} />
                 </li>
               ))}
             </ul>

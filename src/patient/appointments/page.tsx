@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
 import { Header } from '@/components/landing/Header';
@@ -24,51 +24,72 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 import Link from 'next/link';
-import {
-  collection,
-  query,
-  where,
-  onSnapshot,
-  orderBy,
-  Timestamp,
-} from 'firebase/firestore';
-import { db } from '@/lib/firebase/firebase';
 
-interface Appointment {
-  id: string;
-  doctorName: string;
-  doctorSpecialization: string;
-  appointmentDate: Timestamp;
-  status: 'Confirmed' | 'Completed' | 'Cancelled';
-}
+const upcomingAppointments = [
+  {
+    id: 'appt-123',
+    doctor: 'Dr. Anjali Rao',
+    specialty: 'Cardiologist',
+    date: 'August 15, 2024',
+    time: '11:00 AM',
+    status: 'Confirmed',
+  },
+];
 
-const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
-  const appointmentDate = appointment.appointmentDate.toDate();
-  const date = appointmentDate.toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-  const time = appointmentDate.toLocaleTimeString(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+const pastAppointments = [
+  {
+    id: 'appt-456',
+    doctor: 'Dr. Vikram Singh',
+    specialty: 'Dermatologist',
+    date: 'July 22, 2024',
+    time: '02:30 PM',
+    status: 'Completed',
+  },
+  {
+    id: 'appt-789',
+    doctor: 'Dr. Anjali Rao',
+    specialty: 'Cardiologist',
+    date: 'June 18, 2024',
+    time: '10:00 AM',
+    status: 'Completed',
+  },
+];
 
-  return (
+export default function AppointmentsPage() {
+  const { user, loading } = useAuthState();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/auth');
+    }
+  }, [user, loading, router]);
+
+  if (loading || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const AppointmentCard = ({ appointment }) => (
     <Card className="border-border/30 bg-background">
       <CardHeader>
         <div className="flex items-start justify-between">
           <div>
             <CardTitle className="font-headline text-xl">
-              {appointment.doctorName}
+              {appointment.doctor}
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              {appointment.doctorSpecialization}
+              {appointment.specialty}
             </p>
           </div>
           <Badge
             variant={
-              appointment.status === 'Confirmed' ? 'default' : 'secondary'
+              appointment.status === 'Confirmed'
+                ? 'default'
+                : 'secondary'
             }
           >
             {appointment.status}
@@ -79,11 +100,11 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
         <div className="flex items-center gap-4 text-sm text-foreground/80">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-primary" />
-            <span>{date}</span>
+            <span>{appointment.date}</span>
           </div>
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4 text-primary" />
-            <span>{time}</span>
+            <span>{appointment.time}</span>
           </div>
         </div>
         {appointment.status === 'Confirmed' && (
@@ -111,56 +132,6 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
       </CardContent>
     </Card>
   );
-};
-
-export default function AppointmentsPage() {
-  const { user, loading } = useAuthState();
-  const router = useRouter();
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [appointmentsLoading, setAppointmentsLoading] = useState(true);
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/auth');
-      return;
-    }
-
-    if (user) {
-      const appointmentsRef = collection(db, 'appointments');
-      const q = query(
-        appointmentsRef,
-        where('patientId', '==', user.uid),
-        orderBy('appointmentDate', 'desc')
-      );
-
-      const unsubscribe = onSnapshot(q, snapshot => {
-        const appts = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Appointment[];
-        setAppointments(appts);
-        setAppointmentsLoading(false);
-      });
-
-      return () => unsubscribe();
-    }
-  }, [user, loading, router]);
-
-  if (loading || !user || appointmentsLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  const now = new Date();
-  const upcomingAppointments = appointments.filter(
-    appt => appt.appointmentDate.toDate() >= now
-  );
-  const pastAppointments = appointments.filter(
-    appt => appt.appointmentDate.toDate() < now
-  );
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -182,8 +153,8 @@ export default function AppointmentsPage() {
             <TabsContent value="upcoming">
               <div className="space-y-6">
                 {upcomingAppointments.length > 0 ? (
-                  upcomingAppointments.map((appt) => (
-                    <AppointmentCard key={appt.id} appointment={appt} />
+                  upcomingAppointments.map((appt, index) => (
+                    <AppointmentCard key={index} appointment={appt} />
                   ))
                 ) : (
                   <Card className="flex h-40 flex-col items-center justify-center border-dashed">
@@ -191,7 +162,7 @@ export default function AppointmentsPage() {
                       You have no upcoming appointments.
                     </p>
                     <Button asChild variant="link">
-                      <Link href="/find-a-doctor">Book an Appointment</Link>
+                      <a href="/find-a-doctor">Book an Appointment</a>
                     </Button>
                   </Card>
                 )}
@@ -200,8 +171,8 @@ export default function AppointmentsPage() {
             <TabsContent value="past">
               <div className="space-y-6">
                 {pastAppointments.length > 0 ? (
-                  pastAppointments.map((appt) => (
-                    <AppointmentCard key={appt.id} appointment={appt} />
+                  pastAppointments.map((appt, index) => (
+                    <AppointmentCard key={index} appointment={appt} />
                   ))
                 ) : (
                    <Card className="flex h-40 items-center justify-center border-dashed">
