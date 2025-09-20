@@ -123,6 +123,8 @@ export async function completeSignInWithLink(link: string) {
     await createUserInFirestore(user, { role: 'patient' });
     await createSessionCookie(user);
 
+
+
     return { user, error: null };
   } catch (error) {
     console.error('[testing log] [auth.ts] Error completing sign-in with link:', error);
@@ -162,8 +164,8 @@ export async function signOut() {
     }
     console.log('[testing log] [auth.ts] Server session cleared successfully.');
     return { success: true, error: null };
-  } catch (error) {
-    console.error('[testing log] Error signing out:', error);
+  } catch (error: any) {
+    console.error('[testing log] Error signing out:', error.message, error);
     return { success: false, error };
   }
 }
