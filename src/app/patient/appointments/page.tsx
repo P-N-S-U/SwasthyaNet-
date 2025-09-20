@@ -29,7 +29,6 @@ import {
   query,
   where,
   onSnapshot,
-  orderBy,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
@@ -129,8 +128,7 @@ export default function AppointmentsPage() {
       const appointmentsRef = collection(db, 'appointments');
       const q = query(
         appointmentsRef,
-        where('patientId', '==', user.uid),
-        orderBy('appointmentDate', 'desc')
+        where('patientId', '==', user.uid)
       );
 
       const unsubscribe = onSnapshot(q, snapshot => {
@@ -138,6 +136,10 @@ export default function AppointmentsPage() {
           id: doc.id,
           ...doc.data(),
         })) as Appointment[];
+        
+        // Sort appointments by date descending
+        appts.sort((a, b) => b.appointmentDate.toDate().getTime() - a.appointmentDate.toDate().getTime());
+        
         setAppointments(appts);
         setAppointmentsLoading(false);
       });
