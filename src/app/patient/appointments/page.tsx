@@ -23,9 +23,11 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
+import Link from 'next/link';
 
 const upcomingAppointments = [
   {
+    id: 'appt-123',
     doctor: 'Dr. Anjali Rao',
     specialty: 'Cardiologist',
     date: 'August 15, 2024',
@@ -36,6 +38,7 @@ const upcomingAppointments = [
 
 const pastAppointments = [
   {
+    id: 'appt-456',
     doctor: 'Dr. Vikram Singh',
     specialty: 'Dermatologist',
     date: 'July 22, 2024',
@@ -43,6 +46,7 @@ const pastAppointments = [
     status: 'Completed',
   },
   {
+    id: 'appt-789',
     doctor: 'Dr. Anjali Rao',
     specialty: 'Cardiologist',
     date: 'June 18, 2024',
@@ -105,8 +109,10 @@ export default function AppointmentsPage() {
         </div>
         {appointment.status === 'Confirmed' && (
           <div className="flex gap-2">
-            <Button size="sm">
-              <Video className="mr-2 h-4 w-4" /> Join Video Call
+            <Button asChild size="sm">
+              <Link href={`/patient/video/${appointment.id}`}>
+                <Video className="mr-2 h-4 w-4" /> Join Video Call
+              </Link>
             </Button>
             <Button size="sm" variant="outline">
               Reschedule
