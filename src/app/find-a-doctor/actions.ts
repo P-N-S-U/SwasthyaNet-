@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, query, where, getDocs, or } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 
 export async function getDoctorRecommendations(
@@ -19,31 +19,24 @@ export async function getDoctorRecommendations(
 
   try {
     const usersRef = collection(db, 'users');
-    const q = query(
-      usersRef,
-      where('role', '==', 'doctor'),
-      or(
-        where('displayName', '>=', searchQuery),
-        where('displayName', '<=', searchQuery + '\uf8ff'),
-        where('specialization', '==', searchQuery)
-      )
-    );
+    // Query for all documents where the user is a doctor
+    const q = query(usersRef, where('role', '==', 'doctor'));
 
     const querySnapshot = await getDocs(q);
     const doctors = querySnapshot.docs.map(doc => {
         const data = doc.data();
         return {
             id: doc.id,
-            name: data.displayName,
+            name: data.displayName || 'No Name',
             specialization: data.specialization || 'Not specified'
         }
     });
     
-    // Manual filtering for case-insensitivity on name
+    // Perform a case-insensitive manual filter on the results
     const lowerCaseQuery = searchQuery.toLowerCase();
     const filteredDoctors = doctors.filter(doctor => 
-        doctor.name.toLowerCase().includes(lowerCaseQuery) || 
-        doctor.specialization.toLowerCase() === lowerCaseQuery
+        (doctor.name.toLowerCase().includes(lowerCaseQuery)) || 
+        (doctor.specialization.toLowerCase().includes(lowerCaseQuery))
     );
 
     return { data: { doctors: filteredDoctors }, error: null };
