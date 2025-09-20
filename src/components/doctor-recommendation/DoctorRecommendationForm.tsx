@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Search, User, Stethoscope } from 'lucide-react';
+import { Badge } from '../ui/badge';
 
 const initialState = {
   data: null,
@@ -85,22 +86,25 @@ export function DoctorRecommendationForm() {
             <div className="flex items-center gap-3">
               <Stethoscope className="h-6 w-6 text-primary" />
               <CardTitle className="font-headline text-2xl">
-                Recommended Doctors
+                Search Results
               </CardTitle>
             </div>
           </CardHeader>
           <CardContent>
             <ul className="space-y-4">
-              {state.data.doctors.map((doctor, index) => (
+              {state.data.doctors.map((doctor) => (
                 <li
-                  key={index}
+                  key={doctor.id}
                   className="flex items-center justify-between rounded-lg border border-border/50 bg-background/50 p-4"
                 >
                   <div className="flex items-center gap-4">
                     <div className="rounded-full bg-primary/10 p-2">
                       <User className="h-5 w-5 text-primary" />
                     </div>
-                    <span className="font-medium">{doctor}</span>
+                    <div>
+                      <span className="font-medium">{doctor.name}</span>
+                       <Badge variant="outline" className="ml-2">{doctor.specialization}</Badge>
+                    </div>
                   </div>
                   <Button variant="outline" size="sm">
                     Book Appointment
