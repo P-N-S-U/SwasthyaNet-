@@ -39,16 +39,23 @@ async function createApiSession(user: User) {
     });
     
     console.log('[v3] [auth.ts] Session API response status:', response.status);
-    const responseBody = await response.json();
-    console.log('[v3] [auth.ts] Session API response body:', responseBody);
-
+    
     if (!response.ok) {
-      console.error('[v3] [auth.ts] Failed to create session, API response not OK.', responseBody.error);
-      throw new Error(responseBody.error || 'Failed to create session.');
+      let errorBody;
+      try {
+        errorBody = await response.json();
+      } catch (e) {
+        errorBody = { error: 'Failed to parse error response from server.' };
+      }
+      console.error('[v3] [auth.ts] Failed to create session, API response not OK.', errorBody.error);
+      throw new Error(errorBody.error || 'Failed to create session.');
     }
     
+    const responseBody = await response.json();
+    console.log('[v3] [auth.ts] Session API response body:', responseBody);
     console.log('[v3] [auth.ts] Session created successfully via API.');
     return { success: true };
+
   } catch (error: any) {
     console.error('[v3] [auth.ts] Error creating session:', error.message, error);
     return { success: false, error: 'Failed to establish a server session.' };
