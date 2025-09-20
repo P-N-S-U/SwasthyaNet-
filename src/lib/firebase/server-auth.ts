@@ -1,4 +1,3 @@
-
 // /src/lib/firebase/server-auth.ts
 import 'server-only';
 import { cookies } from 'next/headers';
