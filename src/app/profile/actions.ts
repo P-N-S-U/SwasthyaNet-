@@ -7,8 +7,10 @@ import { db } from '@/lib/firebase/firebase';
 import { getSession } from '@/lib/firebase/session';
 
 export async function updateProfile(prevState: any, formData: FormData) {
+  console.log('[testing log] updateProfile server action initiated.');
   const sessionResult = await getSession();
 
+  console.log('[testing log] updateProfile session result:', sessionResult);
   if (sessionResult.error) {
     return {
       error: sessionResult.error,
@@ -30,6 +32,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
   const photoURL = formData.get('photoURL') as string;
 
   try {
+    console.log(`[testing log] Updating profile for user: ${user.uid}`);
     const userRef = doc(db, 'users', user.uid);
     const dataToUpdate: { displayName?: string; photoURL?: string } = {};
     if (displayName) dataToUpdate.displayName = displayName;
@@ -39,10 +42,11 @@ export async function updateProfile(prevState: any, formData: FormData) {
         await updateDoc(userRef, dataToUpdate, { merge: true });
     }
 
+    console.log(`[testing log] Profile updated successfully for user: ${user.uid}`);
     revalidatePath('/profile');
     return { error: null, data: 'Profile updated successfully.' };
   } catch (error) {
-    console.error('Error updating profile:', error);
+    console.error('[testing log] Error updating profile:', error);
     return {
       error: 'Failed to update profile. Please try again.',
       data: null,
@@ -51,8 +55,10 @@ export async function updateProfile(prevState: any, formData: FormData) {
 }
 
 export async function updateDoctorProfile(prevState: any, formData: FormData) {
+  console.log('[testing log] updateDoctorProfile server action initiated.');
   const sessionResult = await getSession();
-  
+
+  console.log('[testing log] updateDoctorProfile session result:', sessionResult);
   if (sessionResult.error) {
     return {
       error: sessionResult.error,
@@ -77,6 +83,7 @@ export async function updateDoctorProfile(prevState: any, formData: FormData) {
   const consultationFee = formData.get('consultationFee') as string;
 
   try {
+    console.log(`[testing log] Updating DOCTOR profile for user: ${user.uid}`);
     const userRef = doc(db, 'users', user.uid);
     const dataToUpdate: {
         specialization?: string;
@@ -97,13 +104,14 @@ export async function updateDoctorProfile(prevState: any, formData: FormData) {
     if (Object.keys(dataToUpdate).length > 0) {
         await updateDoc(userRef, dataToUpdate, { merge: true });
     }
-
+    
+    console.log(`[testing log] DOCTOR profile updated successfully for user: ${user.uid}`);
     revalidatePath('/profile');
     revalidatePath('/doctor/dashboard');
     return { error: null, data: 'Professional profile updated successfully.' };
 
   } catch (error) {
-    console.error('Error updating doctor profile:', error);
+    console.error('[testing log] Error updating doctor profile:', error);
     return {
       error: 'Failed to update professional profile. Please try again.',
       data: null,

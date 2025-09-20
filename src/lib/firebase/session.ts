@@ -19,27 +19,27 @@ const isFirebaseAdminConfigured =
 let adminApp;
 let adminAuth: ReturnType<typeof getAuth>;
 
-console.log('[session.ts] Checking for Firebase Admin config...');
+console.log('[testing log] [session.ts] Checking for Firebase Admin config...');
 if (isFirebaseAdminConfigured) {
-  console.log('[session.ts] Firebase Admin config found. Initializing...');
+  console.log('[testing log] [session.ts] Firebase Admin config found. Initializing...');
   if (!getApps().length) {
     try {
       adminApp = initializeApp({
         credential: cert(serviceAccount),
       });
       adminAuth = getAuth(adminApp);
-      console.log('[session.ts] Firebase Admin SDK initialized successfully.');
+      console.log('[testing log] [session.ts] Firebase Admin SDK initialized successfully.');
     } catch (e: any) {
-      console.error('[session.ts] Firebase Admin SDK initialization failed:', e.message);
+      console.error('[testing log] [session.ts] Firebase Admin SDK initialization failed:', e.message);
       adminApp = null;
     }
   } else {
     adminApp = getApps()[0];
     adminAuth = getAuth(adminApp);
-    console.log('[session.ts] Using existing Firebase Admin app.');
+    console.log('[testing log] [session.ts] Using existing Firebase Admin app.');
   }
 } else {
-  console.warn('[session.ts] Firebase Admin config not found. Server-side authentication will be disabled.');
+  console.warn('[testing log] [session.ts] Firebase Admin config not found. Server-side authentication will be disabled.');
   adminApp = null;
 }
 
@@ -50,20 +50,28 @@ export { adminApp, adminAuth };
  * Returns the user object if the session is valid, otherwise returns null.
  */
 export async function getSession() {
+  console.log('[testing log] [session.ts] getSession called.');
   if (!isFirebaseAdminConfigured || !adminApp) {
-      return { user: null, error: "Server authentication not configured. Please check Firebase Admin setup." };
+      const errorMsg = "Server authentication not configured. Please check Firebase Admin setup.";
+      console.error(`[testing log] [session.ts] ${errorMsg}`);
+      return { user: null, error: errorMsg };
   }
 
   const sessionCookie = cookies().get('__session')?.value;
   if (!sessionCookie) {
-    return { user: null, error: "Session cookie not found. Please sign in." };
+    const errorMsg = "Session cookie not found. Please sign in.";
+    console.log(`[testing log] [session.ts] ${errorMsg}`);
+    return { user: null, error: errorMsg };
   }
+  console.log('[testing log] [session.ts] Found session cookie.');
 
   try {
+    console.log('[testing log] [session.ts] Verifying session cookie...');
     const decodedIdToken = await adminAuth.verifySessionCookie(sessionCookie, true);
+    console.log(`[testing log] [session.ts] Session cookie verified successfully for UID: ${decodedIdToken.uid}`);
     return { user: decodedIdToken, error: null };
   } catch (error: any) {
-    console.error("Error verifying session cookie:", error.message);
+    console.error("[testing log] [session.ts] Error verifying session cookie:", error.code, error.message);
     let errorMessage = 'Invalid or expired session. Please sign out and sign back in.';
     if (error.code === 'auth/session-cookie-expired') {
         errorMessage = 'Your session has expired. Please sign out and sign back in.';

@@ -24,11 +24,12 @@ const actionCodeSettings = {
 };
 
 async function createSessionCookie(user: User) {
-  console.log('[auth.ts] Attempting to create session cookie for user:', user.uid);
+  console.log('[testing log] [auth.ts] Attempting to create session cookie for user:', user.uid);
   try {
     const idToken = await user.getIdToken(true);
-    console.log('[auth.ts] ID token retrieved successfully.');
+    console.log('[testing log] [auth.ts] ID token retrieved successfully.');
 
+    console.log('[testing log] [auth.ts] Sending ID token to session API...');
     const response = await fetch('/api/auth/session', {
       method: 'POST',
       headers: {
@@ -37,18 +38,18 @@ async function createSessionCookie(user: User) {
       body: JSON.stringify({ idToken }),
     });
     
-    console.log('[auth.ts] Session API response status:', response.status);
+    console.log('[testing log] [auth.ts] Session API response status:', response.status);
     const responseBody = await response.json();
-    console.log('[auth.ts] Session API response body:', responseBody);
+    console.log('[testing log] [auth.ts] Session API response body:', responseBody);
 
     if (!response.ok) {
       throw new Error(responseBody.error || 'Failed to create session cookie.');
     }
     
-    console.log('[auth.ts] Session cookie created successfully via API.');
+    console.log('[testing log] [auth.ts] Session cookie created successfully via API.');
     return { success: true };
-  } catch (error) {
-    console.error('[auth.ts] Error creating session cookie:', error);
+  } catch (error: any) {
+    console.error('[testing log] [auth.ts] Error creating session cookie:', error.message, error);
     // This error is client-side, so we don't want to expose too much.
     // The detailed error is logged to the console.
     return { success: false, error: 'Failed to establish a server session.' };
@@ -145,16 +146,19 @@ export async function signInWithGoogle() {
 export async function signOut() {
   try {
     await firebaseSignOut(auth);
+     console.log('[testing log] [auth.ts] Client-side sign out complete. Clearing server session...');
      const response = await fetch('/api/auth/session', {
       method: 'DELETE',
     });
+     console.log('[testing log] [auth.ts] Server session clear response status:', response.status);
     if (!response.ok) {
       const responseBody = await response.json();
       throw new Error(responseBody.error || 'Failed to clear session.');
     }
+    console.log('[testing log] [auth.ts] Server session cleared successfully.');
     return { success: true, error: null };
   } catch (error) {
-    console.error('Error signing out:', error);
+    console.error('[testing log] Error signing out:', error);
     return { success: false, error };
   }
 }
