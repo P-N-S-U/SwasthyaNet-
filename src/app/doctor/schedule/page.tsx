@@ -15,6 +15,7 @@ import {
   where,
   onSnapshot,
   Timestamp,
+  orderBy,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 
@@ -41,7 +42,8 @@ export default function SchedulePage() {
       const appointmentsRef = collection(db, 'appointments');
       const q = query(
         appointmentsRef,
-        where('doctorId', '==', user.uid)
+        where('doctorId', '==', user.uid),
+        orderBy('appointmentDate', 'asc')
       );
 
       const unsubscribe = onSnapshot(q, snapshot => {
@@ -49,12 +51,11 @@ export default function SchedulePage() {
           id: doc.id,
           ...doc.data(),
         })) as Appointment[];
-        
-        // Sort appointments by date ascending
-        appts.sort((a, b) => a.appointmentDate.toDate().getTime() - b.appointmentDate.toDate().getTime());
-        
         setAppointments(appts);
         setAppointmentsLoading(false);
+      }, (error) => {
+          console.error("Error fetching appointments: ", error);
+          setAppointmentsLoading(false);
       });
 
       return () => unsubscribe();
@@ -69,7 +70,7 @@ export default function SchedulePage() {
     );
   }
 
-  const isSameDay = (d1, d2) => {
+  const isSameDay = (d1: Date, d2: Date) => {
     return d1.getFullYear() === d2.getFullYear() &&
            d1.getMonth() === d2.getMonth() &&
            d1.getDate() === d2.getDate();
