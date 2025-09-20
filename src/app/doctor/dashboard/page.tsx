@@ -12,6 +12,7 @@ import {
   Users,
   Briefcase,
   AlertTriangle,
+  Video,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
@@ -20,6 +21,15 @@ import { AppointmentsChart } from '@/components/doctor/AppointmentsChart';
 import { RecentPatients } from '@/components/doctor/RecentPatients';
 import { getUserProfile } from '@/lib/firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
+// Sample data for active calls
+const activeCalls = [
+  {
+    id: 'appt-123',
+    patientName: 'Rohan Kumar',
+    time: '11:00 AM',
+  },
+];
 
 export default function DoctorDashboardPage() {
   const { user, loading } = useAuthState();
@@ -83,6 +93,43 @@ export default function DoctorDashboardPage() {
               </AlertDescription>
             </Alert>
           )}
+
+          <div className="mb-8">
+            <Card className="border-border/30 bg-background">
+              <CardHeader>
+                <CardTitle>Active Video Calls</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {activeCalls.length > 0 ? (
+                  <div className="space-y-4">
+                    {activeCalls.map(call => (
+                      <div
+                        key={call.id}
+                        className="flex items-center justify-between rounded-lg bg-secondary/50 p-4"
+                      >
+                        <div>
+                          <p className="font-semibold">
+                            Call with {call.patientName}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            Scheduled for {call.time}
+                          </p>
+                        </div>
+                        <Button asChild size="sm" disabled={!isProfileComplete}>
+                           <Link href={`/doctor/video/${call.id}`}>
+                            <Video className="mr-2 h-4 w-4" /> Join Call
+                          </Link>
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No active calls right now.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
             <Card

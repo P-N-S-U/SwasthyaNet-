@@ -8,30 +8,28 @@ import {
   PhoneOff,
   Video,
   VideoOff,
-  AlertTriangle,
   Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card } from '@/components/ui/card';
 import {
-  createCall,
+  answerCall,
   pc,
   hangup,
   registerEventHandlers,
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
 
-export default function VideoCallPage({ params }: { params: { id: string } }) {
+export default function DoctorVideoCallPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
-  const [callStatus, setCallStatus] = useState('Initializing...');
+  const [callStatus, setCallStatus] = useState('Joining call...');
   const { user, loading } = useAuthState();
 
   useEffect(() => {
@@ -40,31 +38,30 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
     registerEventHandlers(
       localVideoRef,
       remoteVideoRef,
-      () => setCallStatus('Waiting for doctor to join...'),
+      () => {}, // Doctors don't create calls
       () => setCallStatus('Connected'),
       () => {
         toast({ title: 'Call Ended' });
-        router.push('/patient/appointments');
+        router.push('/doctor/dashboard');
       }
     );
 
-    const startCall = async () => {
+    const joinCall = async () => {
       try {
-        await createCall(params.id);
-        setCallStatus('Waiting for doctor...');
+        await answerCall(params.id);
+        setCallStatus('Connected');
       } catch (error) {
-        console.error('Error starting call:', error);
+        console.error('Error joining call:', error);
         toast({
           variant: 'destructive',
-          title: 'Call Failed',
-          description:
-            'Could not start the video call. Please check permissions and try again.',
+          title: 'Join Failed',
+          description: 'Could not join the video call. It may have ended or there was an error.',
         });
-        setCallStatus('Call failed');
+        setCallStatus('Failed to join');
       }
     };
 
-    startCall();
+    joinCall();
 
     return () => {
       hangup(params.id);
@@ -95,14 +92,14 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
 
   const endCall = () => {
     hangup(params.id);
-    router.push('/patient/appointments');
+    router.push('/doctor/dashboard');
   };
 
   if (loading) {
-    return (
+     return (
       <div className="flex h-screen flex-col items-center justify-center bg-black text-white">
          <Loader2 className="h-12 w-12 animate-spin text-primary" />
-         <p className="mt-4">Loading user information...</p>
+         <p className="mt-4">Authenticating...</p>
       </div>
     );
   }
@@ -119,9 +116,9 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
             playsInline
           />
           <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-sm">
-            Doctor
+            Patient
           </div>
-          {callStatus !== 'Connected' && (
+           {callStatus !== 'Connected' && (
              <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-background/80">
                <Loader2 className="h-8 w-8 animate-spin" />
                <p className="mt-2">{callStatus}</p>
@@ -139,7 +136,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
             muted
           />
           <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-sm">
-            You
+            You (Doctor)
           </div>
         </div>
       </div>

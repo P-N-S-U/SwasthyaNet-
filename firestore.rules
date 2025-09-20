@@ -1,0 +1,29 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Allow users to read and write their own user document
+    match /users/{userId} {
+      allow read, write: if request.auth.uid == userId;
+    }
+
+    // Rules for video call signaling
+    match /calls/{callId} {
+      // For now, allow any authenticated user to create a call document
+      // In a real app, you'd restrict this to only the patient involved in the appointment
+      allow create: if request.auth != null;
+
+      // Allow read/write/delete if the user is authenticated.
+      // A more robust rule would check if the user is either the patient or doctor for this specific callId (appointment ID).
+      // This would require storing participant UIDs in the appointment data.
+      allow read, update, delete: if request.auth != null;
+
+      // Allow authenticated users to manage candidates
+      match /{document=**} {
+        allow read, write: if request.auth != null;
+      }
+    }
+  }
+}
