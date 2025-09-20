@@ -24,10 +24,10 @@ const actionCodeSettings = {
 };
 
 async function createSessionCookie(user: User) {
-  console.log('Attempting to create session cookie for user:', user.uid);
+  console.log('[auth.ts] Attempting to create session cookie for user:', user.uid);
   try {
     const idToken = await user.getIdToken(true);
-    console.log('ID token retrieved successfully.');
+    console.log('[auth.ts] ID token retrieved successfully.');
 
     const response = await fetch('/api/auth/session', {
       method: 'POST',
@@ -36,21 +36,22 @@ async function createSessionCookie(user: User) {
       },
       body: JSON.stringify({ idToken }),
     });
-
-    console.log('Session API response status:', response.status);
+    
+    console.log('[auth.ts] Session API response status:', response.status);
     const responseBody = await response.json();
-    console.log('Session API response body:', responseBody);
-
+    console.log('[auth.ts] Session API response body:', responseBody);
 
     if (!response.ok) {
       throw new Error(responseBody.error || 'Failed to create session cookie.');
     }
     
-    console.log('Session cookie created successfully.');
+    console.log('[auth.ts] Session cookie created successfully via API.');
     return { success: true };
   } catch (error) {
-    console.error('Error creating session cookie:', error);
-    return { success: false, error: (error as Error).message };
+    console.error('[auth.ts] Error creating session cookie:', error);
+    // This error is client-side, so we don't want to expose too much.
+    // The detailed error is logged to the console.
+    return { success: false, error: 'Failed to establish a server session.' };
   }
 }
 
@@ -63,12 +64,10 @@ export async function signUpWithEmail(email, password, additionalData) {
     );
     const user = userCredential.user;
 
-    // Update Firebase Auth profile
     await updateProfile(user, {
       displayName: additionalData.displayName,
     });
 
-    // Create user document in Firestore
     await createUserInFirestore(user, additionalData);
     await createSessionCookie(user);
 
@@ -95,8 +94,6 @@ export async function signInWithEmail(email, password) {
 export async function sendSignInLink(email: string) {
   try {
     await sendSignInLinkToEmail(auth, email, actionCodeSettings);
-    // Save the email locally so you don't need to ask the user for it again
-    // on the same device.
     window.localStorage.setItem('emailForSignIn', email);
     return { error: null };
   } catch (error) {
@@ -112,9 +109,6 @@ export async function completeSignInWithLink(link: string) {
   try {
     let email = window.localStorage.getItem('emailForSignIn');
     if (!email) {
-      // User opened the link on a different device. To prevent session fixation
-      // attacks, ask the user to provide the email again. For simplicity,
-      // we'll throw an error here. A real app might prompt for it.
       throw new Error(
         'Email not found. Please try signing in on the same device.'
       );
@@ -123,7 +117,6 @@ export async function completeSignInWithLink(link: string) {
     window.localStorage.removeItem('emailForSignIn');
 
     const user = userCredential.user;
-    // For passwordless sign-in, we need to handle user creation in Firestore if it's their first time.
     await createUserInFirestore(user, { role: 'patient' });
     await createSessionCookie(user);
 
@@ -139,8 +132,6 @@ export async function signInWithGoogle() {
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
 
-    // For Google sign-in, we'll default the role to 'patient'.
-    // A more sophisticated app might ask for the role after sign-up.
     const additionalData = { role: 'patient' };
     await createUserInFirestore(user, additionalData);
     await createSessionCookie(user);
