@@ -23,6 +23,36 @@ const actionCodeSettings = {
   handleCodeInApp: true,
 };
 
+async function createSessionCookie(user: User) {
+  console.log('Attempting to create session cookie for user:', user.uid);
+  try {
+    const idToken = await user.getIdToken(true);
+    console.log('ID token retrieved successfully.');
+
+    const response = await fetch('/api/auth/session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ idToken }),
+    });
+
+    console.log('Session API response status:', response.status);
+    const responseBody = await response.json();
+    console.log('Session API response body:', responseBody);
+
+
+    if (!response.ok) {
+      throw new Error(responseBody.error || 'Failed to create session cookie.');
+    }
+    
+    console.log('Session cookie created successfully.');
+    return { success: true };
+  } catch (error) {
+    console.error('Error creating session cookie:', error);
+    return { success: false, error: (error as Error).message };
+  }
+}
 
 export async function signUpWithEmail(email, password, additionalData) {
   try {
@@ -40,6 +70,7 @@ export async function signUpWithEmail(email, password, additionalData) {
 
     // Create user document in Firestore
     await createUserInFirestore(user, additionalData);
+    await createSessionCookie(user);
 
     return { user, error: null };
   } catch (error) {
@@ -54,6 +85,7 @@ export async function signInWithEmail(email, password) {
       email,
       password
     );
+    await createSessionCookie(userCredential.user);
     return { user: userCredential.user, error: null };
   } catch (error) {
     return { user: null, error };
@@ -93,6 +125,7 @@ export async function completeSignInWithLink(link: string) {
     const user = userCredential.user;
     // For passwordless sign-in, we need to handle user creation in Firestore if it's their first time.
     await createUserInFirestore(user, { role: 'patient' });
+    await createSessionCookie(user);
 
     return { user, error: null };
   } catch (error) {
@@ -110,6 +143,7 @@ export async function signInWithGoogle() {
     // A more sophisticated app might ask for the role after sign-up.
     const additionalData = { role: 'patient' };
     await createUserInFirestore(user, additionalData);
+    await createSessionCookie(user);
 
     return { user, error: null };
   } catch (error) {
@@ -120,8 +154,16 @@ export async function signInWithGoogle() {
 export async function signOut() {
   try {
     await firebaseSignOut(auth);
+     const response = await fetch('/api/auth/session', {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      const responseBody = await response.json();
+      throw new Error(responseBody.error || 'Failed to clear session.');
+    }
     return { success: true, error: null };
   } catch (error) {
+    console.error('Error signing out:', error);
     return { success: false, error };
   }
 }
