@@ -57,7 +57,8 @@ export async function GET() {
             return NextResponse.json({ user: session });
         }
         return NextResponse.json({ user: null }, { status: 401 });
-    } catch (error: any) {
+    } catch (error: any)
+{
         console.error('[v3] [/api/auth/session] GET error:', error.message, error);
         return NextResponse.json({ error: `Session check failed: ${error.message}` }, { status: 500 });
     }
