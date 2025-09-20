@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
 import { useFormStatus } from 'react-dom';
 import { getDoctorRecommendations } from '@/app/find-a-doctor/actions';
 import { bookAppointment } from '@/app/actions/appointments';
@@ -13,10 +13,16 @@ import { Loader2, Search, User, Stethoscope, CalendarPlus } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { useToast } from '@/hooks/use-toast';
 
-const initialState = {
+const initialSearchState = {
   data: null,
   error: null,
 };
+
+const initialBookState = {
+  data: null,
+  error: null,
+};
+
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -36,33 +42,29 @@ function SubmitButton() {
   );
 }
 
-function BookAppointmentButton({ doctorId }: { doctorId: string }) {
+function BookAppointmentForm({ doctorId }: { doctorId: string }) {
+  const [state, formAction] = useActionState(bookAppointment, initialBookState);
   const { pending } = useFormStatus();
   const { toast } = useToast();
 
-  const handleBookAppointment = async (e) => {
-    e.preventDefault();
-    const formData = new FormData();
-    formData.append('doctorId', doctorId);
-    
-    const result = await bookAppointment(null, formData);
-
-    if (result.error) {
+  useEffect(() => {
+    if (state.error) {
       toast({
         title: 'Booking Failed',
-        description: result.error,
+        description: state.error,
         variant: 'destructive',
       });
-    } else {
+    }
+    if (state.data) {
       toast({
         title: 'Success!',
         description: 'Appointment booked successfully.',
       });
     }
-  };
+  }, [state, toast]);
 
   return (
-    <form onSubmit={handleBookAppointment}>
+    <form action={formAction}>
       <input type="hidden" name="doctorId" value={doctorId} />
       <Button variant="outline" size="sm" type="submit" disabled={pending}>
         {pending ? (
@@ -79,7 +81,7 @@ function BookAppointmentButton({ doctorId }: { doctorId: string }) {
 export function DoctorRecommendationForm() {
   const [state, formAction] = useActionState(
     getDoctorRecommendations,
-    initialState
+    initialSearchState
   );
 
   return (
@@ -148,7 +150,7 @@ export function DoctorRecommendationForm() {
                        <Badge variant="outline" className="ml-2">{doctor.specialization}</Badge>
                     </div>
                   </div>
-                  <BookAppointmentButton doctorId={doctor.id} />
+                  <BookAppointmentForm doctorId={doctor.id} />
                 </li>
               ))}
             </ul>
