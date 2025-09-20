@@ -52,12 +52,12 @@ export default function PatientDashboardPage() {
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">No Upcoming</div>
+                <div className="text-2xl font-bold">1 Upcoming</div>
                 <p className="text-xs text-muted-foreground">
-                  You have no upcoming appointments.
+                  View your appointment history.
                 </p>
                 <Button asChild size="sm" className="mt-4">
-                  <Link href="/find-a-doctor">Book Now</Link>
+                  <Link href="/patient/appointments">View All</Link>
                 </Button>
               </CardContent>
             </Card>
