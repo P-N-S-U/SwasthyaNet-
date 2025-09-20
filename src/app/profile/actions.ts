@@ -10,7 +10,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
   const session = await getSession();
   if (!session) {
     return {
-      error: 'You must be logged in to update your profile.',
+      error: 'Authentication error: No active session found. Please sign out and sign back in.',
       data: null,
     };
   }
@@ -43,7 +43,7 @@ export async function updateDoctorProfile(prevState: any, formData: FormData) {
   const session = await getSession();
   if (!session) {
     return {
-      error: 'You must be logged in to update your profile.',
+      error: 'Authentication error: No active session found. Please sign out and sign back in.',
       data: null,
     };
   }
