@@ -8,8 +8,9 @@ export async function POST(request: Request) {
   console.log('[testing log] [/api/auth/session] POST endpoint hit.');
   
   if (!adminApp) {
-    console.error('[testing log] [/api/auth/session] Firebase Admin SDK is not initialized. Check server config.');
-    return NextResponse.json({ error: 'Server authentication not configured. Cannot create session.' }, { status: 500 });
+    const errorMsg = 'Server authentication not configured. Cannot create session.';
+    console.error('[testing log] [/api/auth/session] Firebase Admin SDK is not initialized. Check server config.', errorMsg);
+    return NextResponse.json({ error: errorMsg }, { status: 500 });
   }
 
   try {
@@ -39,7 +40,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('[testing log] [/api/auth/session] Error creating session cookie:', error.message);
+    console.error('[testing log] [/api/auth/session] Error creating session cookie:', error.message, error);
     return NextResponse.json({ error: `Failed to create session: ${error.message}` }, { status: 500 });
   }
 }
@@ -53,7 +54,7 @@ export async function DELETE() {
     console.log('[testing log] [/api/auth/session] Session cookie deleted.');
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('[testing log] [/api/auth/session] Error deleting session cookie:', error.message);
+    console.error('[testing log] [/api/auth/session] Error deleting session cookie:', error.message, error);
     return NextResponse.json({ error: `Failed to delete session: ${error.message}` }, { status: 500 });
   }
 }

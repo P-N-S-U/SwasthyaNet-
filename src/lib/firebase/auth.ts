@@ -43,6 +43,7 @@ async function createSessionCookie(user: User) {
     console.log('[testing log] [auth.ts] Session API response body:', responseBody);
 
     if (!response.ok) {
+      console.error('[testing log] [auth.ts] Failed to create session cookie, API response not OK.', responseBody.error);
       throw new Error(responseBody.error || 'Failed to create session cookie.');
     }
     
@@ -50,8 +51,6 @@ async function createSessionCookie(user: User) {
     return { success: true };
   } catch (error: any) {
     console.error('[testing log] [auth.ts] Error creating session cookie:', error.message, error);
-    // This error is client-side, so we don't want to expose too much.
-    // The detailed error is logged to the console.
     return { success: false, error: 'Failed to establish a server session.' };
   }
 }
@@ -74,6 +73,7 @@ export async function signUpWithEmail(email, password, additionalData) {
 
     return { user, error: null };
   } catch (error) {
+    console.error('[testing log] [auth.ts] Error during email sign-up:', error);
     return { user: null, error };
   }
 }
@@ -88,6 +88,7 @@ export async function signInWithEmail(email, password) {
     await createSessionCookie(userCredential.user);
     return { user: userCredential.user, error: null };
   } catch (error) {
+    console.error('[testing log] [auth.ts] Error during email sign-in:', error);
     return { user: null, error };
   }
 }
@@ -98,6 +99,7 @@ export async function sendSignInLink(email: string) {
     window.localStorage.setItem('emailForSignIn', email);
     return { error: null };
   } catch (error) {
+    console.error('[testing log] [auth.ts] Error sending sign-in link:', error);
     return { error };
   }
 }
@@ -123,6 +125,7 @@ export async function completeSignInWithLink(link: string) {
 
     return { user, error: null };
   } catch (error) {
+    console.error('[testing log] [auth.ts] Error completing sign-in with link:', error);
     return { user: null, error };
   }
 }
@@ -139,6 +142,7 @@ export async function signInWithGoogle() {
 
     return { user, error: null };
   } catch (error) {
+    console.error('[testing log] [auth.ts] Error during Google sign-in:', error);
     return { user: null, error };
   }
 }
@@ -153,6 +157,7 @@ export async function signOut() {
      console.log('[testing log] [auth.ts] Server session clear response status:', response.status);
     if (!response.ok) {
       const responseBody = await response.json();
+       console.error('[testing log] [auth.ts] Failed to clear server session.', responseBody.error);
       throw new Error(responseBody.error || 'Failed to clear session.');
     }
     console.log('[testing log] [auth.ts] Server session cleared successfully.');

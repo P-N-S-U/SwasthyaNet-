@@ -12,6 +12,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
 
   console.log('[testing log] updateProfile session result:', sessionResult);
   if (sessionResult.error) {
+    console.error('[testing log] updateProfile error getting session:', sessionResult.error);
     return {
       error: sessionResult.error,
       data: null,
@@ -21,9 +22,10 @@ export async function updateProfile(prevState: any, formData: FormData) {
   const user = sessionResult.user;
 
   if (!user) {
-    // This case should be covered by sessionResult.error, but as a fallback.
+    const errorMsg = 'User not found in session. This should not happen if sessionResult.error was not set.';
+    console.error('[testing log] updateProfile critical error:', errorMsg);
     return {
-      error: 'You must be logged in to update your profile.',
+      error: errorMsg,
       data: null,
     };
   }
@@ -46,7 +48,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
     revalidatePath('/profile');
     return { error: null, data: 'Profile updated successfully.' };
   } catch (error) {
-    console.error('[testing log] Error updating profile:', error);
+    console.error('[testing log] Error updating profile in Firestore:', error);
     return {
       error: 'Failed to update profile. Please try again.',
       data: null,
@@ -60,6 +62,7 @@ export async function updateDoctorProfile(prevState: any, formData: FormData) {
 
   console.log('[testing log] updateDoctorProfile session result:', sessionResult);
   if (sessionResult.error) {
+    console.error('[testing log] updateDoctorProfile error getting session:', sessionResult.error);
     return {
       error: sessionResult.error,
       data: null,
@@ -69,8 +72,10 @@ export async function updateDoctorProfile(prevState: any, formData: FormData) {
   const user = sessionResult.user;
 
   if (!user) {
+    const errorMsg = 'User not found in session. This should not happen if sessionResult.error was not set.';
+    console.error('[testing log] updateDoctorProfile critical error:', errorMsg);
     return {
-      error: 'You must be logged in to update your profile.',
+      error: errorMsg,
       data: null,
     };
   }
@@ -111,7 +116,7 @@ export async function updateDoctorProfile(prevState: any, formData: FormData) {
     return { error: null, data: 'Professional profile updated successfully.' };
 
   } catch (error) {
-    console.error('[testing log] Error updating doctor profile:', error);
+    console.error('[testing log] Error updating doctor profile in Firestore:', error);
     return {
       error: 'Failed to update professional profile. Please try again.',
       data: null,

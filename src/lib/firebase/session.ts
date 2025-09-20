@@ -30,7 +30,7 @@ if (isFirebaseAdminConfigured) {
       adminAuth = getAuth(adminApp);
       console.log('[testing log] [session.ts] Firebase Admin SDK initialized successfully.');
     } catch (e: any) {
-      console.error('[testing log] [session.ts] Firebase Admin SDK initialization failed:', e.message);
+      console.error('[testing log] [session.ts] Firebase Admin SDK initialization failed:', e.message, e);
       adminApp = null;
     }
   } else {
@@ -71,7 +71,7 @@ export async function getSession() {
     console.log(`[testing log] [session.ts] Session cookie verified successfully for UID: ${decodedIdToken.uid}`);
     return { user: decodedIdToken, error: null };
   } catch (error: any) {
-    console.error("[testing log] [session.ts] Error verifying session cookie:", error.code, error.message);
+    console.error("[testing log] [session.ts] Error verifying session cookie:", error.code, error.message, error);
     let errorMessage = 'Invalid or expired session. Please sign out and sign back in.';
     if (error.code === 'auth/session-cookie-expired') {
         errorMessage = 'Your session has expired. Please sign out and sign back in.';
