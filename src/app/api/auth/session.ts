@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 export async function DELETE() {
   console.log('[v3] [/api/auth/session] DELETE endpoint hit.');
   try {
-    await clearSessionCookie();
+    clearSessionCookie();
     console.log('[v3] [/api/auth/session] Session cookie cleared successfully.');
     return NextResponse.json({ success: true });
   } catch (error: any) {

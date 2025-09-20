@@ -60,7 +60,8 @@ export async function createSessionCookie(idToken: string): Promise<Cookie | nul
   }
 }
 
-export async function clearSessionCookie(): Promise<void> {
+export function clearSessionCookie() {
+  console.log('[v3] [server-auth] Clearing session cookie.');
   cookies().delete(COOKIE_NAME);
 }
 
