@@ -5,6 +5,7 @@ import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import type { Cookie } from 'next/dist/compiled/@edge-runtime/cookies';
+import { NextResponse } from 'next/server';
 
 const serviceAccount = {
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
@@ -59,9 +60,9 @@ export async function createSessionCookie(idToken: string): Promise<Cookie | nul
   }
 }
 
-export function clearSessionCookie() {
+export function clearSessionCookie(response: NextResponse) {
   console.log('[v3] [server-auth] Clearing session cookie.');
-  cookies().delete(COOKIE_NAME);
+  response.cookies.delete(COOKIE_NAME);
 }
 
 export async function getSession(): Promise<DecodedIdToken | null> {

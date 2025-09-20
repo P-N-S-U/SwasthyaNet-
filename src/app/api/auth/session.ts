@@ -36,12 +36,14 @@ export async function POST(request: Request) {
 }
 
 // Handler for DELETE requests to clear the session
-export async function DELETE() {
+export async function DELETE(request: Request) {
   console.log('[v3] [/api/auth/session] DELETE endpoint hit.');
   try {
-    clearSessionCookie();
+    const response = NextResponse.json({ success: true });
+    console.log('[v3] [/api/auth/session] Attempting to clear session cookie.');
+    clearSessionCookie(response);
     console.log('[v3] [/api/auth/session] Session cookie cleared successfully.');
-    return NextResponse.json({ success: true });
+    return response;
   } catch (error: any) {
     console.error('[v3] [/api/auth/session] Error deleting session:', error.message, error);
     return NextResponse.json({ error: `Failed to delete session: ${error.message}` }, { status: 500 });
