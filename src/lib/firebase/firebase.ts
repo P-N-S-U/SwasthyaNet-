@@ -5,9 +5,9 @@ import { getFirestore } from 'firebase/firestore';
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  projectId: 'studio-8903744107-21905',
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   appId: '1:135620499940:web:34fe26db446817fcfb4ff1',
-  apiKey: 'AIzaSyAHmW1ulrRg7IEW7gbGU3StjpoAlgVbR-U',
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: 'studio-8903744107-21905.firebaseapp.com',
   messagingSenderId: '135620499940',
 };
