@@ -5,7 +5,6 @@ import { cookies } from 'next/headers';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import type { DecodedIdToken } from 'firebase-admin/auth';
-import type { Cookie } from 'next/dist/compiled/@edge-runtime/cookies';
 import { NextResponse } from 'next/server';
 
 const serviceAccount = {
@@ -33,33 +32,6 @@ if (isFirebaseAdminConfigured && !getApps().length) {
 }
 
 const COOKIE_NAME = '__session';
-
-export async function createSessionCookie(idToken: string): Promise<Cookie | null> {
-  if (!isFirebaseAdminConfigured) {
-    console.error('[v3] [server-auth] Cannot create session cookie: Firebase Admin is not configured.');
-    return null;
-  }
-  const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
-  try {
-    console.log('[v3] [server-auth] Calling Firebase Admin to create session cookie...');
-    const sessionCookie = await getAuth().createSessionCookie(idToken, { expiresIn });
-    console.log('[v3] [server-auth] Firebase Admin created cookie string successfully.');
-    
-    return {
-      name: COOKIE_NAME,
-      value: sessionCookie,
-      maxAge: expiresIn,
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      path: '/',
-      sameSite: 'lax',
-    };
-
-  } catch (error: any) {
-    console.error('[v3] [server-auth] Error creating session cookie with Firebase Admin:', error.message, error);
-    return null;
-  }
-}
 
 export function clearSessionCookie(response: NextResponse) {
   console.log('[v3] [server-auth] Clearing session cookie.');

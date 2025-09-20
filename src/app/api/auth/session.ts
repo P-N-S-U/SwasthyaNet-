@@ -1,7 +1,8 @@
 
 // /src/app/api/auth/session.ts
 import { NextResponse } from 'next/server';
-import { createSessionCookie, clearSessionCookie, getSession } from '@/lib/firebase/server-auth';
+import { getAuth } from 'firebase-admin/auth';
+import { clearSessionCookie, getSession } from '@/lib/firebase/server-auth';
 
 // Handler for POST requests to create a session
 export async function POST(request: Request) {
@@ -15,20 +16,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'ID token is required.' }, { status: 400 });
     }
 
-    console.log('[v3] [/api/auth/session] Attempting to create session cookie.');
-    const cookie = await createSessionCookie(idToken);
+    const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
     
-    if (!cookie) {
-        console.error('[v3] [/api/auth/session] Failed to create session cookie in server-auth.');
-        return NextResponse.json({ error: 'Failed to create session.' }, { status: 500 });
-    }
-
+    console.log('[v3] [/api/auth/session] Attempting to create session cookie.');
+    const sessionCookie = await getAuth().createSessionCookie(idToken, { expiresIn });
+    
     console.log('[v3] [/api/auth/session] Session cookie created. Setting it in response headers.');
+    
     const response = NextResponse.json({ success: true });
-    response.cookies.set(cookie);
+    response.cookies.set('__session', sessionCookie, {
+        maxAge: expiresIn,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        sameSite: 'lax',
+    });
+    
     console.log('[v3] [/api/auth/session] Response prepared with session cookie.');
-
     return response;
+
   } catch (error: any) {
     console.error('[v3] [/api/auth/session] Unhandled error in POST handler:', error.message, error);
     return NextResponse.json({ error: `Failed to create session: ${error.message}` }, { status: 500 });
