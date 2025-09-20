@@ -40,30 +40,33 @@ function initializeAdminApp(): App | null {
 const adminApp = initializeAdminApp();
 export const adminAuth: Auth | null = adminApp ? getAuth(adminApp) : null;
 
+type Session = {
+    user: DecodedIdToken | null;
+    error?: string | null;
+}
+
 /**
  * Gets the current user's session from the cookies.
  * This is a server-side utility.
  * @returns The user's session, or null if not authenticated.
  */
-export async function getSession(): Promise<DecodedIdToken | null> {
+export async function getSession(): Promise<Session> {
   // If the adminAuth service is not available, we can't get a session.
   if (!adminAuth) {
-    return null;
+    return { user: null, error: 'Server authentication not configured. Please check Firebase Admin setup.' };
   }
 
   const sessionCookie = cookies().get('__session')?.value;
   if (!sessionCookie) {
-    return null;
+    return { user: null, error: 'Authentication error: Session cookie not found. Please sign out and sign back in.' };
   }
 
   try {
     // verifySessionCookie() will check if the cookie is valid and not expired.
     const decodedIdToken = await adminAuth.verifySessionCookie(sessionCookie, true);
-    return decodedIdToken;
-  } catch (error) {
-    // Session cookie is invalid or expired.
-    // In a real app, you might want to log this for debugging.
-    // console.error('Error verifying session cookie:', error);
-    return null;
+    return { user: decodedIdToken, error: null };
+  } catch (error: any) {
+    console.error('Error verifying session cookie:', error.message);
+    return { user: null, error: 'Authentication error: Session cookie is invalid or expired. Please sign out and sign back in.' };
   }
 }

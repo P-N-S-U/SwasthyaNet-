@@ -7,10 +7,10 @@ import { db } from '@/lib/firebase/firebase';
 import { getSession } from '@/lib/firebase/session';
 
 export async function updateProfile(prevState: any, formData: FormData) {
-  const session = await getSession();
-  if (!session) {
+  const { user, error: sessionError } = await getSession();
+  if (sessionError) {
     return {
-      error: 'Authentication error: No active session found. Please sign out and sign back in.',
+      error: sessionError,
       data: null,
     };
   }
@@ -19,7 +19,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
   const photoURL = formData.get('photoURL') as string;
 
   try {
-    const userRef = doc(db, 'users', session.uid);
+    const userRef = doc(db, 'users', user.uid);
     const dataToUpdate: { displayName?: string; photoURL?: string } = {};
     if (displayName) dataToUpdate.displayName = displayName;
     if (photoURL) dataToUpdate.photoURL = photoURL;
@@ -40,10 +40,10 @@ export async function updateProfile(prevState: any, formData: FormData) {
 }
 
 export async function updateDoctorProfile(prevState: any, formData: FormData) {
-  const session = await getSession();
-  if (!session) {
+  const { user, error: sessionError } = await getSession();
+  if (sessionError) {
     return {
-      error: 'Authentication error: No active session found. Please sign out and sign back in.',
+      error: sessionError,
       data: null,
     };
   }
@@ -56,7 +56,7 @@ export async function updateDoctorProfile(prevState: any, formData: FormData) {
   const consultationFee = formData.get('consultationFee') as string;
 
   try {
-    const userRef = doc(db, 'users', session.uid);
+    const userRef = doc(db, 'users', user.uid);
     const dataToUpdate: {
         specialization?: string;
         clinic?: string;
