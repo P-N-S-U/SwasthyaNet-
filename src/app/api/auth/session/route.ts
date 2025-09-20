@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
     console.log('[testing log] [/api/auth/session] Creating session cookie...');
     const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
-    console.log('[testing log] [/api/auth/session] Session cookie created successfully.');
+    console.log('[testing log] [/api/auth/session] Session cookie created successfully in memory.');
 
     console.log('[testing log] [/api/auth/session] Setting cookie in browser response.');
     cookies().set('__session', sessionCookie, {
