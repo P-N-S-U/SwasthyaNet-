@@ -1,0 +1,63 @@
+// /src/app/api/auth/session.ts
+import { NextResponse } from 'next/server';
+import { createSessionCookie, clearSessionCookie, getSession } from '@/lib/firebase/server-auth';
+
+// Handler for POST requests to create a session
+export async function POST(request: Request) {
+  console.log('[v3] [/api/auth/session] POST endpoint hit.');
+  try {
+    const body = await request.json();
+    const idToken = body.idToken as string;
+
+    if (!idToken) {
+      console.error('[v3] [/api/auth/session] ID token is required.');
+      return NextResponse.json({ error: 'ID token is required.' }, { status: 400 });
+    }
+
+    console.log('[v3] [/api/auth/session] Attempting to create session cookie.');
+    const cookie = await createSessionCookie(idToken);
+    
+    if (!cookie) {
+        console.error('[v3] [/api/auth/session] Failed to create session cookie in server-auth.');
+        return NextResponse.json({ error: 'Failed to create session.' }, { status: 500 });
+    }
+
+    console.log('[v3] [/api/auth/session] Session cookie created. Setting it in response headers.');
+    const response = NextResponse.json({ success: true });
+    response.cookies.set(cookie);
+    console.log('[v3] [/api/auth/session] Response prepared with session cookie.');
+
+    return response;
+  } catch (error: any) {
+    console.error('[v3] [/api/auth/session] Unhandled error in POST handler:', error.message, error);
+    return NextResponse.json({ error: `Failed to create session: ${error.message}` }, { status: 500 });
+  }
+}
+
+// Handler for DELETE requests to clear the session
+export async function DELETE() {
+  console.log('[v3] [/api/auth/session] DELETE endpoint hit.');
+  try {
+    await clearSessionCookie();
+    console.log('[v3] [/api/auth/session] Session cookie cleared successfully.');
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('[v3] [/api/auth/session] Error deleting session:', error.message, error);
+    return NextResponse.json({ error: `Failed to delete session: ${error.message}` }, { status: 500 });
+  }
+}
+
+// Handler for GET requests to check session status
+export async function GET() {
+    console.log('[v3] [/api/auth/session] GET endpoint hit.');
+    try {
+        const session = await getSession();
+        if (session) {
+            return NextResponse.json({ user: session });
+        }
+        return NextResponse.json({ user: null }, { status: 401 });
+    } catch (error: any) {
+        console.error('[v3] [/api/auth/session] GET error:', error.message, error);
+        return NextResponse.json({ error: `Session check failed: ${error.message}` }, { status: 500 });
+    }
+}

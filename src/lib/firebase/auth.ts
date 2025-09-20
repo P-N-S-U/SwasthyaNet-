@@ -23,13 +23,13 @@ const actionCodeSettings = {
   handleCodeInApp: true,
 };
 
-async function createSessionCookie(user: User) {
-  console.log('[testing log] [auth.ts] Attempting to create session cookie for user:', user.uid);
+async function createApiSession(user: User) {
+  console.log('[v3] [auth.ts] Attempting to create session for user:', user.uid);
   try {
     const idToken = await user.getIdToken(true);
-    console.log('[testing log] [auth.ts] ID token retrieved successfully.');
+    console.log('[v3] [auth.ts] ID token retrieved successfully.');
 
-    console.log('[testing log] [auth.ts] Sending ID token to session API...');
+    console.log('[v3] [auth.ts] Sending ID token to session API...');
     const response = await fetch('/api/auth/session', {
       method: 'POST',
       headers: {
@@ -38,19 +38,19 @@ async function createSessionCookie(user: User) {
       body: JSON.stringify({ idToken }),
     });
     
-    console.log('[testing log] [auth.ts] Session API response status:', response.status);
+    console.log('[v3] [auth.ts] Session API response status:', response.status);
     const responseBody = await response.json();
-    console.log('[testing log] [auth.ts] Session API response body:', responseBody);
+    console.log('[v3] [auth.ts] Session API response body:', responseBody);
 
     if (!response.ok) {
-      console.error('[testing log] [auth.ts] Failed to create session cookie, API response not OK.', responseBody.error);
-      throw new Error(responseBody.error || 'Failed to create session cookie.');
+      console.error('[v3] [auth.ts] Failed to create session, API response not OK.', responseBody.error);
+      throw new Error(responseBody.error || 'Failed to create session.');
     }
     
-    console.log('[testing log] [auth.ts] Session cookie created successfully via API.');
+    console.log('[v3] [auth.ts] Session created successfully via API.');
     return { success: true };
   } catch (error: any) {
-    console.error('[testing log] [auth.ts] Error creating session cookie:', error.message, error);
+    console.error('[v3] [auth.ts] Error creating session:', error.message, error);
     return { success: false, error: 'Failed to establish a server session.' };
   }
 }
@@ -69,11 +69,11 @@ export async function signUpWithEmail(email, password, additionalData) {
     });
 
     await createUserInFirestore(user, additionalData);
-    await createSessionCookie(user);
+    await createApiSession(user);
 
     return { user, error: null };
   } catch (error) {
-    console.error('[testing log] [auth.ts] Error during email sign-up:', error);
+    console.error('[v3] [auth.ts] Error during email sign-up:', error);
     return { user: null, error };
   }
 }
@@ -85,10 +85,10 @@ export async function signInWithEmail(email, password) {
       email,
       password
     );
-    await createSessionCookie(userCredential.user);
+    await createApiSession(userCredential.user);
     return { user: userCredential.user, error: null };
   } catch (error) {
-    console.error('[testing log] [auth.ts] Error during email sign-in:', error);
+    console.error('[v3] [auth.ts] Error during email sign-in:', error);
     return { user: null, error };
   }
 }
@@ -99,7 +99,7 @@ export async function sendSignInLink(email: string) {
     window.localStorage.setItem('emailForSignIn', email);
     return { error: null };
   } catch (error) {
-    console.error('[testing log] [auth.ts] Error sending sign-in link:', error);
+    console.error('[v3] [auth.ts] Error sending sign-in link:', error);
     return { error };
   }
 }
@@ -121,13 +121,11 @@ export async function completeSignInWithLink(link: string) {
 
     const user = userCredential.user;
     await createUserInFirestore(user, { role: 'patient' });
-    await createSessionCookie(user);
-
-
+    await createApiSession(user);
 
     return { user, error: null };
   } catch (error) {
-    console.error('[testing log] [auth.ts] Error completing sign-in with link:', error);
+    console.error('[v3] [auth.ts] Error completing sign-in with link:', error);
     return { user: null, error };
   }
 }
@@ -140,11 +138,11 @@ export async function signInWithGoogle() {
 
     const additionalData = { role: 'patient' };
     await createUserInFirestore(user, additionalData);
-    await createSessionCookie(user);
+    await createApiSession(user);
 
     return { user, error: null };
   } catch (error) {
-    console.error('[testing log] [auth.ts] Error during Google sign-in:', error);
+    console.error('[v3] [auth.ts] Error during Google sign-in:', error);
     return { user: null, error };
   }
 }
@@ -152,20 +150,20 @@ export async function signInWithGoogle() {
 export async function signOut() {
   try {
     await firebaseSignOut(auth);
-     console.log('[testing log] [auth.ts] Client-side sign out complete. Clearing server session...');
+     console.log('[v3] [auth.ts] Client-side sign out complete. Clearing server session...');
      const response = await fetch('/api/auth/session', {
       method: 'DELETE',
     });
-     console.log('[testing log] [auth.ts] Server session clear response status:', response.status);
+     console.log('[v3] [auth.ts] Server session clear response status:', response.status);
     if (!response.ok) {
       const responseBody = await response.json();
-       console.error('[testing log] [auth.ts] Failed to clear server session.', responseBody.error);
+       console.error('[v3] [auth.ts] Failed to clear server session.', responseBody.error);
       throw new Error(responseBody.error || 'Failed to clear session.');
     }
-    console.log('[testing log] [auth.ts] Server session cleared successfully.');
+    console.log('[v3] [auth.ts] Server session cleared successfully.');
     return { success: true, error: null };
   } catch (error: any) {
-    console.error('[testing log] Error signing out:', error.message, error);
+    console.error('[v3] Error signing out:', error.message, error);
     return { success: false, error };
   }
 }
