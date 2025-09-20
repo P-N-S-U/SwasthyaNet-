@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useActionState } from 'react';
@@ -43,8 +44,8 @@ export function DoctorRecommendationForm() {
       <form action={formAction} className="space-y-4">
         <div className="flex gap-2">
           <Input
-            name="specialization"
-            placeholder="e.g., Cardiology, Dermatology, Pediatrics"
+            name="query"
+            placeholder="e.g., Dr. Anjali Rao or Cardiology"
             className="flex-grow bg-secondary/50 focus:border-accent"
             required
             minLength={3}
@@ -53,12 +54,12 @@ export function DoctorRecommendationForm() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <p className="mr-2 text-sm text-foreground/60">Suggestions:</p>
-          {['Cardiology', 'Dermatology', 'Neurology', 'Pediatrics'].map(
+          {['Cardiology', 'Dermatology', 'Neurology', 'Dr. Vikram Singh'].map(
             spec => (
               <Button
                 key={spec}
                 type="submit"
-                name="specialization"
+                name="query"
                 value={spec}
                 variant="secondary"
                 size="sm"
@@ -115,7 +116,7 @@ export function DoctorRecommendationForm() {
         <Alert className="mt-6">
           <AlertTitle>No Results</AlertTitle>
           <AlertDescription>
-            We couldn't find any doctors for that specialization. Please try a
+            We couldn't find any doctors for that query. Please try a
             different one.
           </AlertDescription>
         </Alert>

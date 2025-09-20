@@ -1,3 +1,4 @@
+
 'use server';
 
 import {
@@ -9,17 +10,17 @@ export async function getDoctorRecommendations(
   prevState: any,
   formData: FormData
 ) {
-  const specialization = formData.get('specialization') as string;
+  const query = formData.get('query') as string;
 
-  if (!specialization || specialization.trim().length < 3) {
+  if (!query || query.trim().length < 3) {
     return {
       data: null,
-      error: 'Please enter a valid medical specialization.',
+      error: 'Please enter a valid search query (e.g., a name or specialization).',
     };
   }
 
   try {
-    const input: DoctorRecommendationInput = { specialization };
+    const input: DoctorRecommendationInput = { query };
     const result = await recommendDoctors(input);
     return { data: result, error: null };
   } catch (e) {
