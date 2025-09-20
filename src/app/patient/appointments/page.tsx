@@ -26,9 +26,9 @@ import {
 
 const upcomingAppointments = [
   {
-    doctor: 'Dr. Evelyn Reed',
+    doctor: 'Dr. Anjali Rao',
     specialty: 'Cardiologist',
-    date: 'August 5, 2024',
+    date: 'August 15, 2024',
     time: '11:00 AM',
     status: 'Confirmed',
   },
@@ -36,16 +36,16 @@ const upcomingAppointments = [
 
 const pastAppointments = [
   {
-    doctor: 'Dr. Samuel Green',
+    doctor: 'Dr. Vikram Singh',
     specialty: 'Dermatologist',
-    date: 'July 12, 2024',
+    date: 'July 22, 2024',
     time: '02:30 PM',
     status: 'Completed',
   },
   {
-    doctor: 'Dr. Evelyn Reed',
+    doctor: 'Dr. Anjali Rao',
     specialty: 'Cardiologist',
-    date: 'June 28, 2024',
+    date: 'June 18, 2024',
     time: '10:00 AM',
     status: 'Completed',
   },

@@ -66,12 +66,12 @@ export default function SchedulePage() {
                   <div className="space-y-6">
                     <div className="flex items-start gap-4 rounded-lg bg-secondary/50 p-4">
                       <div className="flex h-12 w-12 flex-col items-center justify-center rounded-md bg-primary text-primary-foreground">
-                        <span className="text-sm">JUL</span>
-                        <span className="text-xl font-bold">28</span>
+                        <span className="text-sm">AUG</span>
+                        <span className="text-xl font-bold">10</span>
                       </div>
                       <div>
                         <p className="font-semibold">
-                          Consultation with Liam Johnson
+                          Consultation with Rohan Kumar
                         </p>
                         <p className="text-sm text-muted-foreground">
                           10:00 AM - 10:30 AM
@@ -80,12 +80,12 @@ export default function SchedulePage() {
                     </div>
                     <div className="flex items-start gap-4 rounded-lg bg-secondary/50 p-4">
                       <div className="flex h-12 w-12 flex-col items-center justify-center rounded-md bg-primary text-primary-foreground">
-                        <span className="text-sm">JUL</span>
-                        <span className="text-xl font-bold">28</span>
+                        <span className="text-sm">AUG</span>
+                        <span className="text-xl font-bold">10</span>
                       </div>
                       <div>
                         <p className="font-semibold">
-                          Follow-up with Emma Brown
+                          Follow-up with Priya Sharma
                         </p>
                         <p className="text-sm text-muted-foreground">
                           11:00 AM - 11:15 AM

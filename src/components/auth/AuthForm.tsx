@@ -298,7 +298,7 @@ export function AuthForm() {
                       <FormLabel>Full Name</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="John Doe"
+                          placeholder="Ravi Kumar"
                           {...field}
                           disabled={isLoading}
                         />

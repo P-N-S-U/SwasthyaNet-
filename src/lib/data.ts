@@ -7,28 +7,28 @@ const findImage = (id: string) => placeholderImages.find(img => img.id === id);
 
 export const testimonials = [
   {
-    name: 'Sarah L.',
+    name: 'Priya S.',
     role: 'Patient',
     testimonial:
       'SwasthyaNet made it so easy to find a specialist and get a consultation without leaving my home. The AI symptom checker was surprisingly accurate!',
     image: findImage('testimonial-1'),
-    avatarFallback: 'SL',
+    avatarFallback: 'PS',
   },
   {
-    name: 'Dr. Mark R.',
+    name: 'Dr. Arjun M.',
     role: 'Cardiologist',
     testimonial:
       'As a doctor, this platform has streamlined my workflow. I can manage appointments, consult with patients, and issue prescriptions all in one place.',
     image: findImage('testimonial-2'),
-    avatarFallback: 'MR',
+    avatarFallback: 'AM',
   },
   {
-    name: 'David C.',
+    name: 'Rohan K.',
     role: 'Patient',
     testimonial:
       'The video call quality was excellent, and the doctor was very attentive. I received my prescription immediately after. Highly recommended!',
     image: findImage('testimonial-3'),
-    avatarFallback: 'DC',
+    avatarFallback: 'RK',
   },
 ];
 
@@ -44,38 +44,38 @@ export const weeklyAppointments = [
 
 export const recentPatients = [
   {
-    name: 'Liam Johnson',
-    email: 'liam@example.com',
+    name: 'Rohan Kumar',
+    email: 'rohan@example.com',
     status: 'Follow-up',
-    image: findImage('testimonial-1'),
-    avatarFallback: 'LJ',
-  },
-  {
-    name: 'Olivia Smith',
-    email: 'olivia@example.com',
-    status: 'New Patient',
     image: findImage('testimonial-3'),
-    avatarFallback: 'OS',
+    avatarFallback: 'RK',
   },
   {
-    name: 'Noah Williams',
-    email: 'noah@example.com',
+    name: 'Aisha Khan',
+    email: 'aisha@example.com',
+    status: 'New Patient',
+    image: findImage('testimonial-1'),
+    avatarFallback: 'AK',
+  },
+  {
+    name: 'Aditya Verma',
+    email: 'aditya@example.com',
     status: 'Routine Check-up',
     image: null,
-    avatarFallback: 'NW',
+    avatarFallback: 'AV',
   },
   {
-    name: 'Emma Brown',
-    email: 'emma@example.com',
+    name: 'Priya Sharma',
+    email: 'priya@example.com',
     status: 'Follow-up',
     image: findImage('testimonial-1'),
-    avatarFallback: 'EB',
+    avatarFallback: 'PS',
   },
     {
-    name: 'James Jones',
-    email: 'james@example.com',
+    name: 'Sameer Gupta',
+    email: 'sameer@example.com',
     status: 'New Patient',
     image: null,
-    avatarFallback: 'JJ',
+    avatarFallback: 'SG',
   },
 ];
