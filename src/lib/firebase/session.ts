@@ -50,7 +50,7 @@ export { adminApp, adminAuth };
  * Returns the user object if the session is valid, otherwise returns null.
  */
 export async function getSession() {
-  if (!adminApp) {
+  if (!isFirebaseAdminConfigured || !adminApp) {
       return { user: null, error: "Server authentication not configured. Please check Firebase Admin setup." };
   }
 
@@ -64,6 +64,12 @@ export async function getSession() {
     return { user: decodedIdToken, error: null };
   } catch (error: any) {
     console.error("Error verifying session cookie:", error.message);
-    return { user: null, error: `Invalid or expired session. Please sign out and sign back in. (Reason: ${error.code})` };
+    let errorMessage = 'Invalid or expired session. Please sign out and sign back in.';
+    if (error.code === 'auth/session-cookie-expired') {
+        errorMessage = 'Your session has expired. Please sign out and sign back in.';
+    } else if (error.code === 'auth/session-cookie-revoked') {
+        errorMessage = 'Your session has been revoked. Please sign out and sign back in.';
+    }
+    return { user: null, error: errorMessage };
   }
 }
