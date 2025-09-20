@@ -23,16 +23,6 @@ const actionCodeSettings = {
   handleCodeInApp: true,
 };
 
-async function createSessionCookie(user: User) {
-  const idToken = await user.getIdToken(true);
-  await fetch('/api/auth/session', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ idToken }),
-  });
-}
 
 export async function signUpWithEmail(email, password, additionalData) {
   try {
@@ -51,9 +41,6 @@ export async function signUpWithEmail(email, password, additionalData) {
     // Create user document in Firestore
     await createUserInFirestore(user, additionalData);
 
-    // Create session cookie
-    await createSessionCookie(user);
-
     return { user, error: null };
   } catch (error) {
     return { user: null, error };
@@ -67,8 +54,6 @@ export async function signInWithEmail(email, password) {
       email,
       password
     );
-    const user = userCredential.user;
-    await createSessionCookie(user);
     return { user: userCredential.user, error: null };
   } catch (error) {
     return { user: null, error };
@@ -108,7 +93,6 @@ export async function completeSignInWithLink(link: string) {
     const user = userCredential.user;
     // For passwordless sign-in, we need to handle user creation in Firestore if it's their first time.
     await createUserInFirestore(user, { role: 'patient' });
-    await createSessionCookie(user);
 
     return { user, error: null };
   } catch (error) {
@@ -127,8 +111,6 @@ export async function signInWithGoogle() {
     const additionalData = { role: 'patient' };
     await createUserInFirestore(user, additionalData);
 
-    await createSessionCookie(user);
-
     return { user, error: null };
   } catch (error) {
     return { user: null, error };
@@ -138,8 +120,6 @@ export async function signInWithGoogle() {
 export async function signOut() {
   try {
     await firebaseSignOut(auth);
-    // Fetch to the API route to clear the cookie
-    await fetch('/api/auth/session', { method: 'DELETE' });
     return { success: true, error: null };
   } catch (error) {
     return { success: false, error };

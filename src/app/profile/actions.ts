@@ -3,14 +3,16 @@
 
 import { revalidatePath } from 'next/cache';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase/firebase';
-import { getSession } from '@/lib/firebase/session';
+import { db, auth } from '@/lib/firebase/firebase';
+import { getAuth } from 'firebase/auth';
+
 
 export async function updateProfile(prevState: any, formData: FormData) {
-  const { user, error: sessionError } = await getSession();
-  if (sessionError) {
+  const user = auth.currentUser;
+
+  if (!user) {
     return {
-      error: sessionError,
+      error: 'You must be logged in to update your profile.',
       data: null,
     };
   }
@@ -40,10 +42,11 @@ export async function updateProfile(prevState: any, formData: FormData) {
 }
 
 export async function updateDoctorProfile(prevState: any, formData: FormData) {
-  const { user, error: sessionError } = await getSession();
-  if (sessionError) {
+  const user = auth.currentUser;
+  
+  if (!user) {
     return {
-      error: sessionError,
+      error: 'You must be logged in to update your profile.',
       data: null,
     };
   }
