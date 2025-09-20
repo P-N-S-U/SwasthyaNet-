@@ -23,13 +23,14 @@ const actionCodeSettings = {
   handleCodeInApp: true,
 };
 
-async function createApiSession(user: User) {
-  console.log('[v3] [auth.ts] Attempting to create session for user:', user.uid);
+// This function is now the single source of truth for creating a server-side session.
+// It's called from all sign-in/sign-up methods.
+async function createServerSession(user: User) {
+  console.log('[v3] [auth.ts] Creating server session for user:', user.uid);
   try {
     const idToken = await user.getIdToken(true);
-    console.log('[v3] [auth.ts] ID token retrieved successfully.');
+    console.log('[v3] [auth.ts] ID token retrieved. Calling session API.');
 
-    console.log('[v3] [auth.ts] Sending ID token to session API...');
     const response = await fetch('/api/auth/session', {
       method: 'POST',
       headers: {
@@ -37,28 +38,21 @@ async function createApiSession(user: User) {
       },
       body: JSON.stringify({ idToken }),
     });
-    
-    console.log('[v3] [auth.ts] Session API response status:', response.status);
-    
-    if (!response.ok) {
-      let errorBody;
-      try {
-        errorBody = await response.json();
-      } catch (e) {
-        errorBody = { error: 'Failed to parse error response from server.' };
-      }
-      console.error('[v3] [auth.ts] Failed to create session, API response not OK.', errorBody.error);
-      throw new Error(errorBody.error || 'Failed to create session.');
-    }
-    
-    const responseBody = await response.json();
-    console.log('[v3] [auth.ts] Session API response body:', responseBody);
-    console.log('[v3] [auth.ts] Session created successfully via API.');
-    return { success: true };
 
+    console.log('[v3] [auth.ts] Session API response status:', response.status);
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('[v3] [auth.ts] Session API responded with error:', errorData);
+      throw new Error(errorData.error || 'Failed to create session.');
+    }
+
+    console.log('[v3] [auth.ts] Server session created successfully.');
+    return { success: true };
   } catch (error: any) {
-    console.error('[v3] [auth.ts] Error creating session:', error.message, error);
-    return { success: false, error: 'Failed to establish a server session.' };
+    console.error('[v3] [auth.ts] Error in createServerSession:', error.message);
+    // Even if server session fails, the user is logged in client-side.
+    // We can decide how to handle this - for now, we'll log it and proceed.
+    return { success: false, error: error.message };
   }
 }
 
@@ -76,7 +70,7 @@ export async function signUpWithEmail(email, password, additionalData) {
     });
 
     await createUserInFirestore(user, additionalData);
-    await createApiSession(user);
+    await createServerSession(user);
 
     return { user, error: null };
   } catch (error) {
@@ -92,7 +86,7 @@ export async function signInWithEmail(email, password) {
       email,
       password
     );
-    await createApiSession(userCredential.user);
+    await createServerSession(userCredential.user);
     return { user: userCredential.user, error: null };
   } catch (error) {
     console.error('[v3] [auth.ts] Error during email sign-in:', error);
@@ -128,7 +122,7 @@ export async function completeSignInWithLink(link: string) {
 
     const user = userCredential.user;
     await createUserInFirestore(user, { role: 'patient' });
-    await createApiSession(user);
+    await createServerSession(user);
 
     return { user, error: null };
   } catch (error) {
@@ -145,7 +139,7 @@ export async function signInWithGoogle() {
 
     const additionalData = { role: 'patient' };
     await createUserInFirestore(user, additionalData);
-    await createApiSession(user);
+    await createServerSession(user);
 
     return { user, error: null };
   } catch (error) {
