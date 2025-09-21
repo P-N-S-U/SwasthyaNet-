@@ -10,16 +10,30 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
   Loader2,
   Search,
   User,
   Stethoscope,
   CalendarPlus,
   Eye,
+  Briefcase,
+  GraduationCap,
+  CalendarClock,
+  IndianRupee,
+  Hospital,
+  FileText,
 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import Link from 'next/link';
 
 const initialSearchState = {
   data: null,
@@ -30,7 +44,6 @@ const initialBookState = {
   data: null,
   error: null,
 };
-
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -85,6 +98,31 @@ function BookAppointmentForm({ doctorId }: { doctorId: string }) {
     </form>
   );
 }
+
+const ProfileDetailItem = ({ icon, label, value, isBio = false }) => {
+  if (!value) return null;
+
+  return (
+    <div className="flex items-start gap-4 rounded-lg bg-secondary/50 p-3">
+      <div className="mt-1 shrink-0 text-primary">{icon}</div>
+      <div>
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className={`font-medium ${isBio ? 'whitespace-pre-wrap' : ''}`}>
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+};
+
+const getInitials = (name) => {
+    if (!name) return 'U';
+    const names = name.split(' ');
+    if (names.length > 1) {
+        return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
+};
 
 export function DoctorRecommendationForm() {
   const [state, formAction] = useActionState(
@@ -144,7 +182,7 @@ export function DoctorRecommendationForm() {
           </CardHeader>
           <CardContent>
             <ul className="space-y-4">
-              {state.data.doctors.map((doctor) => (
+              {state.data.doctors.map(doctor => (
                 <li
                   key={doctor.id}
                   className="flex flex-col items-start gap-4 rounded-lg border border-border/50 bg-background/50 p-4 sm:flex-row sm:items-center sm:justify-between"
@@ -155,18 +193,52 @@ export function DoctorRecommendationForm() {
                     </div>
                     <div>
                       <span className="font-medium">{doctor.name}</span>
-                       <Badge variant="outline" className="ml-2">{doctor.specialization}</Badge>
+                      <Badge variant="outline" className="ml-2">
+                        {doctor.specialization}
+                      </Badge>
                     </div>
                   </div>
                   <div className="flex w-full shrink-0 gap-2 sm:w-auto">
-                    <Button asChild variant="outline" size="sm" className="flex-1">
-                      {/* In a real app, this would link to /profile/[doctorId] */}
-                      <Link href="/profile"> 
-                         <Eye className="mr-2 h-4 w-4" />
-                        View Profile
-                      </Link>
-                    </Button>
-                     <div className="flex-1">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          View Profile
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-lg">
+                        <DialogHeader className="items-center text-center">
+                          <Avatar className="h-24 w-24 border-4 border-primary">
+                            <AvatarImage
+                              src={doctor.photoURL}
+                              alt={doctor.name}
+                            />
+                            <AvatarFallback className="text-3xl">
+                              {getInitials(doctor.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <DialogTitle className="pt-2 font-headline text-2xl">
+                            {doctor.name}
+                          </DialogTitle>
+                          <DialogDescription>
+                            {doctor.specialization}
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="mt-4 space-y-3 py-4">
+                           <ProfileDetailItem icon={<Briefcase size={20} />} label="Specialization" value={doctor.specialization} />
+                           <ProfileDetailItem icon={<GraduationCap size={20} />} label="Qualifications" value={doctor.qualifications} />
+                           <ProfileDetailItem icon={<CalendarClock size={20} />} label="Years of Experience" value={doctor.experience} />
+                           <ProfileDetailItem icon={<IndianRupee size={20} />} label="Consultation Fee" value={doctor.consultationFee ? `₹${doctor.consultationFee}` : ''} />
+                           <ProfileDetailItem icon={<Hospital size={20} />} label="Clinic / Hospital" value={doctor.clinic} />
+                           <ProfileDetailItem icon={<FileText size={20} />} label="Bio" value={doctor.bio} isBio={true} />
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                    <div className="flex-1">
                       <BookAppointmentForm doctorId={doctor.id} />
                     </div>
                   </div>
@@ -181,8 +253,8 @@ export function DoctorRecommendationForm() {
         <Alert className="mt-6">
           <AlertTitle>No Results</AlertTitle>
           <AlertDescription>
-            We couldn't find any doctors for that query. Please try a
-            different one.
+            We couldn't find any doctors for that query. Please try a different
+            one.
           </AlertDescription>
         </Alert>
       )}
