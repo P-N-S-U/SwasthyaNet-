@@ -24,7 +24,7 @@ import {
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
 
-export default function VideoCallPage({ params }: { params: { id: string } }) {
+export default function VideoCallPage({ params: {id} }: { params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -54,7 +54,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
 
     const startCall = async () => {
       try {
-        await createCall(params.id);
+        await createCall(id);
         // setCallStatus is handled by onCallCreated callback
       } catch (error) {
         console.error('Error starting call:', error);
@@ -71,9 +71,9 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
     startCall();
 
     return () => {
-      hangup(params.id);
+      hangup(id);
     };
-  }, [params.id, router, toast, user, loading]);
+  }, [id, router, toast, user, loading]);
 
   const toggleMute = () => {
     if (pc) {
@@ -98,7 +98,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   };
 
   const endCall = () => {
-    hangup(params.id);
+    hangup(id);
     router.push('/patient/appointments');
   };
 

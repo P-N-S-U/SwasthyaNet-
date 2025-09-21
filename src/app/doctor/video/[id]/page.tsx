@@ -22,7 +22,7 @@ import {
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
 
-export default function DoctorVideoCallPage({ params }: { params: { id: string } }) {
+export default function DoctorVideoCallPage({ params: {id} }: { params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -52,7 +52,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
     const joinCall = async () => {
       try {
-        await answerCall(params.id);
+        await answerCall(id);
         // setCallStatus is handled by onCallConnected callback
       } catch (error) {
         console.error('Error joining call:', error);
@@ -68,9 +68,9 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
     joinCall();
 
     return () => {
-      hangup(params.id);
+      hangup(id);
     };
-  }, [params.id, router, toast, user, loading]);
+  }, [id, router, toast, user, loading]);
 
   const toggleMute = () => {
     if (pc) {
@@ -95,7 +95,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   };
 
   const endCall = () => {
-    hangup(params.id);
+    hangup(id);
     router.push('/doctor/dashboard');
   };
 
