@@ -62,8 +62,7 @@ function SubmitButton() {
 }
 
 function BookAppointmentForm({ doctorId }: { doctorId: string }) {
-  const [state, formAction] = useActionState(bookAppointment, initialBookState);
-  const { pending } = useFormStatus();
+  const [state, formAction, pending] = useActionState(bookAppointment, initialBookState);
   const { toast } = useToast();
 
   useEffect(() => {
