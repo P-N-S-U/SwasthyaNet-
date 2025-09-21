@@ -2,8 +2,17 @@ import { DoctorRecommendationForm } from '@/components/doctor-recommendation/Doc
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
 import { Users } from 'lucide-react';
+import { getDoctorSearchSuggestions } from '@/ai/flows/doctor-suggestion-flow';
 
-export default function FindDoctorPage() {
+export default async function FindDoctorPage() {
+  const suggestionData = await getDoctorSearchSuggestions();
+  const suggestions = suggestionData?.suggestions || [
+    'Cardiology',
+    'Dermatology',
+    'Neurology',
+    'Dr. Vikram Singh',
+  ];
+
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
@@ -21,7 +30,7 @@ export default function FindDoctorPage() {
               their specialization.
             </p>
           </div>
-          <DoctorRecommendationForm />
+          <DoctorRecommendationForm suggestions={suggestions} />
         </div>
       </main>
       <Footer />

@@ -124,7 +124,11 @@ const getInitials = (name) => {
     return name.substring(0, 2).toUpperCase();
 };
 
-export function DoctorRecommendationForm() {
+export function DoctorRecommendationForm({
+  suggestions,
+}: {
+  suggestions: string[];
+}) {
   const [state, formAction] = useActionState(
     getDoctorRecommendations,
     initialSearchState
@@ -145,7 +149,7 @@ export function DoctorRecommendationForm() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <p className="mr-2 text-sm text-foreground/60">Suggestions:</p>
-          {['Cardiology', 'Dermatology', 'Neurology', 'Dr. Vikram Singh'].map(
+          {suggestions.map(
             spec => (
               <Button
                 key={spec}
