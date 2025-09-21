@@ -24,7 +24,7 @@ export function AppointmentsChart({ data }: AppointmentsChartProps) {
   return (
     <ResponsiveContainer width="100%" height={350}>
       <BarChart data={data}>
-        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+        <CartesianGrid vertical={false} stroke="hsl(var(--border) / 0.5)" />
         <XAxis
           dataKey="day"
           stroke="hsl(var(--muted-foreground))"
