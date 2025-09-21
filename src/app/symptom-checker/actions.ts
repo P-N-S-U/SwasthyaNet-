@@ -18,7 +18,7 @@ export async function getSymptomAnalysis(prevState: any, formData: FormData) {
   try {
     const input: SymptomCheckerInput = { symptoms };
     const result = await checkSymptoms(input);
-    return { data: result, error: null };
+    return { data: { ...result, originalSymptoms: symptoms }, error: null };
   } catch (e) {
     console.error(e);
     return {

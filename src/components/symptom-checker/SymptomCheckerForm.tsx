@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, Sparkles, HeartPulse, ShieldAlert, AlertCircle, ShieldCheck, Shield } from 'lucide-react';
+import { Loader2, Sparkles, HeartPulse, ShieldAlert, AlertCircle, ShieldCheck, Shield, FileText } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -75,6 +75,8 @@ export function SymptomCheckerForm() {
           className="bg-secondary/50 focus:border-accent"
           required
           minLength={10}
+          // The key ensures the component is re-rendered with its default value if there's no state data
+          key={state.data ? 'form-submitted' : 'form-initial'}
         />
         <div className="mt-4">
           <SubmitButton />
@@ -99,6 +101,15 @@ export function SymptomCheckerForm() {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
+             <div>
+              <h3 className="mb-4 text-lg font-bold text-primary/90">
+                Your Described Symptoms
+              </h3>
+               <div className="rounded-lg border border-border/50 bg-background/50 p-4">
+                  <p className="text-sm text-muted-foreground italic">"{state.data.originalSymptoms}"</p>
+               </div>
+            </div>
+
             <div>
               <h3 className="mb-4 text-lg font-bold text-primary/90">
                 Potential Conditions
