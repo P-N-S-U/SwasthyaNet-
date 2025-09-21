@@ -43,15 +43,16 @@ export interface RecentPatient {
 }
 
 const getWeeklyChartData = (appointments: Appointment[]) => {
-  const last7Days = Array.from({ length: 7 }, (_, i) => {
+  // Show from yesterday up to 5 days in the future
+  const dateRange = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
-    d.setDate(d.getDate() - i);
+    d.setDate(d.getDate() - 1 + i); // Start from yesterday
     return d;
-  }).reverse();
+  });
 
   const dayStrings = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  return last7Days.map(date => {
+  return dateRange.map(date => {
     const day = dayStrings[date.getDay()];
     const appointmentsOnDay = appointments.filter(appt => {
       const apptDate = appt.appointmentDate.toDate();
