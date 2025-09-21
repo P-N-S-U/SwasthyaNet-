@@ -13,6 +13,7 @@ import {
   Video,
   FileText,
   User,
+  ArrowLeft,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -170,7 +171,13 @@ export default function AppointmentsPage() {
       <Header />
       <main className="flex-grow bg-secondary/30 py-12 md:py-20">
         <div className="container">
-          <div className="mb-10">
+          <div className="mb-8">
+             <Button asChild variant="outline" size="sm" className="mb-6">
+                <Link href="/patient/dashboard">
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to Dashboard
+                </Link>
+             </Button>
             <h1 className="text-4xl font-bold font-headline">My Appointments</h1>
             <p className="mt-2 text-lg text-foreground/70">
               Manage your upcoming and past consultations.
