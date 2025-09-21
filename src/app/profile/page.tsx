@@ -177,8 +177,8 @@ export default function ProfilePage() {
                         <ProfileDetailItem icon={<GraduationCap className="h-5 w-5" />} label="Qualifications" value={profile.qualifications} />
                         <ProfileDetailItem icon={<CalendarClock className="h-5 w-5" />} label="Years of Experience" value={profile.experience} />
                         <ProfileDetailItem icon={<IndianRupee className="h-5 w-5" />} label="Consultation Fee" value={profile.consultationFee ? `₹${profile.consultationFee}` : ''} />
-                        <ProfileDetailItem icon={<Hospital className="h-5 w-5" />} label="Clinic / Hospital" value={profile.clinic} />
                     </div>
+                    <ProfileDetailItem icon={<Hospital className="h-5 w-5" />} label="Clinic / Hospital" value={profile.clinic} />
                     <ProfileDetailItem icon={<FileText className="h-5 w-5" />} label="Bio" value={profile.bio} isBio={true} />
                 </CardContent>
               </Card>
