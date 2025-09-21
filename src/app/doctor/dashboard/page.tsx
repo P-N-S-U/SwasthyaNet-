@@ -246,20 +246,20 @@ export default function DoctorDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-border/30 bg-background">
+        <Card className={`border-border/30 bg-background ${!isProfileComplete && 'opacity-50'}`}>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Total Patients
+              Manage Patients
             </CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1,250</div>
-            <p className="text-xs text-muted-foreground">
-              +50 new this month
+            <div className="text-2xl font-bold">{recentPatients.length} Total</div>
+             <p className="text-xs text-muted-foreground">
+              View and manage patient records.
             </p>
-            <Button asChild size="sm" variant="outline" className="mt-4">
-              <Link href="#">Manage Patients</Link>
+            <Button asChild size="sm" variant="outline" className="mt-4" disabled={!isProfileComplete}>
+              <Link href="/doctor/patients">View Patients</Link>
             </Button>
           </CardContent>
         </Card>
@@ -306,5 +306,3 @@ export default function DoctorDashboardPage() {
     </div>
   );
 }
-
-    

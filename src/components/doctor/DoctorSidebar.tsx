@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   Calendar,
   Stethoscope,
+  Users,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -73,6 +74,9 @@ export function DoctorSidebar({ user }: { user: User }) {
         </NavLink>
         <NavLink href="/doctor/schedule" icon={Calendar}>
           My Schedule
+        </NavLink>
+        <NavLink href="/doctor/patients" icon={Users}>
+          Patients
         </NavLink>
       </nav>
 
