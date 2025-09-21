@@ -1,21 +1,30 @@
 
 'use client';
 
-import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
+import {
+  Bar,
+  BarChart,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from 'recharts';
 
 interface ChartData {
-    day: string;
-    appointments: number;
+  day: string;
+  appointments: number;
 }
 
 interface AppointmentsChartProps {
-    data: ChartData[];
+  data: ChartData[];
 }
 
 export function AppointmentsChart({ data }: AppointmentsChartProps) {
   return (
     <ResponsiveContainer width="100%" height={350}>
       <BarChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" vertical={false} />
         <XAxis
           dataKey="day"
           stroke="hsl(var(--muted-foreground))"
@@ -28,18 +37,22 @@ export function AppointmentsChart({ data }: AppointmentsChartProps) {
           fontSize={12}
           tickLine={false}
           axisLine={false}
-          tickFormatter={(value) => `${value}`}
+          tickFormatter={value => `${value}`}
           allowDecimals={false}
         />
         <Tooltip
-            cursor={false}
-            contentStyle={{ 
-                background: "hsl(var(--background))",
-                border: "1px solid hsl(var(--border))",
-                borderRadius: "var(--radius)"
-            }}
+          cursor={false}
+          contentStyle={{
+            background: 'hsl(var(--background))',
+            border: '1px solid hsl(var(--border))',
+            borderRadius: 'var(--radius)',
+          }}
         />
-        <Bar dataKey="appointments" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+        <Bar
+          dataKey="appointments"
+          fill="hsl(var(--primary))"
+          radius={[4, 4, 0, 0]}
+        />
       </BarChart>
     </ResponsiveContainer>
   );
