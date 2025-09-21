@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useActionState, useEffect } from 'react';
+import { useActionState, useEffect, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { getDoctorRecommendations } from '@/app/find-a-doctor/actions';
 import { bookAppointment } from '@/app/actions/appointments';
@@ -25,12 +25,10 @@ import {
   Stethoscope,
   CalendarPlus,
   Eye,
-  Briefcase,
   GraduationCap,
   CalendarClock,
   IndianRupee,
   Hospital,
-  FileText,
 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -99,7 +97,7 @@ function BookAppointmentForm({ doctorId }: { doctorId: string }) {
   );
 }
 
-const ProfileDetailItem = ({ icon, label, value, isBio = false }) => {
+const ProfileDetailItem = ({ icon, label, value }) => {
   if (!value) return null;
 
   return (
@@ -107,7 +105,7 @@ const ProfileDetailItem = ({ icon, label, value, isBio = false }) => {
       <div className="mt-1 shrink-0 text-primary">{icon}</div>
       <div>
         <p className="text-sm font-medium text-muted-foreground">{label}</p>
-        <p className={`font-semibold ${isBio ? 'whitespace-pre-wrap text-base' : 'text-lg'}`}>
+        <p className={'font-semibold text-lg'}>
           {value}
         </p>
       </div>
@@ -133,6 +131,7 @@ export function DoctorRecommendationForm({
     getDoctorRecommendations,
     initialSearchState
   );
+  const [query, setQuery] = useState('');
 
   return (
     <div>
@@ -140,6 +139,8 @@ export function DoctorRecommendationForm({
         <div className="flex gap-2">
           <Input
             name="query"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder="e.g., Dr. Anjali Rao or Cardiology"
             className="flex-grow bg-secondary/50 focus:border-accent"
             required
@@ -153,9 +154,8 @@ export function DoctorRecommendationForm({
             spec => (
               <Button
                 key={spec}
-                type="submit"
-                name="query"
-                value={spec}
+                type="button"
+                onClick={() => setQuery(spec)}
                 variant="secondary"
                 size="sm"
                 className="text-xs font-normal"
@@ -235,7 +235,7 @@ export function DoctorRecommendationForm({
                         <div className="my-6 space-y-4 rounded-lg bg-secondary/30 p-4">
                             <div className="grid grid-cols-2 gap-4">
                                <ProfileDetailItem icon={<GraduationCap size={20} />} label="Qualifications" value={doctor.qualifications} />
-                               <ProfileDetailItem icon={<CalendarClock size={20} />} label="Experience" value={`${doctor.experience} years`} />
+                               <ProfileDetailItem icon={<CalendarClock size={20} />} label="Experience" value={doctor.experience ? `${doctor.experience} years` : ''} />
                                <ProfileDetailItem icon={<IndianRupee size={20} />} label="Fee" value={doctor.consultationFee ? `₹${doctor.consultationFee}` : ''} />
                                <ProfileDetailItem icon={<Hospital size={20} />} label="Clinic" value={doctor.clinic} />
                             </div>
