@@ -70,6 +70,7 @@ export async function bookAppointment(prevState: any, formData: FormData) {
     const newAppointment = {
       patientId,
       patientName: patientData.displayName || 'Anonymous Patient',
+      patientPhotoURL: patientData.photoURL || null,
       doctorId,
       doctorName: doctorData.displayName || 'Anonymous Doctor',
       doctorSpecialization: doctorData.specialization || 'Not Specified',

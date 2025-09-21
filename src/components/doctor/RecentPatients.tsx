@@ -25,6 +25,7 @@ export function RecentPatients({ patients }: { patients: RecentPatient[] }) {
       {patients.map((patient) => (
         <div key={patient.id} className="flex items-center">
           <Avatar className="h-9 w-9">
+            <AvatarImage src={patient.photoURL} alt={patient.name} />
             <AvatarFallback>
               {getInitials(patient.name)}
             </AvatarFallback>

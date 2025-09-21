@@ -33,6 +33,7 @@ interface Appointment {
   id: string;
   patientName: string;
   patientId: string;
+  patientPhotoURL?: string;
   appointmentDate: Timestamp;
   status: 'Confirmed' | 'Completed' | 'Cancelled';
 }
@@ -40,6 +41,7 @@ interface Appointment {
 export interface RecentPatient {
     id: string;
     name: string;
+    photoURL?: string;
 }
 
 const getWeeklyChartData = (appointments: Appointment[]) => {
@@ -150,7 +152,7 @@ export default function DoctorDashboardPage() {
     // Appointments are already sorted by date descending
     for (const appt of allAppointments) {
       if (!uniquePatients.has(appt.patientId) && uniquePatients.size < 5) {
-        uniquePatients.set(appt.patientId, { id: appt.patientId, name: appt.patientName });
+        uniquePatients.set(appt.patientId, { id: appt.patientId, name: appt.patientName, photoURL: appt.patientPhotoURL });
       }
     }
     
@@ -304,5 +306,3 @@ export default function DoctorDashboardPage() {
     </div>
   );
 }
-
-    
