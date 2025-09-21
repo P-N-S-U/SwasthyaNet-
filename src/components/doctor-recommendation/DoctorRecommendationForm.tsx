@@ -183,7 +183,7 @@ export function DoctorRecommendationForm() {
           <AlertDescription>
             We couldn't find any doctors for that query. Please try a
             different one.
-          </          </AlertDescription>
+          </AlertDescription>
         </Alert>
       )}
     </div>
