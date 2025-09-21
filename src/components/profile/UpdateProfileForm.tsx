@@ -1,20 +1,19 @@
 
 'use client';
 
-import { useActionState, useEffect } from 'react';
+import { useState } from 'react';
 import { useFormStatus } from 'react-dom';
-import { updateProfile } from '@/app/profile/actions';
+import { updateProfile as updateAuthProfile } from 'firebase/auth';
+import { doc, updateDoc } from 'firebase/firestore';
+import { auth, db } from '@/lib/firebase/firebase';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Loader2, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { User } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
-const initialState = {
-  data: null,
-  error: null,
-};
 
 function SubmitButton() {
   const { pending } = useFormStatus();
@@ -31,29 +30,57 @@ function SubmitButton() {
 }
 
 export function UpdateProfileForm({ user }: { user: User }) {
-  const [state, formAction] = useActionState(updateProfile, initialState);
   const { toast } = useToast();
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (state.error) {
-      toast({
-        title: 'Update Failed',
-        description: state.error,
-        variant: 'destructive',
-      });
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+
+    const formData = new FormData(event.currentTarget);
+    const displayName = formData.get('displayName') as string;
+    const photoURL = formData.get('photoURL') as string;
+    
+    if (!auth.currentUser) {
+        toast({ title: 'Error', description: 'You are not logged in.', variant: 'destructive'});
+        setIsSubmitting(false);
+        return;
     }
-    if (state.data) {
-      toast({
-        title: 'Success!',
-        description: state.data,
-      });
-      // Optionally, close the dialog on success
-      document.querySelector('[data-radix-dialog-close]')?.dispatchEvent(new Event('click'));
+
+    try {
+        // 1. Update Firebase Auth record
+        await updateAuthProfile(auth.currentUser, { displayName, photoURL });
+
+        // 2. Update Firestore document
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, { displayName, photoURL });
+        
+        toast({
+            title: 'Success!',
+            description: 'Your profile has been updated.',
+        });
+        
+        // Refresh the page to show new details
+        router.refresh();
+
+        // Close the dialog
+        document.querySelector('[data-radix-dialog-close]')?.dispatchEvent(new Event('click'));
+
+    } catch (error: any) {
+         toast({
+            title: 'Update Failed',
+            description: error.message,
+            variant: 'destructive',
+        });
+    } finally {
+        setIsSubmitting(false);
     }
-  }, [state, toast]);
+  };
+
 
   return (
-    <form action={formAction}>
+    <form onSubmit={handleSubmit}>
       <div className="space-y-6 py-4">
         <div className="space-y-2">
           <Label htmlFor="displayName">Full Name</Label>
@@ -63,6 +90,7 @@ export function UpdateProfileForm({ user }: { user: User }) {
             defaultValue={user?.displayName || ''}
             placeholder="Your full name"
             className="bg-secondary/50"
+            disabled={isSubmitting}
           />
         </div>
         <div className="space-y-2">
@@ -73,11 +101,19 @@ export function UpdateProfileForm({ user }: { user: User }) {
             defaultValue={user?.photoURL || ''}
             placeholder="https://example.com/your-photo.jpg"
             className="bg-secondary/50"
+            disabled={isSubmitting}
           />
         </div>
       </div>
       <div className="pt-6">
-        <SubmitButton />
+        <Button type="submit" disabled={isSubmitting} className="w-full">
+            {isSubmitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+                <Save className="mr-2 h-4 w-4" />
+            )}
+            Save Changes
+        </Button>
       </div>
     </form>
   );
