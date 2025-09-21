@@ -7,6 +7,10 @@ import {
   Timestamp,
   doc,
   getDoc,
+  query,
+  where,
+  getDocs,
+  limit,
 } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/lib/firebase/firebase';
@@ -27,6 +31,22 @@ export async function bookAppointment(prevState: any, formData: FormData) {
   }
 
   try {
+    // Check for existing confirmed appointments with this doctor
+    const appointmentsRef = collection(db, 'appointments');
+    const q = query(
+      appointmentsRef,
+      where('patientId', '==', patientId),
+      where('doctorId', '==', doctorId),
+      where('status', '==', 'Confirmed'),
+      limit(1)
+    );
+
+    const existingAppointments = await getDocs(q);
+
+    if (!existingAppointments.empty) {
+      return { error: 'You already have a confirmed appointment with this doctor.' };
+    }
+
     const patientDocRef = doc(db, 'users', patientId);
     const doctorDocRef = doc(db, 'users', doctorId);
 
