@@ -12,17 +12,10 @@ import {
   Mail,
   Calendar,
   Edit,
-  Briefcase,
-  GraduationCap,
-  CalendarClock,
-  IndianRupee,
-  Hospital,
-  FileText,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getUserProfile } from '@/lib/firebase/firestore';
-import { DoctorProfileForm } from '@/components/doctor/DoctorProfileForm';
 import { UpdateProfileForm } from '@/components/profile/UpdateProfileForm';
 import {
   Dialog,
@@ -34,15 +27,15 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 
-const ProfileDetailItem = ({ icon, label, value, isBio = false }) => {
-  if (!value && !isBio) return null;
+const ProfileDetailItem = ({ icon, label, value }) => {
+  if (!value) return null;
 
   return (
     <div className="flex items-start gap-4 rounded-lg bg-secondary/50 p-4">
       <div className="mt-1 text-primary">{icon}</div>
       <div>
         <p className="text-sm text-muted-foreground">{label}</p>
-        <p className={`font-medium ${isBio ? 'whitespace-pre-wrap' : ''}`}>{value || 'Not provided'}</p>
+        <p className="font-medium">{value}</p>
       </div>
     </div>
   );
@@ -52,27 +45,31 @@ const ProfileDetailItem = ({ icon, label, value, isBio = false }) => {
 export default function ProfilePage() {
   const { user, loading, role } = useAuthState();
   const router = useRouter();
-  const [profile, setProfile] = useState<any>(null);
   const [profileLoading, setProfileLoading] = useState(true);
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.push('/auth');
+    if (!loading) {
+        if (!user) {
+            router.push('/auth');
+        } else if (role === 'doctor') {
+            router.replace('/doctor/profile');
+        } else {
+            setProfileLoading(false);
+        }
     }
-    if (user) {
-      getUserProfile(user.uid).then(userProfile => {
-        setProfile(userProfile);
-        setProfileLoading(false);
-      });
-    }
-  }, [user, loading, router]);
+  }, [user, loading, role, router]);
 
-  if (loading || !user || profileLoading) {
+  if (loading || profileLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
+  }
+
+  // If we reach here, it's a patient
+  if (!user) {
+      return null; // Should have been redirected, but as a fallback
   }
 
   const getInitials = email => {
@@ -84,21 +81,11 @@ export default function ProfilePage() {
     ? new Date(user.metadata.creationTime).toLocaleDateString()
     : 'Not available';
     
-  const isDoctor = role === 'doctor';
-
   return (
     <div className="flex min-h-screen flex-col">
-      {!isDoctor && <Header />}
-      <main className={`flex-grow ${!isDoctor ? 'bg-secondary/30 py-12 md:py-20' : ''}`}>
+      <Header />
+      <main className="flex-grow bg-secondary/30 py-12 md:py-20">
         <div className="container">
-           {isDoctor && (
-             <div className="mb-10">
-                <h1 className="text-4xl font-bold font-headline">Profile</h1>
-                <p className="mt-2 text-lg text-foreground/70">
-                    Manage your personal and professional information.
-                </p>
-            </div>
-           )}
           <div className="mx-auto max-w-2xl space-y-8">
             <Card className="border-border/30 bg-background">
               <CardHeader>
@@ -126,17 +113,14 @@ export default function ProfilePage() {
                     </DialogContent>
                   </Dialog>
                 </div>
-                <div className="mx-auto pt-4">
-                  <Avatar className="h-24 w-24 border-4 border-primary">
+                <div className="mx-auto pt-4 text-center">
+                  <Avatar className="mx-auto h-24 w-24 border-4 border-primary">
                     <AvatarImage src={user.photoURL || undefined} alt={user.displayName || ''} />
                     <AvatarFallback className="text-3xl">
                       {getInitials(user.email)}
                     </AvatarFallback>
                   </Avatar>
                 </div>
-                 {profile.role === 'doctor' && (
-                  <p className="text-center text-lg text-muted-foreground">{profile.specialization || 'Specialization not set'}</p>
-                 )}
               </CardHeader>
               <CardContent className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                  <ProfileDetailItem icon={<Mail className="h-5 w-5" />} label="Email" value={user.email} />
@@ -144,50 +128,10 @@ export default function ProfilePage() {
                  <ProfileDetailItem icon={<Calendar className="h-5 w-5" />} label="Member Since" value={registrationDate} />
               </CardContent>
             </Card>
-
-            {profile.role === 'doctor' && (
-              <Card className="border-border/30 bg-background">
-                <CardHeader className="flex flex-row items-center justify-between">
-                   <CardTitle className="font-headline text-2xl">
-                    Professional Details
-                  </CardTitle>
-                   <Dialog>
-                    <DialogTrigger asChild>
-                       <Button variant="outline" size="sm">
-                        <Edit className="mr-2 h-4 w-4" />
-                        Edit
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[625px]">
-                      <DialogHeader>
-                        <DialogTitle className="font-headline">
-                          Professional Information
-                        </DialogTitle>
-                         <DialogDescription>
-                           This information will be displayed to patients.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DoctorProfileForm profile={profile} />
-                    </DialogContent>
-                  </Dialog>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <ProfileDetailItem icon={<Briefcase className="h-5 w-5" />} label="Specialization" value={profile.specialization} />
-                        <ProfileDetailItem icon={<GraduationCap className="h-5 w-5" />} label="Qualifications" value={profile.qualifications} />
-                        <ProfileDetailItem icon={<CalendarClock className="h-5 w-5" />} label="Years of Experience" value={profile.experience} />
-                        <ProfileDetailItem icon={<IndianRupee className="h-5 w-5" />} label="Consultation Fee" value={profile.consultationFee ? `₹${profile.consultationFee}` : ''} />
-                    </div>
-                    <ProfileDetailItem icon={<Hospital className="h-5 w-5" />} label="Clinic / Hospital" value={profile.clinic} />
-                    <ProfileDetailItem icon={<FileText className="h-5 w-5" />} label="Bio" value={profile.bio} isBio={true} />
-                </CardContent>
-              </Card>
-            )}
-
           </div>
         </div>
       </main>
-      {!isDoctor && <Footer />}
+      <Footer />
     </div>
   );
 }

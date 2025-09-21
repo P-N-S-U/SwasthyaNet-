@@ -100,7 +100,7 @@ export function DoctorSidebar({ user }: { user: User }) {
             <DropdownMenuLabel>My Account</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link href="/profile">
+              <Link href="/doctor/profile">
                 <UserCircle className="mr-2 h-4 w-4" />
                 Profile
               </Link>
