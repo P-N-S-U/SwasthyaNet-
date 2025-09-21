@@ -32,8 +32,14 @@ import { db } from '@/lib/firebase/firebase';
 interface Appointment {
   id: string;
   patientName: string;
+  patientId: string;
   appointmentDate: Timestamp;
   status: 'Confirmed' | 'Completed' | 'Cancelled';
+}
+
+export interface RecentPatient {
+    id: string;
+    name: string;
 }
 
 const getWeeklyChartData = (appointments: Appointment[]) => {
@@ -123,7 +129,21 @@ export default function DoctorDashboardPage() {
   ).sort((a,b) => a.appointmentDate.toDate().getTime() - b.appointmentDate.toDate().getTime());
 
   const weeklyChartData = getWeeklyChartData(allAppointments);
+  
+  const getRecentPatients = (): RecentPatient[] => {
+    const uniquePatients = new Map<string, RecentPatient>();
+    
+    // Appointments are already sorted by date descending
+    for (const appt of allAppointments) {
+      if (!uniquePatients.has(appt.patientId) && uniquePatients.size < 5) {
+        uniquePatients.set(appt.patientId, { id: appt.patientId, name: appt.patientName });
+      }
+    }
+    
+    return Array.from(uniquePatients.values());
+  };
 
+  const recentPatients = getRecentPatients();
 
   return (
     <div>
@@ -263,7 +283,7 @@ export default function DoctorDashboardPage() {
             <CardTitle>Recent Patients</CardTitle>
           </CardHeader>
           <CardContent>
-            <RecentPatients />
+            <RecentPatients patients={recentPatients}/>
           </CardContent>
         </Card>
       </div>
