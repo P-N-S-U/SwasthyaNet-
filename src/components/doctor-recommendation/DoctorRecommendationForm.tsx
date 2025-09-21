@@ -32,6 +32,8 @@ import {
 } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { ToastAction } from '../ui/toast';
+import Link from 'next/link';
 
 const initialSearchState = {
   data: null,
@@ -77,6 +79,11 @@ function BookAppointmentForm({ doctorId }: { doctorId: string }) {
       toast({
         title: 'Success!',
         description: 'Appointment booked successfully.',
+        action: (
+          <ToastAction asChild altText="View Appointments">
+            <Link href="/patient/appointments">View</Link>
+          </ToastAction>
+        ),
       });
     }
   }, [state, toast]);
