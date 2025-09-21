@@ -87,7 +87,7 @@ export default function SchedulePage() {
             </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 md:items-start">
         <div>
             <Card className="border-border/30 bg-background">
             <CardContent className="p-0">
