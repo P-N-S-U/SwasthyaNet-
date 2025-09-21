@@ -2,11 +2,12 @@
 // /src/app/api/auth/session.ts
 import { NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
-import { clearSessionCookie, getSession } from '@/lib/firebase/server-auth';
+import { clearSessionCookie, getSession, initializeFirebaseAdmin } from '@/lib/firebase/server-auth';
 
 // Handler for POST requests to create a session
 export async function POST(request: Request) {
   console.log('[v3] [/api/auth/session] POST endpoint hit.');
+  initializeFirebaseAdmin(); // Ensure admin app is initialized
   try {
     const body = await request.json();
     const idToken = body.idToken as string;

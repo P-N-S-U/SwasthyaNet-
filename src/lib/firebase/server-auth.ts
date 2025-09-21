@@ -1,3 +1,4 @@
+
 // /src/lib/firebase/server-auth.ts
 import 'server-only';
 import { cookies } from 'next/headers';
@@ -6,9 +7,7 @@ import { getAuth } from 'firebase-admin/auth';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import { NextResponse } from 'next/server';
 
-function initializeFirebaseAdmin(): App | undefined {
-  console.log('[v3] [server-auth] Attempting to initialize Firebase Admin SDK.');
-
+export function initializeFirebaseAdmin(): App {
   const serviceAccount = {
     projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
@@ -25,7 +24,7 @@ function initializeFirebaseAdmin(): App | undefined {
   if (!isConfigured) {
     console.error('[v3] [server-auth] Firebase Admin is NOT configured. Service account details are missing or incomplete in .env file.');
     console.log(`[v3] [server-auth] Found projectId: ${!!serviceAccount.projectId}, clientEmail: ${!!serviceAccount.clientEmail}, privateKey: ${!!serviceAccount.privateKey}`);
-    return undefined;
+    // This will cause an error downstream, which is intended if config is missing.
   }
   
   if (getApps().length > 0) {
@@ -41,7 +40,7 @@ function initializeFirebaseAdmin(): App | undefined {
     return app;
   } catch (e: any) {
     console.error('[v3] [server-auth] Firebase Admin SDK initialization failed:', e.message);
-    return undefined;
+    throw e; // Re-throw the error to make it visible
   }
 }
 
@@ -55,10 +54,6 @@ export function clearSessionCookie(response: NextResponse) {
 
 export async function getSession(): Promise<DecodedIdToken | null> {
   const app = initializeFirebaseAdmin();
-  if (!app) {
-    console.error('[v3] [server-auth] Cannot get session: Firebase Admin initialization failed.');
-    return null;
-  }
   
   const cookieValue = cookies().get(COOKIE_NAME)?.value;
   if (!cookieValue) {
