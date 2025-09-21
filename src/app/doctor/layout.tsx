@@ -39,7 +39,9 @@ export default function DoctorLayout({
       <DoctorSidebar user={user} />
       <main className="pl-64">
         <div className="p-4 sm:p-6 md:p-8">
+          <div className="mx-auto max-w-7xl">
             {children}
+          </div>
         </div>
       </main>
     </div>
