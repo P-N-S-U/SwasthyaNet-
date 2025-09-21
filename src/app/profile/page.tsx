@@ -6,7 +6,19 @@ import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
-import { Loader2, User, Mail, Calendar, Edit } from 'lucide-react';
+import {
+  Loader2,
+  User,
+  Mail,
+  Calendar,
+  Edit,
+  Briefcase,
+  GraduationCap,
+  CalendarClock,
+  IndianRupee,
+  Hospital,
+  FileText,
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getUserProfile } from '@/lib/firebase/firestore';
@@ -20,6 +32,21 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+
+const ProfileDetailItem = ({ icon, label, value, isBio = false }) => {
+  if (!value) return null;
+
+  return (
+    <div className="flex items-start gap-4 rounded-lg bg-secondary/50 p-4">
+      <div className="mt-1">{icon}</div>
+      <div>
+        <p className="text-sm text-muted-foreground">{label}</p>
+        <p className={`font-medium ${isBio ? 'whitespace-pre-wrap' : ''}`}>{value}</p>
+      </div>
+    </div>
+  );
+};
+
 
 export default function ProfilePage() {
   const { user, loading } = useAuthState();
@@ -79,38 +106,24 @@ export default function ProfilePage() {
                   <p className="text-lg text-muted-foreground">{profile.specialization || 'Specialization not set'}</p>
                  )}
               </CardHeader>
-              <CardContent className="mt-4 space-y-6">
-                <div className="flex items-center gap-4 rounded-lg bg-secondary/50 p-4">
-                  <Mail className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Email</p>
-                    <p className="font-medium">{user.email}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 rounded-lg bg-secondary/50 p-4">
-                  <User className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Full Name</p>
-                    <p className="font-medium">
-                      {user.displayName || 'Not set'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 rounded-lg bg-secondary/50 p-4">
-                  <Calendar className="h-5 w-5 text-primary" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      Member Since
-                    </p>
-                    <p className="font-medium">{registrationDate}</p>
-                  </div>
-                </div>
-                 {profile.role === 'doctor' && (
-                  <Dialog>
+              <CardContent className="mt-4 space-y-4">
+                 <ProfileDetailItem icon={<Mail className="h-5 w-5 text-primary" />} label="Email" value={user.email} />
+                 <ProfileDetailItem icon={<User className="h-5 w-5 text-primary" />} label="Full Name" value={user.displayName || 'Not set'} />
+                 <ProfileDetailItem icon={<Calendar className="h-5 w-5 text-primary" />} label="Member Since" value={registrationDate} />
+              </CardContent>
+            </Card>
+
+            {profile.role === 'doctor' && (
+              <Card className="border-border/30 bg-background">
+                <CardHeader className="flex flex-row items-center justify-between">
+                   <CardTitle className="font-headline text-2xl">
+                    Professional Details
+                  </CardTitle>
+                   <Dialog>
                     <DialogTrigger asChild>
-                       <Button className="w-full">
+                       <Button variant="outline" size="sm">
                         <Edit className="mr-2 h-4 w-4" />
-                        Edit Professional Profile
+                        Edit
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[625px]">
@@ -125,9 +138,18 @@ export default function ProfilePage() {
                       <DoctorProfileForm profile={profile} />
                     </DialogContent>
                   </Dialog>
-                )}
-              </CardContent>
-            </Card>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                   <ProfileDetailItem icon={<Briefcase className="h-5 w-5 text-primary" />} label="Specialization" value={profile.specialization} />
+                   <ProfileDetailItem icon={<GraduationCap className="h-5 w-5 text-primary" />} label="Qualifications" value={profile.qualifications} />
+                   <ProfileDetailItem icon={<CalendarClock className="h-5 w-5 text-primary" />} label="Years of Experience" value={profile.experience} />
+                   <ProfileDetailItem icon={<IndianRupee className="h-5 w-5 text-primary" />} label="Consultation Fee" value={profile.consultationFee ? `₹${profile.consultationFee}` : ''} />
+                   <ProfileDetailItem icon={<Hospital className="h-5 w-5 text-primary" />} label="Clinic / Hospital" value={profile.clinic} />
+                   <ProfileDetailItem icon={<FileText className="h-5 w-5 text-primary" />} label="Bio" value={profile.bio} isBio={true} />
+                </CardContent>
+              </Card>
+            )}
+
           </div>
         </div>
       </main>

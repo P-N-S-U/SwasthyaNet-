@@ -9,9 +9,17 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, Search, User, Stethoscope, CalendarPlus } from 'lucide-react';
+import {
+  Loader2,
+  Search,
+  User,
+  Stethoscope,
+  CalendarPlus,
+  Eye,
+} from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
 
 const initialSearchState = {
   data: null,
@@ -66,13 +74,13 @@ function BookAppointmentForm({ doctorId }: { doctorId: string }) {
   return (
     <form action={formAction}>
       <input type="hidden" name="doctorId" value={doctorId} />
-      <Button variant="outline" size="sm" type="submit" disabled={pending}>
+      <Button variant="default" size="sm" type="submit" disabled={pending}>
         {pending ? (
           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
         ) : (
           <CalendarPlus className="mr-2 h-4 w-4" />
         )}
-        Book Appointment
+        Book Now
       </Button>
     </form>
   );
@@ -139,18 +147,29 @@ export function DoctorRecommendationForm() {
               {state.data.doctors.map((doctor) => (
                 <li
                   key={doctor.id}
-                  className="flex items-center justify-between rounded-lg border border-border/50 bg-background/50 p-4"
+                  className="flex flex-col items-start gap-4 rounded-lg border border-border/50 bg-background/50 p-4 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="rounded-full bg-primary/10 p-2">
-                      <User className="h-5 w-5 text-primary" />
+                    <div className="rounded-full bg-primary/10 p-3">
+                      <User className="h-6 w-6 text-primary" />
                     </div>
                     <div>
                       <span className="font-medium">{doctor.name}</span>
                        <Badge variant="outline" className="ml-2">{doctor.specialization}</Badge>
                     </div>
                   </div>
-                  <BookAppointmentForm doctorId={doctor.id} />
+                  <div className="flex w-full shrink-0 gap-2 sm:w-auto">
+                    <Button asChild variant="outline" size="sm" className="flex-1">
+                      {/* In a real app, this would link to /profile/[doctorId] */}
+                      <Link href="/profile"> 
+                         <Eye className="mr-2 h-4 w-4" />
+                        View Profile
+                      </Link>
+                    </Button>
+                     <div className="flex-1">
+                      <BookAppointmentForm doctorId={doctor.id} />
+                    </div>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -164,7 +183,7 @@ export function DoctorRecommendationForm() {
           <AlertDescription>
             We couldn't find any doctors for that query. Please try a
             different one.
-          </AlertDescription>
+          </          </AlertDescription>
         </Alert>
       )}
     </div>
