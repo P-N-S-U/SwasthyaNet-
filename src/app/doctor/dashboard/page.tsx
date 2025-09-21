@@ -92,7 +92,7 @@ export default function DoctorDashboardPage() {
 
   // Effect for fetching appointments, depends on the profile being loaded
   useEffect(() => {
-    if (!profile) return; // Don't run if profile isn't loaded
+    if (!profile?.uid) return; // Don't run if profile or profile.uid isn't loaded
 
     const appointmentsRef = collection(db, 'appointments');
     const q = query(
@@ -298,5 +298,3 @@ export default function DoctorDashboardPage() {
     </div>
   );
 }
-
-    
