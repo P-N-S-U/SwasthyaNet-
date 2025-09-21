@@ -29,6 +29,7 @@ export function AppointmentsChart({ data }: AppointmentsChartProps) {
           tickLine={false}
           axisLine={false}
           tickFormatter={(value) => `${value}`}
+          allowDecimals={false}
         />
         <Tooltip
             cursor={false}
