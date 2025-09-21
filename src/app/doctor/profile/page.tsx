@@ -19,7 +19,8 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getUserProfile } from '@/lib/firebase/firestore';
+import { onSnapshot, doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase/firebase';
 import { DoctorProfileForm } from '@/components/doctor/DoctorProfileForm';
 import { UpdateProfileForm } from '@/components/profile/UpdateProfileForm';
 import {
@@ -62,10 +63,20 @@ export default function ProfilePage() {
         router.replace('/patient/dashboard'); // Or a generic unauthorized page
         return;
       }
-      getUserProfile(user.uid).then(userProfile => {
-        setProfile(userProfile);
+      
+      const userDocRef = doc(db, 'users', user.uid);
+      const unsubscribe = onSnapshot(userDocRef, (doc) => {
+        if (doc.exists()) {
+          setProfile(doc.data());
+        } else {
+          // Handle the case where the document does not exist
+          console.error("No such user document!");
+        }
         setProfileLoading(false);
       });
+
+      // Cleanup subscription on unmount
+      return () => unsubscribe();
     }
   }, [user, loading, role, router]);
 
