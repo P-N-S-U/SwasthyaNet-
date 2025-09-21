@@ -67,7 +67,7 @@ export function DoctorSidebar({ user }: { user: User }) {
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-2 p-4">
+      <nav className="flex-1 space-y-2 overflow-y-auto p-4">
         <NavLink href="/doctor/dashboard" icon={LayoutDashboard}>
           Dashboard
         </NavLink>
