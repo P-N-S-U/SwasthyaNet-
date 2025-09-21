@@ -103,11 +103,11 @@ const ProfileDetailItem = ({ icon, label, value, isBio = false }) => {
   if (!value) return null;
 
   return (
-    <div className="flex items-start gap-4 rounded-lg bg-secondary/50 p-3">
+    <div className="flex items-start gap-3 rounded-lg">
       <div className="mt-1 shrink-0 text-primary">{icon}</div>
       <div>
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className={`font-medium ${isBio ? 'whitespace-pre-wrap' : ''}`}>
+        <p className="text-sm font-medium text-muted-foreground">{label}</p>
+        <p className={`font-semibold ${isBio ? 'whitespace-pre-wrap text-base' : 'text-lg'}`}>
           {value}
         </p>
       </div>
@@ -225,17 +225,23 @@ export function DoctorRecommendationForm() {
                             {doctor.name}
                           </DialogTitle>
                           <DialogDescription>
-                            {doctor.specialization}
+                            <Badge variant="secondary">{doctor.specialization}</Badge>
                           </DialogDescription>
                         </DialogHeader>
-                        <div className="mt-4 space-y-3 py-4">
-                           <ProfileDetailItem icon={<Briefcase size={20} />} label="Specialization" value={doctor.specialization} />
-                           <ProfileDetailItem icon={<GraduationCap size={20} />} label="Qualifications" value={doctor.qualifications} />
-                           <ProfileDetailItem icon={<CalendarClock size={20} />} label="Years of Experience" value={doctor.experience} />
-                           <ProfileDetailItem icon={<IndianRupee size={20} />} label="Consultation Fee" value={doctor.consultationFee ? `₹${doctor.consultationFee}` : ''} />
-                           <ProfileDetailItem icon={<Hospital size={20} />} label="Clinic / Hospital" value={doctor.clinic} />
-                           <ProfileDetailItem icon={<FileText size={20} />} label="Bio" value={doctor.bio} isBio={true} />
+                        <div className="my-6 space-y-4 rounded-lg bg-secondary/30 p-4">
+                            <div className="grid grid-cols-2 gap-4">
+                               <ProfileDetailItem icon={<GraduationCap size={20} />} label="Qualifications" value={doctor.qualifications} />
+                               <ProfileDetailItem icon={<CalendarClock size={20} />} label="Experience" value={`${doctor.experience} years`} />
+                               <ProfileDetailItem icon={<IndianRupee size={20} />} label="Fee" value={doctor.consultationFee ? `₹${doctor.consultationFee}` : ''} />
+                               <ProfileDetailItem icon={<Hospital size={20} />} label="Clinic" value={doctor.clinic} />
+                            </div>
                         </div>
+                        {doctor.bio && (
+                           <div className='space-y-2'>
+                                <h4 className='font-headline text-lg'>About</h4>
+                                <p className='text-muted-foreground text-sm'>{doctor.bio}</p>
+                           </div>
+                        )}
                       </DialogContent>
                     </Dialog>
                     <div className="flex-1">
