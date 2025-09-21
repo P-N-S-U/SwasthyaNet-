@@ -17,7 +17,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'ID token is required.' }, { status: 400 });
     }
 
-    const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
+    const expiresIn = 60 * 60 * 24 * 5; // 5 days
     
     console.log('[v3] [/api/auth/session] Attempting to create session cookie.');
     const sessionCookie = await getAuth().createSessionCookie(idToken, { expiresIn });
