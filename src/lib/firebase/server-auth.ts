@@ -7,6 +7,8 @@ import type { DecodedIdToken } from 'firebase-admin/auth';
 import { NextResponse } from 'next/server';
 
 function initializeFirebaseAdmin(): App | undefined {
+  console.log('[v3] [server-auth] Attempting to initialize Firebase Admin SDK.');
+
   const serviceAccount = {
     projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
@@ -21,7 +23,8 @@ function initializeFirebaseAdmin(): App | undefined {
     serviceAccount.privateKey;
 
   if (!isConfigured) {
-    console.error('[v3] [server-auth] Firebase Admin is not configured. Service account details are missing.');
+    console.error('[v3] [server-auth] Firebase Admin is NOT configured. Service account details are missing or incomplete in .env file.');
+    console.log(`[v3] [server-auth] Found projectId: ${!!serviceAccount.projectId}, clientEmail: ${!!serviceAccount.clientEmail}, privateKey: ${!!serviceAccount.privateKey}`);
     return undefined;
   }
   
