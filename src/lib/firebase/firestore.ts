@@ -12,6 +12,7 @@ export async function createUserInFirestore(user, additionalData = {}) {
 
     try {
       await setDoc(userRef, {
+        uid: user.uid,
         displayName: additionalData.displayName || user.displayName,
         email,
         photoURL,
@@ -50,3 +51,5 @@ export async function getUserProfile(userId) {
         return null;
     }
 }
+
+    

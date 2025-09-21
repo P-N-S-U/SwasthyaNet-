@@ -69,15 +69,16 @@ const getWeeklyChartData = (appointments: Appointment[]) => {
 
 
 export default function DoctorDashboardPage() {
-  const { user, loading } = useAuthState();
+  const { user, loading: authLoading } = useAuthState();
   const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
   const [appointmentsLoading, setAppointmentsLoading] = useState(true);
 
+  // Effect for auth and profile fetching
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       router.push('/auth');
       return;
     }
@@ -86,29 +87,35 @@ export default function DoctorDashboardPage() {
         setProfile(userProfile);
         setProfileLoading(false);
       });
-
-      const appointmentsRef = collection(db, 'appointments');
-      const q = query(
-        appointmentsRef,
-        where('doctorId', '==', user.uid),
-        orderBy('appointmentDate', 'desc')
-      );
-
-      const unsubscribe = onSnapshot(q, snapshot => {
-        const appts = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Appointment[];
-        setAllAppointments(appts);
-        setAppointmentsLoading(false);
-      }, (error) => {
-          console.error("Error fetching appointments: ", error);
-          setAppointmentsLoading(false);
-      });
-      
-      return () => unsubscribe();
     }
-  }, [user, loading, router]);
+  }, [user, authLoading, router]);
+
+  // Effect for fetching appointments, depends on the profile being loaded
+  useEffect(() => {
+    if (!profile) return; // Don't run if profile isn't loaded
+
+    const appointmentsRef = collection(db, 'appointments');
+    const q = query(
+      appointmentsRef,
+      where('doctorId', '==', profile.uid),
+      orderBy('appointmentDate', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, snapshot => {
+      const appts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Appointment[];
+      setAllAppointments(appts);
+      setAppointmentsLoading(false);
+    }, (error) => {
+        console.error("Error fetching appointments: ", error);
+        setAppointmentsLoading(false);
+    });
+    
+    return () => unsubscribe();
+  }, [profile]);
+
 
   const isProfileComplete =
     profile &&
@@ -117,7 +124,7 @@ export default function DoctorDashboardPage() {
     profile.experience &&
     profile.consultationFee;
 
-  if (loading || !user || profileLoading || appointmentsLoading) {
+  if (authLoading || !user || profileLoading || appointmentsLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -291,3 +298,5 @@ export default function DoctorDashboardPage() {
     </div>
   );
 }
+
+    
