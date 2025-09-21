@@ -59,7 +59,7 @@ export function DoctorSidebar({ user }: { user: User }) {
   };
 
   return (
-    <aside className="flex w-64 flex-col border-r border-border/60 bg-background">
+    <aside className="fixed inset-y-0 left-0 z-10 flex h-full w-64 flex-col border-r border-border/60 bg-background">
       <div className="flex h-16 items-center border-b border-border/60 px-6">
         <Link href="/doctor/dashboard" className="flex items-center gap-2">
           <Stethoscope className="h-6 w-6 text-primary" />

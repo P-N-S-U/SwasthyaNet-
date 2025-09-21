@@ -35,10 +35,12 @@ export default function DoctorLayout({
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="min-h-screen bg-secondary/30">
       <DoctorSidebar user={user} />
-      <main className="flex-1 bg-secondary/30 p-4 sm:p-6 md:p-8">
-        {children}
+      <main className="pl-64">
+        <div className="p-4 sm:p-6 md:p-8">
+            {children}
+        </div>
       </main>
     </div>
   );
