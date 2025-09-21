@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getUserProfile } from '@/lib/firebase/firestore';
 import { DoctorProfileForm } from '@/components/doctor/DoctorProfileForm';
+import { UpdateProfileForm } from '@/components/profile/UpdateProfileForm';
 import {
   Dialog,
   DialogContent,
@@ -90,8 +91,32 @@ export default function ProfilePage() {
         <div className="container">
           <div className="mx-auto max-w-2xl space-y-8">
             <Card className="border-border/30 bg-background">
-              <CardHeader className="text-center">
-                <div className="mx-auto mb-4">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                   <CardTitle className="text-3xl font-bold font-headline">
+                    {user.displayName || 'User Profile'}
+                  </CardTitle>
+                   <Dialog>
+                    <DialogTrigger asChild>
+                       <Button variant="outline" size="sm">
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit Profile
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <DialogHeader>
+                        <DialogTitle className="font-headline">
+                          Edit Profile
+                        </DialogTitle>
+                         <DialogDescription>
+                           Update your name and profile picture.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <UpdateProfileForm user={user} />
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                <div className="mx-auto pt-4">
                   <Avatar className="h-24 w-24 border-4 border-primary">
                     <AvatarImage src={user.photoURL} alt={user.displayName} />
                     <AvatarFallback className="text-3xl">
@@ -99,11 +124,8 @@ export default function ProfilePage() {
                     </AvatarFallback>
                   </Avatar>
                 </div>
-                <CardTitle className="text-3xl font-bold font-headline">
-                  {user.displayName || 'User Profile'}
-                </CardTitle>
                  {profile.role === 'doctor' && (
-                  <p className="text-lg text-muted-foreground">{profile.specialization || 'Specialization not set'}</p>
+                  <p className="text-center text-lg text-muted-foreground">{profile.specialization || 'Specialization not set'}</p>
                  )}
               </CardHeader>
               <CardContent className="mt-4 space-y-4">
