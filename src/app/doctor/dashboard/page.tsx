@@ -4,8 +4,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
-import { Header } from '@/components/landing/Header';
-import { Footer } from '@/components/landing/Footer';
 import {
   Loader2,
   Calendar,
@@ -98,8 +96,7 @@ export default function DoctorDashboardPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
-      <main className="flex-grow bg-secondary/30 py-12 md:py-20">
+      <main className="flex-grow py-12 md:py-20">
         <div className="container">
           <div className="mb-10">
             <h1 className="text-4xl font-bold font-headline">
@@ -243,7 +240,6 @@ export default function DoctorDashboardPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }

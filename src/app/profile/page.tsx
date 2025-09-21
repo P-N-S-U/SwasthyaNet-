@@ -50,7 +50,7 @@ const ProfileDetailItem = ({ icon, label, value, isBio = false }) => {
 
 
 export default function ProfilePage() {
-  const { user, loading } = useAuthState();
+  const { user, loading, role } = useAuthState();
   const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -83,12 +83,22 @@ export default function ProfilePage() {
   const registrationDate = user.metadata.creationTime
     ? new Date(user.metadata.creationTime).toLocaleDateString()
     : 'Not available';
+    
+  const isDoctor = role === 'doctor';
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Header />
-      <main className="flex-grow bg-secondary/30 py-12 md:py-20">
+      {!isDoctor && <Header />}
+      <main className={`flex-grow ${!isDoctor ? 'bg-secondary/30 py-12 md:py-20' : ''}`}>
         <div className="container">
+           {isDoctor && (
+             <div className="mb-10">
+                <h1 className="text-4xl font-bold font-headline">Profile</h1>
+                <p className="mt-2 text-lg text-foreground/70">
+                    Manage your personal and professional information.
+                </p>
+            </div>
+           )}
           <div className="mx-auto max-w-2xl space-y-8">
             <Card className="border-border/30 bg-background">
               <CardHeader>
@@ -175,7 +185,7 @@ export default function ProfilePage() {
           </div>
         </div>
       </main>
-      <Footer />
+      {!isDoctor && <Footer />}
     </div>
   );
 }
