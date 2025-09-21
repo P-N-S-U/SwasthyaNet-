@@ -92,6 +92,7 @@ export function DoctorProfileForm({ profile }: { profile: any }) {
         description: state.data,
       });
       router.refresh();
+      // Find and click the dialog's close button to ensure it closes
       const closeButton = document.querySelector('[data-radix-dialog-close]') as HTMLElement | null;
       if(closeButton) {
         closeButton.click();
