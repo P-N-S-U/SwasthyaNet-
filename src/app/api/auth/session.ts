@@ -1,4 +1,3 @@
-
 // /src/app/api/auth/session.ts
 import { NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
