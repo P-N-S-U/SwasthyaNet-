@@ -7,7 +7,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, Sparkles, HeartPulse, ShieldAlert } from 'lucide-react';
+import { Loader2, Sparkles, HeartPulse, ShieldAlert, AlertCircle, ShieldCheck, Shield } from 'lucide-react';
+import { Badge } from '../ui/badge';
+import { cn } from '@/lib/utils';
 
 const initialState = {
   data: null,
@@ -30,6 +32,34 @@ function SubmitButton() {
       Analyze Symptoms
     </Button>
   );
+}
+
+const SeverityBadge = ({ severity }: { severity: 'Low' | 'Medium' | 'High' }) => {
+    const severityMap = {
+        Low: {
+            icon: <ShieldCheck className="h-4 w-4" />,
+            label: "Low",
+            className: "bg-green-500/10 text-green-400 border-green-500/20"
+        },
+        Medium: {
+            icon: <ShieldAlert className="h-4 w-4" />,
+            label: "Medium",
+            className: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20"
+        },
+        High: {
+            icon: <AlertCircle className="h-4 w-4" />,
+            label: "High",
+            className: "bg-red-500/10 text-red-400 border-red-500/20"
+        }
+    }
+    const currentSeverity = severityMap[severity];
+
+    return (
+        <Badge variant="outline" className={cn("gap-1 pl-1.5", currentSeverity.className)}>
+            {currentSeverity.icon}
+            {currentSeverity.label}
+        </Badge>
+    )
 }
 
 export function SymptomCheckerForm() {
@@ -70,34 +100,39 @@ export function SymptomCheckerForm() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <h3 className="mb-2 text-lg font-bold text-primary/90">
+              <h3 className="mb-4 text-lg font-bold text-primary/90">
                 Potential Conditions
               </h3>
-              <p className="whitespace-pre-wrap text-foreground/80">
-                {state.data.conditions}
-              </p>
+              <div className="space-y-4">
+                {state.data.potentialConditions.map((condition) => (
+                    <div key={condition.name} className="rounded-lg border border-border/50 bg-background/50 p-4">
+                        <div className="flex items-center justify-between">
+                            <h4 className="font-semibold">{condition.name}</h4>
+                            <SeverityBadge severity={condition.severity} />
+                        </div>
+                        <p className="mt-2 text-sm text-muted-foreground">{condition.description}</p>
+                    </div>
+                ))}
+              </div>
             </div>
             <div>
-              <h3 className="mb-2 text-lg font-bold text-primary/90">
+              <h3 className="mb-4 text-lg font-bold text-primary/90">
                 Recommended Actions
               </h3>
-              <p className="whitespace-pre-wrap text-foreground/80">
-                {state.data.actions}
-              </p>
+              <ol className="list-decimal space-y-2 pl-5 text-foreground/80">
+                {state.data.recommendedActions.map((action, index) => (
+                    <li key={index}>{action}</li>
+                ))}
+              </ol>
             </div>
             <Alert
               variant="default"
               className="border-amber-500/50 text-amber-500 [&>svg]:text-amber-500"
             >
-              <ShieldAlert className="h-4 w-4" />
+              <Shield className="h-4 w-4" />
               <AlertTitle>Important Disclaimer</AlertTitle>
               <AlertDescription>
-                This AI-powered analysis is for informational purposes only and
-                is not a substitute for professional medical advice, diagnosis,
-                or treatment. Always seek the advice of your physician or other
-                qualified health provider with any questions you may have
-
-                regarding a medical condition.
+                {state.data.disclaimer}
               </AlertDescription>
             </Alert>
           </CardContent>

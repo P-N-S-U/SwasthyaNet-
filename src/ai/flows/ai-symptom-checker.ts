@@ -13,13 +13,32 @@ const SymptomCheckerInputSchema = z.object({
 export type SymptomCheckerInput = z.infer<typeof SymptomCheckerInputSchema>;
 
 const SymptomCheckerOutputSchema = z.object({
-  conditions: z
-    .string()
-    .describe('A list of potential medical conditions related to the symptoms.'),
-  actions: z
+  potentialConditions: z
+    .array(
+      z.object({
+        name: z
+          .string()
+          .describe('The name of the potential medical condition.'),
+        description: z
+          .string()
+          .describe(
+            'A brief description of why this condition might be relevant to the symptoms.'
+          ),
+        severity: z
+          .enum(['Low', 'Medium', 'High'])
+          .describe('The potential severity of the condition.'),
+      })
+    )
+    .describe(
+      'A list of potential medical conditions, ranked from most to least likely.'
+    ),
+  recommendedActions: z
+    .array(z.string())
+    .describe('A list of recommended next steps for the user.'),
+  disclaimer: z
     .string()
     .describe(
-      'Recommended actions based on the symptoms, such as seeking medical advice.'
+      'A standard disclaimer that this is not medical advice and the user should consult a doctor.'
     ),
 });
 
@@ -39,7 +58,7 @@ const symptomCheckerPrompt = ai.definePrompt({
 
   Based on the following symptoms: {{{symptoms}}}
 
-  Please provide a list of potential medical conditions and recommended actions. Be sure to disclaim that this is not medical advice and they should consult a doctor.
+  Please provide a list of potential medical conditions and recommended actions. Be sure to include the standard medical disclaimer.
   `,
 });
 
