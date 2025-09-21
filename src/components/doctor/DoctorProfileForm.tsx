@@ -19,7 +19,6 @@ import { Label } from '@/components/ui/label';
 import { Loader2, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-
 const initialState = {
   data: null,
   error: null,
@@ -73,7 +72,7 @@ const qualificationsList = [
   'FRCS',
 ];
 
-export function DoctorProfileForm() {
+export function DoctorProfileForm({ profile }: { profile: any }) {
   const [state, formAction] = useActionState(updateDoctorProfile, initialState);
   const { toast } = useToast();
 
@@ -94,100 +93,95 @@ export function DoctorProfileForm() {
   }, [state, toast]);
 
   return (
-    <Card className="border-border/30 bg-background">
-      <CardHeader>
-        <CardTitle className="font-headline">
-          Professional Information
-        </CardTitle>
-        <CardDescription>
-          This information will be displayed to patients. Please complete it to
-          start accepting appointments.
-        </CardDescription>
-      </CardHeader>
-      <form action={formAction}>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="specialization">Specialization*</Label>
-              <Input
-                id="specialization"
-                name="specialization"
-                placeholder="e.g., Cardiology"
-                className="bg-secondary/50"
-                required
-                list="specializations-list"
-              />
-               <datalist id="specializations-list">
-                {specializations.map((spec) => (
-                  <option key={spec} value={spec} />
-                ))}
-              </datalist>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="qualifications">Qualifications*</Label>
-              <Input
-                id="qualifications"
-                name="qualifications"
-                placeholder="e.g., MD, PhD, MBBS"
-                className="bg-secondary/50"
-                required
-                list="qualifications-list"
-              />
-              <datalist id="qualifications-list">
-                {qualificationsList.map((qual) => (
-                  <option key={qual} value={qual} />
-                ))}
-              </datalist>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="experience">Years of Experience*</Label>
-              <Input
-                id="experience"
-                name="experience"
-                type="number"
-                placeholder="e.g., 10"
-                className="bg-secondary/50"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="consultationFee">Minimal Consultation Fee (₹)*</Label>
-               <Input
-                id="consultationFee"
-                name="consultationFee"
-                type="number"
-                step="1"
-                placeholder="e.g., 100"
-                className="bg-secondary/50"
-                required
-              />
-            </div>
-          </div>
+    <form action={formAction}>
+      <div className="space-y-6 py-4">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           <div className="space-y-2">
-            <Label htmlFor="clinic">Clinic / Hospital Name</Label>
+            <Label htmlFor="specialization">Specialization*</Label>
             <Input
-              id="clinic"
-              name="clinic"
-              placeholder="e.g., General Hospital"
+              id="specialization"
+              name="specialization"
+              defaultValue={profile?.specialization || ''}
+              placeholder="e.g., Cardiology"
               className="bg-secondary/50"
+              required
+              list="specializations-list"
+            />
+            <datalist id="specializations-list">
+              {specializations.map(spec => (
+                <option key={spec} value={spec} />
+              ))}
+            </datalist>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="qualifications">Qualifications*</Label>
+            <Input
+              id="qualifications"
+              name="qualifications"
+              defaultValue={profile?.qualifications || ''}
+              placeholder="e.g., MD, PhD, MBBS"
+              className="bg-secondary/50"
+              required
+              list="qualifications-list"
+            />
+            <datalist id="qualifications-list">
+              {qualificationsList.map(qual => (
+                <option key={qual} value={qual} />
+              ))}
+            </datalist>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="experience">Years of Experience*</Label>
+            <Input
+              id="experience"
+              name="experience"
+              type="number"
+              defaultValue={profile?.experience || ''}
+              placeholder="e.g., 10"
+              className="bg-secondary/50"
+              required
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="bio">Short Bio</Label>
-            <Textarea
-              id="bio"
-              name="bio"
-              placeholder="Tell patients a little about yourself and your practice."
+            <Label htmlFor="consultationFee">Minimal Consultation Fee (₹)*</Label>
+            <Input
+              id="consultationFee"
+              name="consultationFee"
+              type="number"
+              step="1"
+              defaultValue={profile?.consultationFee || ''}
+              placeholder="e.g., 100"
               className="bg-secondary/50"
-              rows={4}
+              required
             />
           </div>
-           <p className="text-xs text-muted-foreground">* Required fields</p>
-        </CardContent>
-        <CardFooter>
-          <SubmitButton />
-        </CardFooter>
-      </form>
-    </Card>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="clinic">Clinic / Hospital Name</Label>
+          <Input
+            id="clinic"
+            name="clinic"
+            defaultValue={profile?.clinic || ''}
+            placeholder="e.g., General Hospital"
+            className="bg-secondary/50"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="bio">Short Bio</Label>
+          <Textarea
+            id="bio"
+            name="bio"
+            defaultValue={profile?.bio || ''}
+            placeholder="Tell patients a little about yourself and your practice."
+            className="bg-secondary/50"
+            rows={4}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">* Required fields</p>
+      </div>
+      <div className="pt-6">
+        <SubmitButton />
+      </div>
+    </form>
   );
 }

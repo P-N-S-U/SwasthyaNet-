@@ -6,27 +6,40 @@ import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
-import { Loader2, User, Mail, Calendar } from 'lucide-react';
+import { Loader2, User, Mail, Calendar, Edit } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getUserRole } from '@/lib/firebase/firestore';
+import { getUserProfile } from '@/lib/firebase/firestore';
 import { DoctorProfileForm } from '@/components/doctor/DoctorProfileForm';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 export default function ProfilePage() {
   const { user, loading } = useAuthState();
   const router = useRouter();
-  const [role, setRole] = useState<string | null>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/auth');
     }
     if (user) {
-      getUserRole(user.uid).then(setRole);
+      getUserProfile(user.uid).then(userProfile => {
+        setProfile(userProfile);
+        setProfileLoading(false);
+      });
     }
   }, [user, loading, router]);
 
-  if (loading || !user) {
+  if (loading || !user || profileLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -34,7 +47,7 @@ export default function ProfilePage() {
     );
   }
 
-  const getInitials = (email) => {
+  const getInitials = email => {
     if (!email) return 'U';
     return email.substring(0, 2).toUpperCase();
   };
@@ -62,6 +75,9 @@ export default function ProfilePage() {
                 <CardTitle className="text-3xl font-bold font-headline">
                   {user.displayName || 'User Profile'}
                 </CardTitle>
+                 {profile.role === 'doctor' && (
+                  <p className="text-lg text-muted-foreground">{profile.specialization || 'Specialization not set'}</p>
+                 )}
               </CardHeader>
               <CardContent className="mt-4 space-y-6">
                 <div className="flex items-center gap-4 rounded-lg bg-secondary/50 p-4">
@@ -89,10 +105,29 @@ export default function ProfilePage() {
                     <p className="font-medium">{registrationDate}</p>
                   </div>
                 </div>
+                 {profile.role === 'doctor' && (
+                  <Dialog>
+                    <DialogTrigger asChild>
+                       <Button className="w-full">
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit Professional Profile
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[625px]">
+                      <DialogHeader>
+                        <DialogTitle className="font-headline">
+                          Professional Information
+                        </DialogTitle>
+                         <DialogDescription>
+                           This information will be displayed to patients.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <DoctorProfileForm profile={profile} />
+                    </DialogContent>
+                  </Dialog>
+                )}
               </CardContent>
             </Card>
-
-            {role === 'doctor' && <DoctorProfileForm />}
           </div>
         </div>
       </main>
