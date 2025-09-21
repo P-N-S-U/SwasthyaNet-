@@ -42,7 +42,7 @@ export async function updateDoctorProfile(prevState: any, formData: FormData) {
         await updateDoc(userRef, dataToUpdate, { merge: true });
     }
     
-    revalidatePath('/profile');
+    revalidatePath('/doctor/profile');
     revalidatePath('/doctor/dashboard');
     return { error: null, data: 'Professional profile updated successfully.' };
 

@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Loader2, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 const initialState = {
   data: null,
@@ -75,6 +76,7 @@ const qualificationsList = [
 export function DoctorProfileForm({ profile }: { profile: any }) {
   const [state, formAction] = useActionState(updateDoctorProfile, initialState);
   const { toast } = useToast();
+  const router = useRouter();
 
   useEffect(() => {
     if (state.error) {
@@ -89,8 +91,13 @@ export function DoctorProfileForm({ profile }: { profile: any }) {
         title: 'Success!',
         description: state.data,
       });
+      router.refresh();
+      const closeButton = document.querySelector('[data-radix-dialog-close]') as HTMLElement | null;
+      if(closeButton) {
+        closeButton.click();
+      }
     }
-  }, [state, toast]);
+  }, [state, toast, router]);
 
   return (
     <form action={formAction}>
