@@ -1,23 +1,62 @@
 
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  Timestamp,
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase/firebase';
 import { Loader2, Bot, Users, Activity } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 
+interface Appointment {
+  id: string;
+  appointmentDate: Timestamp;
+}
+
 export default function PatientDashboardPage() {
   const { user, loading } = useAuthState();
   const router = useRouter();
+  const [upcomingCount, setUpcomingCount] = useState(0);
+  const [appointmentsLoading, setAppointmentsLoading] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/auth');
+      return;
+    }
+
+    if (user) {
+      const appointmentsRef = collection(db, 'appointments');
+      const q = query(
+        appointmentsRef,
+        where('patientId', '==', user.uid),
+        where('appointmentDate', '>=', Timestamp.now())
+      );
+
+      const unsubscribe = onSnapshot(
+        q,
+        snapshot => {
+          setUpcomingCount(snapshot.size);
+          setAppointmentsLoading(false);
+        },
+        error => {
+          console.error('Error fetching appointments:', error);
+          setAppointmentsLoading(false);
+        }
+      );
+
+      return () => unsubscribe();
     }
   }, [user, loading, router]);
 
@@ -52,10 +91,18 @@ export default function PatientDashboardPage() {
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">1 Upcoming</div>
-                <p className="text-xs text-muted-foreground">
-                  View your appointment history.
-                </p>
+                {appointmentsLoading ? (
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">
+                      {upcomingCount} Upcoming
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      View your appointment history.
+                    </p>
+                  </>
+                )}
                 <Button asChild size="sm" className="mt-4">
                   <Link href="/patient/appointments">View All</Link>
                 </Button>
