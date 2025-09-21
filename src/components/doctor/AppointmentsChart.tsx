@@ -2,13 +2,20 @@
 'use client';
 
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis, Tooltip } from 'recharts';
-import { weeklyAppointments } from '@/lib/data';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 
-export function AppointmentsChart() {
+interface ChartData {
+    day: string;
+    appointments: number;
+}
+
+interface AppointmentsChartProps {
+    data: ChartData[];
+}
+
+export function AppointmentsChart({ data }: AppointmentsChartProps) {
   return (
     <ResponsiveContainer width="100%" height={350}>
-      <BarChart data={weeklyAppointments}>
+      <BarChart data={data}>
         <XAxis
           dataKey="day"
           stroke="hsl(var(--muted-foreground))"

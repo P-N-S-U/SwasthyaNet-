@@ -32,16 +32,6 @@ export const testimonials = [
   },
 ];
 
-export const weeklyAppointments = [
-  { day: 'Mon', appointments: 12 },
-  { day: 'Tue', appointments: 18 },
-  { day: 'Wed', appointments: 8 },
-  { day: 'Thu', appointments: 15 },
-  { day: 'Fri', appointments: 10 },
-  { day: 'Sat', appointments: 20 },
-  { day: 'Sun', appointments: 5 },
-];
-
 export const recentPatients = [
   {
     name: 'Rohan Kumar',
