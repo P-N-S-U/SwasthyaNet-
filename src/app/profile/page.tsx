@@ -35,14 +35,14 @@ import {
 import { Button } from '@/components/ui/button';
 
 const ProfileDetailItem = ({ icon, label, value, isBio = false }) => {
-  if (!value) return null;
+  if (!value && !isBio) return null;
 
   return (
     <div className="flex items-start gap-4 rounded-lg bg-secondary/50 p-4">
-      <div className="mt-1">{icon}</div>
+      <div className="mt-1 text-primary">{icon}</div>
       <div>
         <p className="text-sm text-muted-foreground">{label}</p>
-        <p className={`font-medium ${isBio ? 'whitespace-pre-wrap' : ''}`}>{value}</p>
+        <p className={`font-medium ${isBio ? 'whitespace-pre-wrap' : ''}`}>{value || 'Not provided'}</p>
       </div>
     </div>
   );
@@ -128,7 +128,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="mx-auto pt-4">
                   <Avatar className="h-24 w-24 border-4 border-primary">
-                    <AvatarImage src={user.photoURL} alt={user.displayName} />
+                    <AvatarImage src={user.photoURL || undefined} alt={user.displayName || ''} />
                     <AvatarFallback className="text-3xl">
                       {getInitials(user.email)}
                     </AvatarFallback>
@@ -138,10 +138,10 @@ export default function ProfilePage() {
                   <p className="text-center text-lg text-muted-foreground">{profile.specialization || 'Specialization not set'}</p>
                  )}
               </CardHeader>
-              <CardContent className="mt-4 space-y-4">
-                 <ProfileDetailItem icon={<Mail className="h-5 w-5 text-primary" />} label="Email" value={user.email} />
-                 <ProfileDetailItem icon={<User className="h-5 w-5 text-primary" />} label="Full Name" value={user.displayName || 'Not set'} />
-                 <ProfileDetailItem icon={<Calendar className="h-5 w-5 text-primary" />} label="Member Since" value={registrationDate} />
+              <CardContent className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                 <ProfileDetailItem icon={<Mail className="h-5 w-5" />} label="Email" value={user.email} />
+                 <ProfileDetailItem icon={<User className="h-5 w-5" />} label="Full Name" value={user.displayName || 'Not set'} />
+                 <ProfileDetailItem icon={<Calendar className="h-5 w-5" />} label="Member Since" value={registrationDate} />
               </CardContent>
             </Card>
 
@@ -172,12 +172,14 @@ export default function ProfilePage() {
                   </Dialog>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                   <ProfileDetailItem icon={<Briefcase className="h-5 w-5 text-primary" />} label="Specialization" value={profile.specialization} />
-                   <ProfileDetailItem icon={<GraduationCap className="h-5 w-5 text-primary" />} label="Qualifications" value={profile.qualifications} />
-                   <ProfileDetailItem icon={<CalendarClock className="h-5 w-5 text-primary" />} label="Years of Experience" value={profile.experience} />
-                   <ProfileDetailItem icon={<IndianRupee className="h-5 w-5 text-primary" />} label="Consultation Fee" value={profile.consultationFee ? `₹${profile.consultationFee}` : ''} />
-                   <ProfileDetailItem icon={<Hospital className="h-5 w-5 text-primary" />} label="Clinic / Hospital" value={profile.clinic} />
-                   <ProfileDetailItem icon={<FileText className="h-5 w-5 text-primary" />} label="Bio" value={profile.bio} isBio={true} />
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <ProfileDetailItem icon={<Briefcase className="h-5 w-5" />} label="Specialization" value={profile.specialization} />
+                        <ProfileDetailItem icon={<GraduationCap className="h-5 w-5" />} label="Qualifications" value={profile.qualifications} />
+                        <ProfileDetailItem icon={<CalendarClock className="h-5 w-5" />} label="Years of Experience" value={profile.experience} />
+                        <ProfileDetailItem icon={<IndianRupee className="h-5 w-5" />} label="Consultation Fee" value={profile.consultationFee ? `₹${profile.consultationFee}` : ''} />
+                        <ProfileDetailItem icon={<Hospital className="h-5 w-5" />} label="Clinic / Hospital" value={profile.clinic} />
+                    </div>
+                    <ProfileDetailItem icon={<FileText className="h-5 w-5" />} label="Bio" value={profile.bio} isBio={true} />
                 </CardContent>
               </Card>
             )}

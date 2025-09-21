@@ -2,7 +2,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useFormStatus } from 'react-dom';
 import { updateProfile as updateAuthProfile } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase/firebase';
@@ -14,20 +13,6 @@ import { useToast } from '@/hooks/use-toast';
 import type { User } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
-
-function SubmitButton() {
-  const { pending } = useFormStatus();
-  return (
-    <Button type="submit" disabled={pending} className="w-full">
-      {pending ? (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-      ) : (
-        <Save className="mr-2 h-4 w-4" />
-      )}
-      Save Changes
-    </Button>
-  );
-}
 
 export function UpdateProfileForm({ user }: { user: User }) {
   const { toast } = useToast();
@@ -64,8 +49,11 @@ export function UpdateProfileForm({ user }: { user: User }) {
         // Refresh the page to show new details
         router.refresh();
 
-        // Close the dialog
-        document.querySelector('[data-radix-dialog-close]')?.dispatchEvent(new Event('click'));
+        // Close the dialog by finding a close button and clicking it
+        const closeButton = document.querySelector('[data-radix-dialog-close]') as HTMLElement | null;
+        if(closeButton) {
+          closeButton.click();
+        }
 
     } catch (error: any) {
          toast({
