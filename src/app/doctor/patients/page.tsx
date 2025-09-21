@@ -4,7 +4,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
-import { Loader2, Users, Mail, Calendar, User } from 'lucide-react';
+import { Loader2, Users, Eye } from 'lucide-react';
 import { collection, query, where, getDocs, doc, getDoc, Timestamp, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 import {
@@ -17,16 +17,9 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
+import Link from 'next/link';
+
 
 interface Patient {
   id: string;
@@ -34,7 +27,6 @@ interface Patient {
   email: string;
   photoURL?: string;
   lastAppointment: Timestamp;
-  memberSince?: Timestamp;
 }
 
 const getInitials = (name: string | null | undefined) => {
@@ -46,26 +38,12 @@ const getInitials = (name: string | null | undefined) => {
   return name.substring(0, 2).toUpperCase();
 };
 
-const ProfileDetailItem = ({ icon, label, value }) => {
-  if (!value) return null;
-
-  return (
-    <div className="flex items-start gap-4 rounded-lg bg-secondary/50 p-3">
-      <div className="mt-1 text-primary">{icon}</div>
-      <div>
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="font-medium">{value}</p>
-      </div>
-    </div>
-  );
-};
 
 export default function PatientsPage() {
   const { user, loading, role } = useAuthState();
   const router = useRouter();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -108,7 +86,6 @@ export default function PatientsPage() {
                         email: userData.email || 'No email found',
                         photoURL: info.photoURL,
                         lastAppointment: info.lastAppointment,
-                        memberSince: userData.createdAt,
                     });
                 }
             }
@@ -180,35 +157,11 @@ export default function PatientsPage() {
                       {patient.lastAppointment.toDate().toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                           <Button variant="outline" size="sm" onClick={() => setSelectedPatient(patient)}>
-                             View Profile
-                           </Button>
-                        </DialogTrigger>
-                        {selectedPatient && selectedPatient.id === patient.id && (
-                           <DialogContent className="sm:max-w-md">
-                           <DialogHeader className="items-center text-center">
-                                <Avatar className="h-24 w-24 border-4 border-primary">
-                                <AvatarImage src={selectedPatient.photoURL} alt={selectedPatient.name} />
-                                <AvatarFallback className="text-3xl">{getInitials(selectedPatient.name)}</AvatarFallback>
-                                </Avatar>
-                                <DialogTitle className="pt-2 text-2xl font-bold font-headline">{selectedPatient.name}</DialogTitle>
-                                <DialogDescription>
-                                    <Badge variant="secondary">Patient</Badge>
-                                </DialogDescription>
-                           </DialogHeader>
-                            <div className="mt-4 grid grid-cols-1 gap-4">
-                                <ProfileDetailItem icon={<Mail className="h-5 w-5" />} label="Email" value={selectedPatient.email} />
-                                <ProfileDetailItem 
-                                    icon={<Calendar className="h-5 w-5" />} 
-                                    label="Member Since" 
-                                    value={selectedPatient.memberSince ? selectedPatient.memberSince.toDate().toLocaleDateString() : 'N/A'} 
-                                />
-                            </div>
-                         </DialogContent>
-                        )}
-                      </Dialog>
+                       <Button asChild variant="outline" size="sm">
+                         <Link href={`/doctor/patients/${patient.id}`}>
+                           <Eye className="mr-2 h-4 w-4" /> View Record
+                         </Link>
+                       </Button>
                     </TableCell>
                   </TableRow>
                 ))
