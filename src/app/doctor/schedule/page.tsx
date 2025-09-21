@@ -40,10 +40,10 @@ export default function SchedulePage() {
 
     if (user) {
       const appointmentsRef = collection(db, 'appointments');
+      // This query is now more efficient and won't require a custom composite index.
       const q = query(
         appointmentsRef,
-        where('doctorId', '==', user.uid),
-        orderBy('appointmentDate', 'asc')
+        where('doctorId', '==', user.uid)
       );
 
       const unsubscribe = onSnapshot(q, snapshot => {
@@ -51,7 +51,9 @@ export default function SchedulePage() {
           id: doc.id,
           ...doc.data(),
         })) as Appointment[];
-        setAppointments(appts);
+        // Sort the appointments client-side
+        const sortedAppts = appts.sort((a, b) => a.appointmentDate.toMillis() - b.appointmentDate.toMillis());
+        setAppointments(sortedAppts);
         setAppointmentsLoading(false);
       }, (error) => {
           console.error("Error fetching appointments: ", error);

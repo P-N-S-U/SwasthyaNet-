@@ -130,7 +130,7 @@ export default function AppointmentsPage() {
       const q = query(
         appointmentsRef,
         where('patientId', '==', user.uid),
-        orderBy('createdAt', 'desc')
+        orderBy('appointmentDate', 'desc')
       );
 
       const unsubscribe = onSnapshot(q, snapshot => {
@@ -160,10 +160,10 @@ export default function AppointmentsPage() {
   const now = new Date();
   const upcomingAppointments = appointments.filter(
     appt => appt.appointmentDate.toDate() >= now
-  ).sort((a, b) => a.appointmentDate.toMillis() - b.appointmentDate.toMillis());
+  );
   const pastAppointments = appointments.filter(
     appt => appt.appointmentDate.toDate() < now
-  ).sort((a, b) => b.appointmentDate.toMillis() - a.appointmentDate.toMillis());
+  );
 
   return (
     <div className="flex min-h-screen flex-col">
