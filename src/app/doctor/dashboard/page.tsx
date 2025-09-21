@@ -78,43 +78,44 @@ export default function DoctorDashboardPage() {
 
   // Effect for auth and profile fetching
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (authLoading) return; // Wait until auth state is determined
+
+    if (!user) {
       router.push('/auth');
+      setProfileLoading(false);
+      setAppointmentsLoading(false);
       return;
     }
-    if (user) {
-      getUserProfile(user.uid).then(userProfile => {
-        setProfile(userProfile);
-        setProfileLoading(false);
-      });
-    }
-  }, [user, authLoading, router]);
 
-  // Effect for fetching appointments, depends on the profile being loaded
-  useEffect(() => {
-    if (!profile?.uid) return; // Don't run if profile or profile.uid isn't loaded
+    // Fetch Profile
+    getUserProfile(user.uid).then(userProfile => {
+      setProfile(userProfile);
+      setProfileLoading(false);
 
-    const appointmentsRef = collection(db, 'appointments');
-    const q = query(
-      appointmentsRef,
-      where('doctorId', '==', profile.uid),
-      orderBy('appointmentDate', 'desc')
-    );
+      // Once profile is loaded, fetch appointments
+      const appointmentsRef = collection(db, 'appointments');
+      const q = query(
+        appointmentsRef,
+        where('doctorId', '==', user.uid),
+        orderBy('appointmentDate', 'desc')
+      );
 
-    const unsubscribe = onSnapshot(q, snapshot => {
-      const appts = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Appointment[];
-      setAllAppointments(appts);
-      setAppointmentsLoading(false);
-    }, (error) => {
-        console.error("Error fetching appointments: ", error);
+      const unsubscribe = onSnapshot(q, snapshot => {
+        const appts = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Appointment[];
+        setAllAppointments(appts);
         setAppointmentsLoading(false);
+      }, (error) => {
+          console.error("Error fetching appointments: ", error);
+          setAppointmentsLoading(false);
+      });
+      
+      return () => unsubscribe();
     });
-    
-    return () => unsubscribe();
-  }, [profile]);
+
+  }, [user, authLoading, router]);
 
 
   const isProfileComplete =
@@ -124,13 +125,18 @@ export default function DoctorDashboardPage() {
     profile.experience &&
     profile.consultationFee;
 
-  if (authLoading || !user || profileLoading || appointmentsLoading) {
+  if (authLoading || profileLoading || appointmentsLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
+  
+  if (!user) {
+      return null; // Should have been redirected, but good for safety
+  }
+
 
   const upcomingAppointments = allAppointments.filter(
     appt => appt.appointmentDate.toDate() >= new Date()
@@ -298,3 +304,5 @@ export default function DoctorDashboardPage() {
     </div>
   );
 }
+
+    
