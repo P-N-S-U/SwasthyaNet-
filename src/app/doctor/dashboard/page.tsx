@@ -21,31 +21,63 @@ import { AppointmentsChart } from '@/components/doctor/AppointmentsChart';
 import { RecentPatients } from '@/components/doctor/RecentPatients';
 import { getUserProfile } from '@/lib/firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  Timestamp,
+  orderBy,
+} from 'firebase/firestore';
+import { db } from '@/lib/firebase/firebase';
 
-// Sample data for active calls
-const activeCalls = [
-  {
-    id: 'appt-123',
-    patientName: 'Rohan Kumar',
-    time: '11:00 AM',
-  },
-];
+interface Appointment {
+  id: string;
+  patientName: string;
+  appointmentDate: Timestamp;
+  status: 'Confirmed' | 'Completed' | 'Cancelled';
+}
 
 export default function DoctorDashboardPage() {
   const { user, loading } = useAuthState();
   const router = useRouter();
   const [profile, setProfile] = useState<any>(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [upcomingAppointments, setUpcomingAppointments] = useState<Appointment[]>([]);
+  const [appointmentsLoading, setAppointmentsLoading] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/auth');
+      return;
     }
     if (user) {
       getUserProfile(user.uid).then(userProfile => {
         setProfile(userProfile);
         setProfileLoading(false);
       });
+
+      const appointmentsRef = collection(db, 'appointments');
+      const q = query(
+        appointmentsRef,
+        where('doctorId', '==', user.uid),
+        where('appointmentDate', '>=', Timestamp.now()),
+        orderBy('appointmentDate', 'asc')
+      );
+
+      const unsubscribe = onSnapshot(q, snapshot => {
+        const appts = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Appointment[];
+        setUpcomingAppointments(appts);
+        setAppointmentsLoading(false);
+      }, (error) => {
+          console.error("Error fetching appointments: ", error);
+          setAppointmentsLoading(false);
+      });
+      
+      return () => unsubscribe();
     }
   }, [user, loading, router]);
 
@@ -56,7 +88,7 @@ export default function DoctorDashboardPage() {
     profile.experience &&
     profile.consultationFee;
 
-  if (loading || !user || profileLoading) {
+  if (loading || !user || profileLoading || appointmentsLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -97,26 +129,26 @@ export default function DoctorDashboardPage() {
           <div className="mb-8">
             <Card className="border-border/30 bg-background">
               <CardHeader>
-                <CardTitle>Active Video Calls</CardTitle>
+                <CardTitle>Upcoming Consultations</CardTitle>
               </CardHeader>
               <CardContent>
-                {activeCalls.length > 0 ? (
+                {upcomingAppointments.length > 0 ? (
                   <div className="space-y-4">
-                    {activeCalls.map(call => (
+                    {upcomingAppointments.map(appt => (
                       <div
-                        key={call.id}
+                        key={appt.id}
                         className="flex items-center justify-between rounded-lg bg-secondary/50 p-4"
                       >
                         <div>
                           <p className="font-semibold">
-                            Call with {call.patientName}
+                            Call with {appt.patientName}
                           </p>
                           <p className="text-sm text-muted-foreground">
-                            Scheduled for {call.time}
+                            Scheduled for {appt.appointmentDate.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                           </p>
                         </div>
                         <Button asChild size="sm" disabled={!isProfileComplete}>
-                           <Link href={`/doctor/video/${call.id}`}>
+                           <Link href={`/doctor/video/${appt.id}`}>
                             <Video className="mr-2 h-4 w-4" /> Join Call
                           </Link>
                         </Button>
@@ -124,7 +156,7 @@ export default function DoctorDashboardPage() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-muted-foreground">No active calls right now.</p>
+                  <p className="text-muted-foreground">No upcoming calls right now.</p>
                 )}
               </CardContent>
             </Card>
@@ -142,9 +174,9 @@ export default function DoctorDashboardPage() {
                 <Calendar className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">5</div>
+                <div className="text-2xl font-bold">{upcomingAppointments.length}</div>
                 <p className="text-xs text-muted-foreground">
-                  +2 from last week
+                  in the next 7 days
                 </p>
                 <Button asChild size="sm" className="mt-4" disabled={!isProfileComplete}>
                   <Link href="/doctor/schedule">View Schedule</Link>

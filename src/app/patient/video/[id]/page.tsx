@@ -35,7 +35,11 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   const { user, loading } = useAuthState();
 
   useEffect(() => {
-    if (loading || !user) return;
+    if (loading) return;
+    if (!user) {
+      router.push('/auth');
+      return;
+    }
 
     registerEventHandlers(
       localVideoRef,
@@ -98,7 +102,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
     router.push('/patient/appointments');
   };
 
-  if (loading) {
+  if (loading || !user) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-black text-white">
          <Loader2 className="h-12 w-12 animate-spin text-primary" />
