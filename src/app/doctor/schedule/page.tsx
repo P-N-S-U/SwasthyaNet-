@@ -38,10 +38,10 @@ export default function SchedulePage() {
 
     if (user) {
       const appointmentsRef = collection(db, 'appointments');
-      // This query is now more efficient and won't require a custom composite index.
       const q = query(
         appointmentsRef,
-        where('doctorId', '==', user.uid)
+        where('doctorId', '==', user.uid),
+        orderBy('createdAt', 'desc')
       );
 
       const unsubscribe = onSnapshot(q, snapshot => {
@@ -49,9 +49,7 @@ export default function SchedulePage() {
           id: doc.id,
           ...doc.data(),
         })) as Appointment[];
-        // Sort the appointments client-side
-        const sortedAppts = appts.sort((a, b) => a.appointmentDate.toMillis() - b.appointmentDate.toMillis());
-        setAppointments(sortedAppts);
+        setAppointments(appts);
         setAppointmentsLoading(false);
       }, (error) => {
           console.error("Error fetching appointments: ", error);
@@ -77,7 +75,8 @@ export default function SchedulePage() {
   }
 
   const selectedDay = date || new Date();
-  const todaysAppointments = appointments.filter(appt => isSameDay(appt.appointmentDate.toDate(), selectedDay));
+  const todaysAppointments = appointments.filter(appt => isSameDay(appt.appointmentDate.toDate(), selectedDay))
+    .sort((a, b) => a.appointmentDate.toDate().getTime() - b.appointmentDate.toDate().getTime());
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -90,13 +89,13 @@ export default function SchedulePage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-            <div className="md:col-span-2">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+            <div>
               <Card className="border-border/30 bg-background">
                 <CardHeader>
                   <CardTitle>Full Calendar</CardTitle>
                 </CardHeader>
-                <CardContent className="flex justify-center">
+                <CardContent>
                   <Calendar
                     mode="single"
                     selected={date}
