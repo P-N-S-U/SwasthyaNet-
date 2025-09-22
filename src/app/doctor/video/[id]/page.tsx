@@ -109,10 +109,10 @@ export default function DoctorVideoCallPage({ params: {id} }: { params: { id: st
   }
 
   return (
-    <div className="flex h-screen flex-col items-center justify-center bg-black text-white">
-      <div className="relative grid w-full max-w-5xl grid-cols-1 gap-4 p-4 md:grid-cols-2">
+    <div className="flex h-screen flex-col items-center justify-center bg-black text-white p-4">
+      <div className="relative grid w-full max-w-5xl grid-cols-1 gap-4 md:grid-cols-2">
         {/* Remote Video */}
-        <div className="relative aspect-video rounded-md bg-secondary">
+        <div className="relative aspect-video w-full rounded-md bg-secondary">
           <video
             ref={remoteVideoRef}
             className="h-full w-full rounded-md object-cover"
@@ -125,13 +125,13 @@ export default function DoctorVideoCallPage({ params: {id} }: { params: { id: st
            {callStatus !== 'Connected' && (
              <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-background/80">
                <Loader2 className="h-8 w-8 animate-spin" />
-               <p className="mt-2">{callStatus}</p>
+               <p className="mt-2 text-center text-sm">{callStatus}</p>
              </div>
           )}
         </div>
 
         {/* Local Video */}
-        <div className="relative aspect-video rounded-md bg-secondary">
+        <div className="absolute bottom-20 right-4 h-32 w-24 md:relative md:bottom-auto md:right-auto md:h-auto md:w-full rounded-md bg-secondary aspect-video">
           <video
             ref={localVideoRef}
             className="h-full w-full rounded-md object-cover"
@@ -139,34 +139,34 @@ export default function DoctorVideoCallPage({ params: {id} }: { params: { id: st
             playsInline
             muted
           />
-          <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-sm">
+          <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-xs">
             You (Doctor)
           </div>
         </div>
       </div>
-      <div className="mt-6">
-        <Card className="bg-secondary/30 p-4">
-          <div className="flex items-center justify-center gap-4">
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2">
+        <Card className="bg-secondary/30 p-2 md:p-4">
+          <div className="flex items-center justify-center gap-2 md:gap-4">
             <Button
               variant={isMuted ? 'destructive' : 'outline'}
-              size="lg"
-              className="rounded-full"
+              size="icon"
+              className="rounded-full h-12 w-12 md:h-16 md:w-16"
               onClick={toggleMute}
             >
               {isMuted ? <MicOff /> : <Mic />}
             </Button>
             <Button
               variant={isCameraOff ? 'destructive' : 'outline'}
-              size="lg"
-              className="rounded-full"
+              size="icon"
+              className="rounded-full h-12 w-12 md:h-16 md:w-16"
               onClick={toggleCamera}
             >
               {isCameraOff ? <VideoOff /> : <Video />}
             </Button>
             <Button
               variant="destructive"
-              size="lg"
-              className="rounded-full"
+              size="icon"
+              className="rounded-full h-12 w-12 md:h-16 md:w-16"
               onClick={endCall}
             >
               <PhoneOff />

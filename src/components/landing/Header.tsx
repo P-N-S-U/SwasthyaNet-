@@ -11,8 +11,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetClose
+} from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Stethoscope, LogOut, UserCircle, LayoutDashboard } from 'lucide-react';
+import { Stethoscope, LogOut, UserCircle, LayoutDashboard, Menu } from 'lucide-react';
 import { useAuthState } from '@/hooks/use-auth-state';
 import { signOut } from '@/lib/firebase/auth';
 import { useRouter } from 'next/navigation';
@@ -103,14 +109,40 @@ export const Header = () => {
             </>
           )}
         </nav>
-        <div className="flex flex-1 items-center justify-end space-x-4">
+        <div className="flex flex-1 items-center justify-end space-x-2">
+          {/* Mobile Menu */}
+          <div className="md:hidden">
+             <Sheet>
+               <SheetTrigger asChild>
+                 <Button variant="ghost" size="icon">
+                   <Menu className="h-5 w-5" />
+                   <span className="sr-only">Open menu</span>
+                 </Button>
+               </SheetTrigger>
+               <SheetContent side="right">
+                 <div className="flex flex-col gap-4 py-6">
+                 {(!user || role === 'patient') && (
+                  <>
+                    <SheetClose asChild>
+                      <Link href="/symptom-checker" className="text-lg">Symptom Checker</Link>
+                    </SheetClose>
+                    <SheetClose asChild>
+                      <Link href="/find-a-doctor" className="text-lg">Find a Doctor</Link>
+                    </SheetClose>
+                  </>
+                  )}
+                 </div>
+               </SheetContent>
+             </Sheet>
+          </div>
+
           {loading ? (
              <Skeleton className="h-8 w-8 rounded-full" />
           ) : user ? (
             <UserMenu user={user} />
           ) : (
             <>
-              <Button asChild variant="ghost">
+              <Button asChild variant="ghost" className="hidden sm:inline-flex">
                 <Link href="/auth">Sign In</Link>
               </Button>
               <Button
