@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
 import { doc, getDoc, collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
@@ -52,13 +52,13 @@ const ProfileDetailItem = ({ icon, label, value }) => {
 
 
 export default function PatientRecordPage({ params }: { params: { id: string } }) {
+  const { id: patientId } = use(params);
   const { user, loading: authLoading } = useAuthState();
   const router = useRouter();
   const [patient, setPatient] = useState<PatientProfile | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [pageLoading, setPageLoading] = useState(true);
   
-  const patientId = params.id;
 
   useEffect(() => {
     if (authLoading) return;

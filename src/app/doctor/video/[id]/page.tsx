@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, use } from 'react';
 import {
   Mic,
   MicOff,
@@ -31,7 +31,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [callStatus, setCallStatus] = useState('Joining call...');
   const { user, loading } = useAuthState();
-  const id = params.id;
+  const { id } = use(params);
 
   useEffect(() => {
     if (loading) return;
