@@ -22,7 +22,7 @@ import {
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
 
-export default function DoctorVideoCallPage({ params: {id} }: { params: { id: string } }) {
+export default function DoctorVideoCallPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -31,6 +31,7 @@ export default function DoctorVideoCallPage({ params: {id} }: { params: { id: st
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [callStatus, setCallStatus] = useState('Joining call...');
   const { user, loading } = useAuthState();
+  const id = params.id;
 
   useEffect(() => {
     if (loading) return;

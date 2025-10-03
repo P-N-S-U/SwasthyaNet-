@@ -207,4 +207,3 @@ export default function PatientRecordPage({ params }: { params: { id: string } }
     </div>
   );
 }
-

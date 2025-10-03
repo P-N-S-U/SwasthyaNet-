@@ -24,7 +24,7 @@ import {
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
 
-export default function VideoCallPage({ params: {id} }: { params: { id: string } }) {
+export default function VideoCallPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -33,6 +33,7 @@ export default function VideoCallPage({ params: {id} }: { params: { id: string }
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [callStatus, setCallStatus] = useState('Initializing...');
   const { user, loading } = useAuthState();
+  const id = params.id;
 
   useEffect(() => {
     if (loading) return;
