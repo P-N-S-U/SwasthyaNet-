@@ -21,18 +21,22 @@ export async function bookAppointment(prevState: any, formData: FormData) {
   }
 
   try {
-    // Check for existing confirmed appointments with this doctor that are in the future
+    // Firestore does not allow compound queries with range filters on different fields
+    // without a composite index. To avoid this, we query for confirmed appointments
+    // and then filter for future ones in the code.
     const appointmentsRef = adminDb.collection('appointments');
     const q = appointmentsRef
       .where('patientId', '==', patientId)
       .where('doctorId', '==', doctorId)
-      .where('status', '==', 'Confirmed')
-      .where('appointmentDate', '>=', Timestamp.now())
-      .limit(1);
+      .where('status', '==', 'Confirmed');
 
-    const existingAppointments = await q.get();
+    const existingAppointmentsSnapshot = await q.get();
 
-    if (!existingAppointments.empty) {
+    const now = Timestamp.now();
+    const hasFutureAppointment = !existingAppointmentsSnapshot.empty && 
+      existingAppointmentsSnapshot.docs.some(doc => doc.data().appointmentDate >= now);
+
+    if (hasFutureAppointment) {
       return { error: 'You already have a future confirmed appointment with this doctor.' };
     }
 
