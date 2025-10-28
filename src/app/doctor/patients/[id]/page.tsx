@@ -72,53 +72,58 @@ export default function PatientRecordPage({ params }: { params: { id: string } }
     const fetchPatientData = async () => {
       setPageLoading(true);
 
-      // Fetch patient profile
       const patientDocRef = doc(db, 'users', patientId);
-      getDoc(patientDocRef)
-        .then(patientDocSnap => {
-          if (!patientDocSnap.exists()) {
-            setPageLoading(false);
-            return;
-          }
-          const patientData = patientDocSnap.data();
-          setPatient({
-              uid: patientData.uid,
-              name: patientData.displayName,
-              email: patientData.email,
-              photoURL: patientData.photoURL,
-              createdAt: patientData.createdAt,
-          });
+      
+      try {
+        const patientDocSnap = await getDoc(patientDocRef);
 
-          // Fetch patient appointments with this doctor
-          const appointmentsRef = collection(db, 'appointments');
-          const q = query(
-            appointmentsRef,
-            where('doctorId', '==', user.uid),
-            where('patientId', '==', patientId),
-            orderBy('appointmentDate', 'desc')
-          );
-          
-          return getDocs(q);
-        })
-        .then(appointmentSnapshots => {
-           if (appointmentSnapshots) {
-             const appointmentList: Appointment[] = appointmentSnapshots.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
+        if (!patientDocSnap.exists()) {
+          setPageLoading(false);
+          return;
+        }
+
+        const patientData = patientDocSnap.data();
+        setPatient({
+          uid: patientData.uid,
+          name: patientData.displayName,
+          email: patientData.email,
+          photoURL: patientData.photoURL,
+          createdAt: patientData.createdAt,
+        });
+
+        const appointmentsRef = collection(db, 'appointments');
+        const q = query(
+          appointmentsRef,
+          where('doctorId', '==', user.uid),
+          where('patientId', '==', patientId),
+          orderBy('appointmentDate', 'desc')
+        );
+
+        getDocs(q)
+          .then(appointmentSnapshots => {
+            const appointmentList: Appointment[] = appointmentSnapshots.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
             } as Appointment));
             setAppointments(appointmentList);
-           }
-        })
-        .catch(serverError => {
+          })
+          .catch(serverError => {
             const permissionError = new FirestorePermissionError({
-                path: patientDocRef.path,
-                operation: 'get',
+                path: appointmentsRef.path,
+                operation: 'list',
             });
             errorEmitter.emit('permission-error', permissionError);
-        })
-        .finally(() => {
-            setPageLoading(false);
+          });
+
+      } catch (serverError) {
+        const permissionError = new FirestorePermissionError({
+          path: patientDocRef.path,
+          operation: 'get',
         });
+        errorEmitter.emit('permission-error', permissionError);
+      } finally {
+        setPageLoading(false);
+      }
     };
 
     fetchPatientData();
