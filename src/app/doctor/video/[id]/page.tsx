@@ -16,9 +16,11 @@ import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import {
   answerCall,
-  pc,
   hangup,
   registerEventHandlers,
+  toggleMute,
+  toggleCamera,
+  getCall,
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
 
@@ -27,8 +29,12 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   const { toast } = useToast();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
+  const [remoteMuted, setRemoteMuted] = useState(false);
+  const [remoteCameraOff, setRemoteCameraOff] = useState(false);
+
   const [callStatus, setCallStatus] = useState('Joining call...');
   const { user, loading } = useAuthState();
   const { id } = use(params);
@@ -54,7 +60,6 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
     const joinCall = async () => {
       try {
         await answerCall(id);
-        // setCallStatus is handled by onCallConnected callback
       } catch (error) {
         console.error('Error joining call:', error);
         toast({
@@ -68,31 +73,29 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
     joinCall();
 
+    const unsubscribe = getCall(id, (callData) => {
+        if(callData) {
+            setRemoteMuted(callData.patientMuted);
+            setRemoteCameraOff(callData.patientCameraOff);
+        }
+    });
+
     return () => {
+      unsubscribe();
       hangup(id);
     };
   }, [id, router, toast, user, loading]);
 
-  const toggleMute = () => {
-    if (pc) {
-      pc.getSenders().forEach(sender => {
-        if (sender.track?.kind === 'audio') {
-          sender.track.enabled = !sender.track.enabled;
-          setIsMuted(!sender.track.enabled);
-        }
-      });
-    }
+  const handleToggleMute = () => {
+    const newMutedState = !isMuted;
+    setIsMuted(newMutedState);
+    toggleMute(newMutedState);
   };
 
-  const toggleCamera = () => {
-    if (pc) {
-      pc.getSenders().forEach(sender => {
-        if (sender.track?.kind === 'video') {
-          sender.track.enabled = !sender.track.enabled;
-          setIsCameraOff(!sender.track.enabled);
-        }
-      });
-    }
+  const handleToggleCamera = () => {
+    const newCameraState = !isCameraOff;
+    setIsCameraOff(newCameraState);
+    toggleCamera(newCameraState);
   };
 
   const endCall = () => {
@@ -120,6 +123,12 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
             autoPlay
             playsInline
           />
+           {(remoteMuted || remoteCameraOff) && (
+              <div className="absolute inset-0 flex items-center justify-center gap-4 rounded-md bg-black/50">
+                  {remoteMuted && <MicOff className="h-6 w-6 text-white" />}
+                  {remoteCameraOff && <VideoOff className="h-6 w-6 text-white" />}
+              </div>
+            )}
           <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-sm">
             Patient
           </div>
@@ -158,7 +167,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
               variant={isMuted ? 'destructive' : 'outline'}
               size="icon"
               className="rounded-full h-12 w-12 md:h-16 md:w-16"
-              onClick={toggleMute}
+              onClick={handleToggleMute}
             >
               {isMuted ? <MicOff /> : <Mic />}
             </Button>
@@ -166,7 +175,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
               variant={isCameraOff ? 'destructive' : 'outline'}
               size="icon"
               className="rounded-full h-12 w-12 md:h-16 md:w-16"
-              onClick={toggleCamera}
+              onClick={handleToggleCamera}
             >
               {isCameraOff ? <VideoOff /> : <Video />}
             </Button>

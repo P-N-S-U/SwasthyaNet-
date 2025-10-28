@@ -11,6 +11,7 @@ import {
   setDoc,
   writeBatch,
   getDocs,
+  Unsubscribe,
 } from 'firebase/firestore';
 
 const servers = {
@@ -25,6 +26,9 @@ const servers = {
 export let pc: RTCPeerConnection;
 let localStream: MediaStream | null = null;
 let remoteStream: MediaStream | null = null;
+let callId: string | null = null;
+let role: 'patient' | 'doctor' | null = null;
+
 
 let localVideoRef: React.RefObject<HTMLVideoElement> | null = null;
 let remoteVideoRef: React.RefObject<HTMLVideoElement> | null = null;
@@ -72,7 +76,9 @@ const setupStreams = async () => {
     }
 };
 
-export const createCall = async (callId: string) => {
+export const createCall = async (id: string) => {
+  callId = id;
+  role = 'patient';
   await setupStreams();
 
   const callDoc = doc(db, 'calls', callId);
@@ -91,7 +97,7 @@ export const createCall = async (callId: string) => {
     type: offerDescription.type,
   };
 
-  await setDoc(callDoc, { offer, id: callId });
+  await setDoc(callDoc, { offer, id: callId, patientMuted: false, patientCameraOff: false });
 
   onSnapshot(callDoc, snapshot => {
     const data = snapshot.data();
@@ -114,7 +120,9 @@ export const createCall = async (callId: string) => {
   onCallCreated && onCallCreated();
 };
 
-export const answerCall = async (callId: string) => {
+export const answerCall = async (id: string) => {
+  callId = id;
+  role = 'doctor';
   await setupStreams();
 
   const callDoc = doc(db, 'calls', callId);
@@ -128,7 +136,6 @@ export const answerCall = async (callId: string) => {
   const callSnap = await getDoc(callDoc);
   const callData = callSnap.data();
 
-  // Ensure offer exists before creating an answer
   if (callData?.offer) {
     const offerDescription = callData.offer;
     await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
@@ -141,7 +148,7 @@ export const answerCall = async (callId: string) => {
       sdp: answerDescription.sdp,
     };
 
-    await updateDoc(callDoc, { answer });
+    await updateDoc(callDoc, { answer, doctorMuted: false, doctorCameraOff: false });
     onCallConnected && onCallConnected();
 
     onSnapshot(offerCandidates, snapshot => {
@@ -154,21 +161,19 @@ export const answerCall = async (callId: string) => {
     });
   } else {
     console.warn("Offer not found when trying to answer call. Waiting for offer via snapshot.");
-    // Fallback: If doctor joins before patient creates offer,
-    // the existing snapshot listener in `createCall` (for the patient)
-    // and a new one here (for the doctor) will handle connection.
-    onSnapshot(callDoc, (snapshot) => {
+    const unsubscribe = onSnapshot(callDoc, (snapshot) => {
         const data = snapshot.data();
         if (data?.offer && !pc.remoteDescription) {
             console.log("Offer received via snapshot, proceeding to answer.");
-            answerCall(callId); // Re-run the answer logic now that offer exists.
+            unsubscribe(); // Stop listening once we've acted.
+            answerCall(id);
         }
     })
   }
 };
 
 
-export const hangup = async (callId: string) => {
+export const hangup = async (id: string) => {
   if (pc) {
     pc.close();
   }
@@ -177,7 +182,7 @@ export const hangup = async (callId: string) => {
   }
 
   try {
-    const callDoc = doc(db, 'calls', callId);
+    const callDoc = doc(db, 'calls', id);
     if ((await getDoc(callDoc)).exists()){
         const offerCandidates = collection(callDoc, 'offerCandidates');
         const answerCandidates = collection(callDoc, 'answerCandidates');
@@ -201,5 +206,50 @@ export const hangup = async (callId: string) => {
 
   localStream = null;
   remoteStream = null;
+  callId = null;
+  role = null;
   onCallEnded && onCallEnded();
 };
+
+
+export const toggleMute = async (isMuted: boolean) => {
+  if (pc) {
+    pc.getSenders().forEach(sender => {
+      if (sender.track?.kind === 'audio') {
+        sender.track.enabled = !isMuted;
+      }
+    });
+    if (callId && role) {
+      const callDoc = doc(db, 'calls', callId);
+      const field = role === 'patient' ? 'patientMuted' : 'doctorMuted';
+      await updateDoc(callDoc, { [field]: isMuted });
+    }
+  }
+};
+
+export const toggleCamera = async (isCameraOff: boolean) => {
+  if (pc) {
+    pc.getSenders().forEach(sender => {
+      if (sender.track?.kind === 'video') {
+        sender.track.enabled = !isCameraOff;
+      }
+    });
+    if (callId && role) {
+      const callDoc = doc(db, 'calls', callId);
+      const field = role === 'patient' ? 'patientCameraOff' : 'doctorCameraOff';
+      await updateDoc(callDoc, { [field]: isCameraOff });
+    }
+  }
+};
+
+export const getCall = (id: string, callback: (data: any) => void): Unsubscribe => {
+    const callDoc = doc(db, 'calls', id);
+    return onSnapshot(callDoc, (snapshot) => {
+        if (snapshot.exists()) {
+            callback(snapshot.data());
+        } else {
+            callback(null);
+        }
+    });
+};
+
