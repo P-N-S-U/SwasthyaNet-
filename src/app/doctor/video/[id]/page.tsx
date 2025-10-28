@@ -53,6 +53,8 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
     }
     
     let localHangup = false;
+    let callUnsubscribe: (() => void) | null = null;
+    let hasAnswered = false;
 
     const handleCallEnded = () => {
         if (!localHangup) {
@@ -70,36 +72,54 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
       handleCallEnded
     );
 
-    const joinCall = async () => {
-      try {
-        const { pc, localStream } = await setupStreams();
-        pcRef.current = pc;
-        localStreamRef.current = localStream;
-        await answerCall(id, pc);
-      } catch (error: any) {
-        console.error('Error joining call:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Join Failed',
-          description: error.message || 'Could not join the video call. It may have ended or there was an error.',
-        });
-        setCallStatus('Failed');
-      }
-    };
+    const initializeCall = async () => {
+        try {
+            const { pc, localStream } = await setupStreams();
+            pcRef.current = pc;
+            localStreamRef.current = localStream;
+            
+            // Listen for the call document
+            callUnsubscribe = getCall(id, async (callData) => {
+                if (callData?.offer && pcRef.current && !hasAnswered) {
+                    hasAnswered = true;
+                    try {
+                        await answerCall(id, pcRef.current);
+                    } catch (error: any) {
+                       console.error('Error answering call:', error);
+                        toast({
+                            variant: 'destructive',
+                            title: 'Join Failed',
+                            description: error.message || 'Could not answer the video call.',
+                        });
+                        setCallStatus('Failed');
+                    }
+                }
 
-    joinCall();
+                if(callData) {
+                    setRemoteMuted(callData.patientMuted);
+                    setRemoteCameraOff(callData.patientCameraOff);
+                }
+            });
 
-    const unsubscribe = getCall(id, (callData) => {
-        if(callData) {
-            setRemoteMuted(callData.patientMuted);
-            setRemoteCameraOff(callData.patientCameraOff);
+        } catch (error: any) {
+            console.error('Error setting up streams:', error);
+            toast({
+              variant: 'destructive',
+              title: 'Setup Failed',
+              description: error.message || 'Could not set up video/audio streams.',
+            });
+            setCallStatus('Failed');
         }
-    });
+    };
+    
+    initializeCall();
 
     // Cleanup function
     return () => {
       localHangup = true;
-      unsubscribe();
+      if (callUnsubscribe) {
+        callUnsubscribe();
+      }
       if (pcRef.current) {
         hangup(id, pcRef.current);
       }
@@ -146,7 +166,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   const getStatusText = () => {
     switch (callStatus) {
       case 'Joining':
-        return 'Joining call...';
+        return 'Joining call, waiting for patient...';
       case 'Connected':
         return 'Connected';
       case 'Ended':

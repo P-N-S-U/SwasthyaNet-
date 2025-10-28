@@ -130,7 +130,10 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
 
   const callSnap = await getDoc(callDoc);
   if (!callSnap.exists()) {
-    throw new Error("Call document doesn't exist.");
+    console.error("Call document doesn't exist.");
+    // This function might be called before the patient creates the doc.
+    // The onSnapshot in getCall will handle connection.
+    return;
   }
   const callData = callSnap.data();
 
