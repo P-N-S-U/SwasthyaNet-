@@ -53,7 +53,8 @@ const fetcher = async ([path, uid]) => {
   const patientData = new Map<string, { lastAppointment: Timestamp; name: string; photoURL?: string }>();
   appointmentSnapshots.forEach(doc => {
     const data = doc.data();
-    if (!patientData.has(data.patientId)) {
+    // Ensure appointmentDate exists before processing
+    if (data.appointmentDate && !patientData.has(data.patientId)) {
       patientData.set(data.patientId, {
         lastAppointment: data.appointmentDate,
         name: data.patientName,
@@ -152,7 +153,7 @@ export default function PatientsPage() {
                     </TableCell>
                     <TableCell>{patient.email}</TableCell>
                     <TableCell>
-                      {patient.lastAppointment.toDate().toLocaleDateString()}
+                      {patient.lastAppointment?.toDate().toLocaleDateString() || 'N/A'}
                     </TableCell>
                     <TableCell className="text-right">
                        <Button asChild variant="outline" size="sm">
