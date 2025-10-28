@@ -3,36 +3,25 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users:
-    // 1. Any authenticated user can read any user's profile. This allows patients to find doctors and doctors to view patient records.
-    // 2. Any authenticated user can list doctors, but not all users.
-    // 3. A user can only create or update their own profile.
     match /users/{userId} {
-      allow read: if request.auth != null;
-      allow list: if request.auth != null && resource.data.role == 'doctor';
+      allow read, list: if request.auth != null;
       allow create: if request.auth.uid == userId;
       allow update: if request.auth.uid == userId;
       allow delete: if false;
     }
 
-    // Appointments:
-    // 1. A user can only read an appointment if they are the patient or the doctor.
-    // 2. A user can create their own appointments.
-    // 3. No one can update or delete appointments.
     match /appointments/{appointmentId} {
-      allow read: if request.auth != null && (request.auth.uid == resource.data.patientId || request.auth.uid == resource.data.doctorId);
+      allow read: if request.auth != null 
+        && (request.auth.uid == resource.data.patientId 
+        || request.auth.uid == resource.data.doctorId);
       allow create: if request.auth != null;
       allow update, delete: if false;
     }
     
-    // Video Calls:
-    // Any authenticated user can create, read, update and delete call documents
-    // This is required for WebRTC peer-to-peer connections.
     match /calls/{callId} {
       allow read, write: if request.auth != null;
     }
 
-    // Subcollections for Video Calls
     match /calls/{callId}/{subcollection}/{document=**} {
       allow read, write: if request.auth != null;
     }
