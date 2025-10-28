@@ -136,7 +136,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      hangup(pcRef.current, id);
+      hangup(pcRef.current);
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
@@ -159,7 +159,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
   const endCall = () => {
     localHangup.current = true;
-    hangup(pcRef.current, id);
+    hangup(pcRef.current);
     router.push('/doctor/dashboard');
   };
 

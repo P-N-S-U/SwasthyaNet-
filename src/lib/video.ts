@@ -208,7 +208,7 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
   }
 };
 
-export const hangup = async (pc: RTCPeerConnection | null, callId?: string) => {
+export const hangup = async (pc: RTCPeerConnection | null) => {
   if (pc && pc.signalingState !== 'closed') {
     pc.getSenders().forEach(sender => {
       if (sender.track) {
@@ -218,25 +218,6 @@ export const hangup = async (pc: RTCPeerConnection | null, callId?: string) => {
     pc.close();
   }
   
-  if (callId) {
-    const callDoc = doc(db, 'calls', callId);
-    const callSnap = await getDoc(callDoc);
-
-    if (callSnap.exists()) {
-        const offerCandidates = collection(callDoc, 'offerCandidates');
-        const answerCandidates = collection(callDoc, 'answerCandidates');
-        const offerSnapshot = await getDocs(offerCandidates);
-        const answerSnapshot = await getDocs(answerCandidates);
-        
-        const batch = writeBatch(db);
-        offerSnapshot.forEach(doc => batch.delete(doc.ref));
-        answerSnapshot.forEach(doc => batch.delete(doc.ref));
-        batch.delete(callDoc);
-        await batch.commit();
-    }
-  }
-
-
   if (onCallEnded && wasConnected) onCallEnded();
 };
 
