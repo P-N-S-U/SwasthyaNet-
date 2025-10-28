@@ -120,9 +120,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      if (pcRef.current) {
-        hangup(id, pcRef.current);
-      }
+      hangup(pcRef.current);
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
@@ -146,10 +144,8 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   };
 
   const endCall = () => {
-    if (pcRef.current) {
-      hangup(id, pcRef.current);
-    }
-     // onCallEnded callback handles redirection
+    hangup(pcRef.current);
+    // onCallEnded callback handles redirection
     setCallStatus('Ended');
     router.push('/doctor/dashboard');
   };

@@ -129,12 +129,6 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
   };
 
   const callSnap = await getDoc(callDoc);
-  if (!callSnap.exists()) {
-    console.error("Call document doesn't exist.");
-    // This function might be called before the patient creates the doc.
-    // The onSnapshot in getCall will handle connection.
-    return;
-  }
   const callData = callSnap.data();
 
   if (callData?.offer) {
@@ -168,7 +162,7 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
   }
 };
 
-export const hangup = async (id: string, pc: RTCPeerConnection | null) => {
+export const hangup = async (pc: RTCPeerConnection | null) => {
   if (pc) {
     pc.getSenders().forEach(sender => {
       if (sender.track) {
@@ -177,35 +171,11 @@ export const hangup = async (id: string, pc: RTCPeerConnection | null) => {
     });
     pc.close();
   }
-
-  try {
-    if (id) {
-      const callDoc = doc(db, 'calls', id);
-      const callSnap = await getDoc(callDoc);
-
-      if (callSnap.exists()) {
-        const offerCandidates = collection(callDoc, 'offerCandidates');
-        const answerCandidates = collection(callDoc, 'answerCandidates');
-
-        const batch = writeBatch(db);
-
-        const offerCandidatesSnapshot = await getDocs(offerCandidates);
-        offerCandidatesSnapshot.forEach(doc => batch.delete(doc.ref));
-
-        const answerCandidatesSnapshot = await getDocs(answerCandidates);
-        answerCandidatesSnapshot.forEach(doc => batch.delete(doc.ref));
-
-        batch.delete(callDoc);
-
-        await batch.commit();
-      }
-    }
-  } catch (error) {
-    console.error('Error hanging up call:', error);
-  }
-
+  // The call document is intentionally not deleted to allow for re-connection
+  // and to prevent the other user from being kicked out.
   if (onCallEnded) onCallEnded();
 };
+
 
 export const toggleMute = async (
   isMuted: boolean,

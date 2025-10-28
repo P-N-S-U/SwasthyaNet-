@@ -100,9 +100,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
     return () => {
       localHangup = true;
       unsubscribe();
-      if (pcRef.current) {
-        hangup(id, pcRef.current);
-      }
+      hangup(pcRef.current);
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
@@ -126,9 +124,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   };
 
   const endCall = () => {
-    if (pcRef.current) {
-      hangup(id, pcRef.current);
-    }
+    hangup(pcRef.current);
     setCallStatus('Ended');
     router.push('/patient/appointments');
   };
