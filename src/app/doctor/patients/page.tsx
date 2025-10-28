@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import useSWR from 'swr';
 
 
 interface Patient {
@@ -38,71 +39,68 @@ const getInitials = (name: string | null | undefined) => {
   return name.substring(0, 2).toUpperCase();
 };
 
+const fetcher = async ([path, uid]) => {
+  if (!uid) return [];
+  
+  const appointmentsRef = collection(db, path);
+  const q = query(
+    appointmentsRef,
+    where('doctorId', '==', uid),
+    orderBy('appointmentDate', 'desc')
+  );
+  const appointmentSnapshots = await getDocs(q);
+
+  const patientData = new Map<string, { lastAppointment: Timestamp; name: string; photoURL?: string }>();
+  appointmentSnapshots.forEach(doc => {
+    const data = doc.data();
+    if (!patientData.has(data.patientId)) {
+      patientData.set(data.patientId, {
+        lastAppointment: data.appointmentDate,
+        name: data.patientName,
+        photoURL: data.patientPhotoURL,
+      });
+    }
+  });
+  
+  const patientList: Patient[] = [];
+  for (const [patientId, info] of patientData.entries()) {
+      const userDoc = await getDoc(doc(db, 'users', patientId));
+      if (userDoc.exists()) {
+          const userData = userDoc.data();
+          patientList.push({
+              id: patientId,
+              name: info.name,
+              email: userData.email || 'No email found',
+              photoURL: info.photoURL,
+              lastAppointment: info.lastAppointment,
+          });
+      }
+  }
+
+  return patientList;
+};
+
 
 export default function PatientsPage() {
-  const { user, loading, role } = useAuthState();
+  const { user, loading: authLoading, role } = useAuthState();
   const router = useRouter();
-  const [patients, setPatients] = useState<Patient[]>([]);
-  const [pageLoading, setPageLoading] = useState(true);
+
+  const { data: patients, isLoading: pageLoading } = useSWR(
+      user ? ['appointments', user.uid] : null,
+      fetcher
+  );
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/auth');
-    }
-    if (user && role) {
-      if (role !== 'doctor') {
+    if (!authLoading) {
+      if (!user) {
+        router.replace('/auth');
+      } else if (role && role !== 'doctor') {
         router.replace('/patient/dashboard');
-      } else {
-        const fetchPatients = async () => {
-          try {
-            const appointmentsRef = collection(db, 'appointments');
-            const q = query(
-              appointmentsRef,
-              where('doctorId', '==', user.uid),
-              orderBy('appointmentDate', 'desc')
-            );
-            const appointmentSnapshots = await getDocs(q);
-
-            const patientData = new Map<string, { lastAppointment: Timestamp; name: string; photoURL?: string }>();
-            appointmentSnapshots.forEach(doc => {
-              const data = doc.data();
-              if (!patientData.has(data.patientId)) {
-                patientData.set(data.patientId, {
-                  lastAppointment: data.appointmentDate,
-                  name: data.patientName,
-                  photoURL: data.patientPhotoURL,
-                });
-              }
-            });
-            
-            const patientList: Patient[] = [];
-            for (const [patientId, info] of patientData.entries()) {
-                const userDoc = await getDoc(doc(db, 'users', patientId));
-                if (userDoc.exists()) {
-                    const userData = userDoc.data();
-                    patientList.push({
-                        id: patientId,
-                        name: info.name,
-                        email: userData.email || 'No email found',
-                        photoURL: info.photoURL,
-                        lastAppointment: info.lastAppointment,
-                    });
-                }
-            }
-
-            setPatients(patientList);
-          } catch (error) {
-            console.error("Error fetching patients: ", error);
-          } finally {
-            setPageLoading(false);
-          }
-        };
-        fetchPatients();
       }
     }
-  }, [user, loading, role, router]);
+  }, [user, authLoading, role, router]);
 
-  if (loading || pageLoading) {
+  if (authLoading || pageLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -140,7 +138,7 @@ export default function PatientsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {patients.length > 0 ? (
+              {patients && patients.length > 0 ? (
                 patients.map(patient => (
                   <TableRow key={patient.id}>
                     <TableCell>

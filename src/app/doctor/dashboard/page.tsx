@@ -23,11 +23,13 @@ import {
   collection,
   query,
   where,
-  onSnapshot,
   Timestamp,
   orderBy,
+  getDocs,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
+import useSWR from 'swr';
+
 
 interface Appointment {
   id: string;
@@ -44,7 +46,24 @@ export interface RecentPatient {
     photoURL?: string;
 }
 
-const getWeeklyChartData = (appointments: Appointment[]) => {
+const appointmentsFetcher = async ([path, uid]) => {
+  if (!uid) return [];
+  const q = query(
+    collection(db, path),
+    where('doctorId', '==', uid),
+    orderBy('appointmentDate', 'desc')
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Appointment[];
+};
+
+const profileFetcher = async (uid) => {
+    if (!uid) return null;
+    return await getUserProfile(uid);
+};
+
+
+const getWeeklyChartData = (appointments: Appointment[] = []) => {
   // Show from yesterday up to 5 days in the future
   const dateRange = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
@@ -73,61 +92,25 @@ const getWeeklyChartData = (appointments: Appointment[]) => {
 export default function DoctorDashboardPage() {
   const { user, loading: authLoading } = useAuthState();
   const router = useRouter();
-  const [profile, setProfile] = useState<any>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
-  const [appointmentsLoading, setAppointmentsLoading] = useState(true);
 
-  // Effect for auth and profile fetching
+  const { data: profile, isLoading: profileLoading } = useSWR(
+    user ? user.uid : null,
+    profileFetcher
+  );
+
+  const { data: allAppointments, isLoading: appointmentsLoading } = useSWR(
+    user ? ['appointments', user.uid] : null,
+    appointmentsFetcher,
+    { revalidateOnFocus: false }
+  );
+
   useEffect(() => {
-    if (authLoading) return; // Wait until auth state is determined
-
-    if (!user) {
+    if (!authLoading && !user) {
       router.push('/auth');
-      setProfileLoading(false);
-      setAppointmentsLoading(false);
-      return;
     }
-
-    // Fetch Profile
-    getUserProfile(user.uid).then(userProfile => {
-      setProfile(userProfile);
-      setProfileLoading(false);
-
-      // Once profile is loaded, fetch appointments
-      const appointmentsRef = collection(db, 'appointments');
-      const q = query(
-        appointmentsRef,
-        where('doctorId', '==', user.uid),
-        orderBy('appointmentDate', 'desc')
-      );
-
-      const unsubscribe = onSnapshot(q, snapshot => {
-        const appts = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Appointment[];
-        setAllAppointments(appts);
-        setAppointmentsLoading(false);
-      }, (error) => {
-          console.error("Error fetching appointments: ", error);
-          setAppointmentsLoading(false);
-      });
-      
-      return () => unsubscribe();
-    });
-
   }, [user, authLoading, router]);
 
-
-  const isProfileComplete =
-    profile &&
-    profile.specialization &&
-    profile.qualifications &&
-    profile.experience &&
-    profile.consultationFee;
-
-  if (authLoading || profileLoading || appointmentsLoading) {
+  if (authLoading || profileLoading || appointmentsLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -135,12 +118,14 @@ export default function DoctorDashboardPage() {
     );
   }
   
-  if (!user) {
-      return null; // Should have been redirected, but good for safety
-  }
+  const isProfileComplete =
+    profile &&
+    profile.specialization &&
+    profile.qualifications &&
+    profile.experience &&
+    profile.consultationFee;
 
-
-  const upcomingAppointments = allAppointments.filter(
+  const upcomingAppointments = (allAppointments || []).filter(
     appt => appt.appointmentDate.toDate() >= new Date()
   ).sort((a,b) => a.appointmentDate.toDate().getTime() - b.appointmentDate.toDate().getTime());
 
@@ -150,7 +135,7 @@ export default function DoctorDashboardPage() {
     const uniquePatients = new Map<string, RecentPatient>();
     
     // Appointments are already sorted by date descending
-    for (const appt of allAppointments) {
+    for (const appt of (allAppointments || [])) {
       if (!uniquePatients.has(appt.patientId) && uniquePatients.size < 5) {
         uniquePatients.set(appt.patientId, { id: appt.patientId, name: appt.patientName, photoURL: appt.patientPhotoURL });
       }

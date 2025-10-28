@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
 import { Header } from '@/components/landing/Header';
@@ -29,11 +29,12 @@ import {
   collection,
   query,
   where,
-  onSnapshot,
   Timestamp,
   orderBy,
+  getDocs,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
+import useSWR from 'swr';
 
 interface Appointment {
   id: string;
@@ -42,6 +43,17 @@ interface Appointment {
   appointmentDate: Timestamp;
   status: 'Confirmed' | 'Completed' | 'Cancelled';
 }
+
+const fetcher = async ([path, uid]) => {
+  if (!uid) return [];
+  const q = query(
+    collection(db, path),
+    where('patientId', '==', uid),
+    orderBy('appointmentDate', 'desc')
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Appointment[];
+};
 
 const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
   const appointmentDate = appointment.appointmentDate.toDate();
@@ -115,42 +127,23 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
 };
 
 export default function AppointmentsPage() {
-  const { user, loading } = useAuthState();
+  const { user, loading: authLoading } = useAuthState();
   const router = useRouter();
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [appointmentsLoading, setAppointmentsLoading] = useState(true);
+
+  const { data: appointments, isLoading: appointmentsLoading } = useSWR(
+    user ? ['appointments', user.uid] : null,
+    fetcher,
+    { revalidateOnFocus: false }
+  );
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       router.push('/auth');
       return;
     }
+  }, [user, authLoading, router]);
 
-    if (user) {
-      const appointmentsRef = collection(db, 'appointments');
-      const q = query(
-        appointmentsRef,
-        where('patientId', '==', user.uid),
-        orderBy('appointmentDate', 'desc')
-      );
-
-      const unsubscribe = onSnapshot(q, snapshot => {
-        const appts = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Appointment[];
-        setAppointments(appts);
-        setAppointmentsLoading(false);
-      }, (error) => {
-        console.error("Error fetching appointments: ", error);
-        setAppointmentsLoading(false);
-      });
-
-      return () => unsubscribe();
-    }
-  }, [user, loading, router]);
-
-  if (loading || !user || appointmentsLoading) {
+  if (authLoading || !user || appointmentsLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -159,12 +152,12 @@ export default function AppointmentsPage() {
   }
 
   const now = new Date();
-  const upcomingAppointments = appointments.filter(
+  const upcomingAppointments = appointments?.filter(
     appt => appt.appointmentDate.toDate() >= now
-  );
-  const pastAppointments = appointments.filter(
+  ) || [];
+  const pastAppointments = appointments?.filter(
     appt => appt.appointmentDate.toDate() < now
-  );
+  ) || [];
 
   return (
     <div className="flex min-h-screen flex-col">

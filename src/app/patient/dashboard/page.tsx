@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
 import { Header } from '@/components/landing/Header';
@@ -10,57 +10,45 @@ import {
   collection,
   query,
   where,
-  onSnapshot,
   Timestamp,
+  getDocs,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 import { Loader2, Bot, Users, Activity } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import useSWR from 'swr';
 
-interface Appointment {
-  id: string;
-  appointmentDate: Timestamp;
-}
+const fetcher = async ([path, uid]) => {
+  if (!uid) return 0;
+  const q = query(
+    collection(db, path),
+    where('patientId', '==', uid),
+    where('appointmentDate', '>=', Timestamp.now())
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.size;
+};
+
 
 export default function PatientDashboardPage() {
-  const { user, loading } = useAuthState();
+  const { user, loading: authLoading } = useAuthState();
   const router = useRouter();
-  const [upcomingCount, setUpcomingCount] = useState(0);
-  const [appointmentsLoading, setAppointmentsLoading] = useState(true);
+
+  const { data: upcomingCount, isLoading: appointmentsLoading } = useSWR(
+      user ? ['appointments', user.uid] : null, 
+      fetcher
+  );
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       router.push('/auth');
       return;
     }
+  }, [user, authLoading, router]);
 
-    if (user) {
-      const appointmentsRef = collection(db, 'appointments');
-      const q = query(
-        appointmentsRef,
-        where('patientId', '==', user.uid),
-        where('appointmentDate', '>=', Timestamp.now())
-      );
-
-      const unsubscribe = onSnapshot(
-        q,
-        snapshot => {
-          setUpcomingCount(snapshot.size);
-          setAppointmentsLoading(false);
-        },
-        error => {
-          console.error('Error fetching appointments:', error);
-          setAppointmentsLoading(false);
-        }
-      );
-
-      return () => unsubscribe();
-    }
-  }, [user, loading, router]);
-
-  if (loading || !user) {
+  if (authLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />

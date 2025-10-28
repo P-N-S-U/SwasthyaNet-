@@ -11,11 +11,12 @@ import {
   collection,
   query,
   where,
-  onSnapshot,
   Timestamp,
   orderBy,
+  getDocs,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
+import useSWR from 'swr';
 
 interface Appointment {
   id: string;
@@ -24,43 +25,34 @@ interface Appointment {
   status: 'Confirmed' | 'Completed' | 'Cancelled';
 }
 
+const fetcher = async ([path, uid]) => {
+  if (!uid) return [];
+  const q = query(
+    collection(db, path),
+    where('doctorId', '==', uid),
+    orderBy('createdAt', 'desc')
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Appointment[];
+};
+
 export default function SchedulePage() {
-  const { user, loading } = useAuthState();
+  const { user, loading: authLoading } = useAuthState();
   const router = useRouter();
   const [date, setDate] = useState<Date | undefined>(new Date());
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [appointmentsLoading, setAppointmentsLoading] = useState(true);
+  
+  const { data: appointments, isLoading: appointmentsLoading } = useSWR(
+    user ? ['appointments', user.uid] : null,
+    fetcher
+  );
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       router.push('/auth');
     }
+  }, [user, authLoading, router]);
 
-    if (user) {
-      const appointmentsRef = collection(db, 'appointments');
-      const q = query(
-        appointmentsRef,
-        where('doctorId', '==', user.uid),
-        orderBy('createdAt', 'desc')
-      );
-
-      const unsubscribe = onSnapshot(q, snapshot => {
-        const appts = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Appointment[];
-        setAppointments(appts);
-        setAppointmentsLoading(false);
-      }, (error) => {
-          console.error("Error fetching appointments: ", error);
-          setAppointmentsLoading(false);
-      });
-
-      return () => unsubscribe();
-    }
-  }, [user, loading, router]);
-
-  if (loading || !user || appointmentsLoading) {
+  if (authLoading || !user || appointmentsLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -75,7 +67,7 @@ export default function SchedulePage() {
   }
 
   const selectedDay = date || new Date();
-  const todaysAppointments = appointments.filter(appt => isSameDay(appt.appointmentDate.toDate(), selectedDay))
+  const todaysAppointments = (appointments || []).filter(appt => isSameDay(appt.appointmentDate.toDate(), selectedDay))
     .sort((a, b) => a.appointmentDate.toDate().getTime() - b.appointmentDate.toDate().getTime());
 
   return (
@@ -97,7 +89,7 @@ export default function SchedulePage() {
                 onSelect={setDate}
                 className="w-full"
                 modifiers={{
-                    booked: appointments.map(a => a.appointmentDate.toDate())
+                    booked: (appointments || []).map(a => a.appointmentDate.toDate())
                 }}
                 modifiersStyles={{
                     booked: { border: "2px solid hsl(var(--primary))", borderRadius: 'var(--radius)' }

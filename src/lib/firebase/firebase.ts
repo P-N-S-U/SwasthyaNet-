@@ -1,8 +1,12 @@
 
 // Import the functions you need from the SDKs you need
-import { initializeApp, getApps, getApp } from 'firebase/app';
+import { initializeApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore';
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+} from 'firebase/firestore';
 
 // Your web app's Firebase configuration for the client
 const firebaseConfig = {
@@ -14,12 +18,14 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase for the CLIENT
-let app;
-if (!getApps().length) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApps()[0];
-}
+const app =
+  getApps().length > 0
+    ? getApps()[0]
+    : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Enable Firestore persistent cache
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache(),
+});
