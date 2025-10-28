@@ -78,6 +78,10 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
             pcRef.current = pc;
             localStreamRef.current = localStream;
             
+            if (localVideoRef.current) {
+                localVideoRef.current.srcObject = localStream;
+            }
+
             // Listen for the call document
             callUnsubscribe = getCall(id, async (callData) => {
                 if (callData?.offer && pcRef.current && !hasAnswered) {
@@ -98,6 +102,9 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
                 if(callData) {
                     setRemoteMuted(callData.patientMuted);
                     setRemoteCameraOff(callData.patientCameraOff);
+                } else if (hasAnswered) {
+                    // If we have answered and the call doc disappears, the other user hung up
+                    handleCallEnded();
                 }
             });
 
@@ -124,8 +131,6 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
-      pcRef.current = null;
-      localStreamRef.current = null;
     };
   }, [id, router, toast, user, loading]);
 
@@ -145,8 +150,6 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
   const endCall = () => {
     hangup(pcRef.current);
-    // onCallEnded callback handles redirection
-    setCallStatus('Ended');
     router.push('/doctor/dashboard');
   };
 
