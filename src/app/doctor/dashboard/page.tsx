@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
 import {
@@ -17,7 +17,6 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { AppointmentsChart } from '@/components/doctor/AppointmentsChart';
 import { RecentPatients } from '@/components/doctor/RecentPatients';
-import { getUserProfile } from '@/lib/firebase/firestore';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   collection,
@@ -29,7 +28,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 import useSWR from 'swr';
-
+import { getUserProfile } from '@/lib/firebase/firestore';
 
 interface Appointment {
   id: string;
@@ -46,10 +45,10 @@ export interface RecentPatient {
     photoURL?: string;
 }
 
-const appointmentsFetcher = async ([path, uid]) => {
+const appointmentsFetcher = async ([, uid]) => {
   if (!uid) return [];
   const q = query(
-    collection(db, path),
+    collection(db, 'appointments'),
     where('doctorId', '==', uid),
     orderBy('appointmentDate', 'desc')
   );
@@ -59,7 +58,12 @@ const appointmentsFetcher = async ([path, uid]) => {
 
 const profileFetcher = async (uid) => {
     if (!uid) return null;
-    return await getUserProfile(uid);
+    try {
+      return await getUserProfile(uid);
+    } catch(e) {
+      // Errors will be handled by the global error emitter in firestore.ts
+      return null;
+    }
 };
 
 
@@ -75,7 +79,7 @@ const getWeeklyChartData = (appointments: Appointment[] = []) => {
 
   return dateRange.map(date => {
     const day = dayStrings[date.getDay()];
-    const appointmentsOnDay = appointments.filter(appt => {
+    const appointmentsOnDay = (appointments || []).filter(appt => {
       const apptDate = appt.appointmentDate.toDate();
       return (
         apptDate.getFullYear() === date.getFullYear() &&
@@ -90,7 +94,7 @@ const getWeeklyChartData = (appointments: Appointment[] = []) => {
 
 
 export default function DoctorDashboardPage() {
-  const { user, loading: authLoading } = useAuthState();
+  const { user, loading: authLoading, role } = useAuthState();
   const router = useRouter();
 
   const { data: profile, isLoading: profileLoading } = useSWR(
@@ -108,7 +112,10 @@ export default function DoctorDashboardPage() {
     if (!authLoading && !user) {
       router.push('/auth');
     }
-  }, [user, authLoading, router]);
+     if (!authLoading && role && role !== 'doctor') {
+      router.replace('/patient/dashboard');
+    }
+  }, [user, authLoading, role, router]);
 
   if (authLoading || profileLoading || appointmentsLoading || !user) {
     return (
@@ -126,7 +133,7 @@ export default function DoctorDashboardPage() {
     profile.consultationFee;
 
   const upcomingAppointments = (allAppointments || []).filter(
-    appt => appt.appointmentDate.toDate() >= new Date()
+    appt => appt.appointmentDate.toDate() >= new Date() && appt.status === 'Confirmed'
   ).sort((a,b) => a.appointmentDate.toDate().getTime() - b.appointmentDate.toDate().getTime());
 
   const weeklyChartData = getWeeklyChartData(allAppointments);

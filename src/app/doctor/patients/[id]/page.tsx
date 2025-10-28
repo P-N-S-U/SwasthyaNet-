@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, use } from 'react';
+import { useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
 import { doc, getDoc, collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import useSWR from 'swr';
 
 interface PatientProfile {
   uid: string;
@@ -52,15 +53,65 @@ const ProfileDetailItem = ({ icon, label, value }) => {
   );
 };
 
+const patientFetcher = async (patientId: string) => {
+    const patientDocRef = doc(db, 'users', patientId);
+    try {
+        const patientDocSnap = await getDoc(patientDocRef);
+        if (!patientDocSnap.exists()) {
+            throw new Error('Patient not found');
+        }
+        const data = patientDocSnap.data();
+        return {
+            uid: data.uid,
+            name: data.displayName,
+            email: data.email,
+            photoURL: data.photoURL,
+            createdAt: data.createdAt,
+        } as PatientProfile;
+    } catch(serverError) {
+        const permissionError = new FirestorePermissionError({
+            path: patientDocRef.path,
+            operation: 'get',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw permissionError;
+    }
+}
+
+const appointmentsFetcher = async ([doctorId, patientId]) => {
+    if (!doctorId || !patientId) return [];
+    const appointmentsRef = collection(db, 'appointments');
+    const q = query(
+      appointmentsRef,
+      where('doctorId', '==', doctorId),
+      where('patientId', '==', patientId),
+      orderBy('appointmentDate', 'desc')
+    );
+
+    try {
+        const appointmentSnapshots = await getDocs(q);
+        return appointmentSnapshots.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        } as Appointment));
+    } catch (serverError) {
+        const permissionError = new FirestorePermissionError({
+            path: appointmentsRef.path,
+            operation: 'list',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw permissionError;
+    }
+}
+
 
 export default function PatientRecordPage({ params }: { params: { id: string } }) {
   const { id: patientId } = use(params);
-  const { user, loading: authLoading } = useAuthState();
+  const { user, loading: authLoading, role } = useAuthState();
   const router = useRouter();
-  const [patient, setPatient] = useState<PatientProfile | null>(null);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [pageLoading, setPageLoading] = useState(true);
-  
+
+  const { data: patient, isLoading: patientLoading, error: patientError } = useSWR(patientId, patientFetcher);
+  const { data: appointments, isLoading: appointmentsLoading } = useSWR(user ? [user.uid, patientId] : null, appointmentsFetcher);
 
   useEffect(() => {
     if (authLoading) return;
@@ -68,69 +119,15 @@ export default function PatientRecordPage({ params }: { params: { id: string } }
       router.replace('/auth');
       return;
     }
-
-    const fetchPatientData = async () => {
-      setPageLoading(true);
-
-      const patientDocRef = doc(db, 'users', patientId);
-      
-      try {
-        const patientDocSnap = await getDoc(patientDocRef);
-
-        if (!patientDocSnap.exists()) {
-          setPageLoading(false);
-          return;
-        }
-
-        const patientData = patientDocSnap.data();
-        setPatient({
-          uid: patientData.uid,
-          name: patientData.displayName,
-          email: patientData.email,
-          photoURL: patientData.photoURL,
-          createdAt: patientData.createdAt,
-        });
-
-        const appointmentsRef = collection(db, 'appointments');
-        const q = query(
-          appointmentsRef,
-          where('doctorId', '==', user.uid),
-          where('patientId', '==', patientId),
-          orderBy('appointmentDate', 'desc')
-        );
-
-        getDocs(q)
-          .then(appointmentSnapshots => {
-            const appointmentList: Appointment[] = appointmentSnapshots.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            } as Appointment));
-            setAppointments(appointmentList);
-          })
-          .catch(serverError => {
-            const permissionError = new FirestorePermissionError({
-                path: appointmentsRef.path,
-                operation: 'list',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-          });
-
-      } catch (serverError) {
-        const permissionError = new FirestorePermissionError({
-          path: patientDocRef.path,
-          operation: 'get',
-        });
-        errorEmitter.emit('permission-error', permissionError);
-      } finally {
-        setPageLoading(false);
-      }
-    };
-
-    fetchPatientData();
-  }, [user, authLoading, patientId, router]);
+    if (role && role !== 'doctor') {
+        router.replace('/patient/dashboard');
+    }
+  }, [user, authLoading, role, router]);
 
 
-  if (pageLoading || authLoading) {
+  const pageLoading = authLoading || patientLoading || appointmentsLoading;
+
+  if (pageLoading) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -139,7 +136,7 @@ export default function PatientRecordPage({ params }: { params: { id: string } }
     );
   }
 
-  if (!patient) {
+  if (!patient || patientError) {
      return (
       <div>
         <Button asChild variant="outline" size="sm" className="mb-6">
@@ -198,8 +195,8 @@ export default function PatientRecordPage({ params }: { params: { id: string } }
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
-                        {appointments.length > 0 ? (
-                            appointments.map(appt => (
+                        {(appointments || []).length > 0 ? (
+                            (appointments || []).map(appt => (
                                 <div key={appt.id} className="flex items-center justify-between rounded-lg bg-secondary/50 p-4">
                                     <div>
                                         <p className="font-semibold">{appt.appointmentDate.toDate().toLocaleString(undefined, { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute:'2-digit' })}</p>
@@ -221,3 +218,4 @@ export default function PatientRecordPage({ params }: { params: { id: string } }
     </div>
   );
 }
+
