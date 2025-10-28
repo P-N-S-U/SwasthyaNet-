@@ -78,6 +78,8 @@ export const createCall = async (id: string, pc: RTCPeerConnection) => {
   const offerCandidates = collection(callDoc, 'offerCandidates');
   const answerCandidates = collection(callDoc, 'answerCandidates');
 
+  let queuedAnswerCandidates: RTCIceCandidateInit[] = [];
+
   pc.onicecandidate = event => {
     event.candidate && addDoc(offerCandidates, event.candidate.toJSON());
   };
@@ -103,7 +105,13 @@ export const createCall = async (id: string, pc: RTCPeerConnection) => {
     const data = snapshot.data();
     if (!pc.currentRemoteDescription && data?.answer) {
       const answerDescription = new RTCSessionDescription(data.answer);
-      pc.setRemoteDescription(answerDescription);
+      pc.setRemoteDescription(answerDescription).then(() => {
+        // Process any queued candidates
+        queuedAnswerCandidates.forEach(candidate => {
+          pc.addIceCandidate(new RTCIceCandidate(candidate));
+        });
+        queuedAnswerCandidates = []; // Clear the queue
+      });
       wasConnected = true;
       if (onCallConnected) onCallConnected();
     }
@@ -112,8 +120,13 @@ export const createCall = async (id: string, pc: RTCPeerConnection) => {
   onSnapshot(answerCandidates, snapshot => {
     snapshot.docChanges().forEach(change => {
       if (change.type === 'added') {
-        const candidate = new RTCIceCandidate(change.doc.data());
-        pc.addIceCandidate(candidate);
+        const candidate = change.doc.data();
+        if (pc.currentRemoteDescription) {
+          pc.addIceCandidate(new RTCIceCandidate(candidate));
+        } else {
+          // Queue the candidate if remote description is not set yet
+          queuedAnswerCandidates.push(candidate);
+        }
       }
     });
   });
@@ -124,14 +137,14 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
   const offerCandidates = collection(callDoc, 'offerCandidates');
   const answerCandidates = collection(callDoc, 'answerCandidates');
 
+  let queuedOfferCandidates: RTCIceCandidateInit[] = [];
+
   pc.onicecandidate = event => {
     event.candidate && addDoc(answerCandidates, event.candidate.toJSON());
   };
 
   const callSnap = await getDoc(callDoc);
   if (!callSnap.exists()) {
-    // This case is handled by the real-time listener in the component.
-    // We shouldn't throw an error here as it creates a race condition.
     console.warn("Attempted to answer a call that doesn't exist yet.");
     return;
   }
@@ -156,6 +169,12 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
       doctorCameraOff: false,
     });
     
+    // Process any queued candidates after setting remote description
+    queuedOfferCandidates.forEach(candidate => {
+        pc.addIceCandidate(new RTCIceCandidate(candidate));
+    });
+    queuedOfferCandidates = []; // Clear the queue
+
     wasConnected = true;
     if (onCallConnected) onCallConnected();
 
@@ -163,7 +182,11 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
       snapshot.docChanges().forEach(change => {
         if (change.type === 'added') {
           let data = change.doc.data();
-          pc.addIceCandidate(new RTCIceCandidate(data));
+          if (pc.currentRemoteDescription) {
+            pc.addIceCandidate(new RTCIceCandidate(data));
+          } else {
+             queuedOfferCandidates.push(data);
+          }
         }
       });
     });
@@ -179,10 +202,27 @@ export const hangup = async (pc: RTCPeerConnection | null, callId?: string) => {
     });
     pc.close();
   }
+  
+  if (callId) {
+    const callDoc = doc(db, 'calls', callId);
+    const callSnap = await getDoc(callDoc);
 
-  // The call document is intentionally not deleted to allow the other user to stay.
-  // A more robust solution might involve setting a status on the call document
-  // or handling re-connection logic.
+    if (callSnap.exists()) {
+        const offerCandidates = collection(callDoc, 'offerCandidates');
+        const answerCandidates = collection(callDoc, 'answerCandidates');
+        const offerSnapshot = await getDocs(offerCandidates);
+        const answerSnapshot = await getDocs(answerCandidates);
+        
+        const batch = writeBatch(db);
+        offerSnapshot.forEach(doc => batch.delete(doc.ref));
+        answerSnapshot.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+
+        // Instead of deleting, just reset the answer so a new connection can be made
+        await updateDoc(callDoc, { answer: null });
+    }
+  }
+
 
   if (onCallEnded && wasConnected) onCallEnded();
 };
@@ -235,7 +275,6 @@ export const getCall = (
   const callDoc = doc(db, 'calls', id);
   return onSnapshot(callDoc, snapshot => {
     if (snapshot.exists()) {
-      wasConnected = true;
       callback(snapshot.data());
     } else {
       callback(null);
@@ -247,3 +286,5 @@ export const getCall = (
     }
   });
 };
+
+    
