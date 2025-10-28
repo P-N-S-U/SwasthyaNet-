@@ -180,22 +180,9 @@ export const hangup = async (pc: RTCPeerConnection | null, callId?: string) => {
     pc.close();
   }
 
-  if (callId) {
-    const callDoc = doc(db, 'calls', callId);
-    if ((await getDoc(callDoc)).exists()) {
-      const offerCandidates = collection(callDoc, 'offerCandidates');
-      const answerCandidates = collection(callDoc, 'answerCandidates');
-      
-      const offerCandidatesSnap = await getDocs(offerCandidates);
-      const answerCandidatesSnap = await getDocs(answerCandidates);
-      
-      const batch = writeBatch(db);
-      offerCandidatesSnap.forEach(doc => batch.delete(doc.ref));
-      answerCandidatesSnap.forEach(doc => batch.delete(doc.ref));
-      batch.delete(callDoc);
-      await batch.commit();
-    }
-  }
+  // The call document is intentionally not deleted to allow the other user to stay.
+  // A more robust solution might involve setting a status on the call document
+  // or handling re-connection logic.
 
   if (onCallEnded && wasConnected) onCallEnded();
 };
