@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 interface PatientProfile {
   uid: string;
@@ -68,48 +70,55 @@ export default function PatientRecordPage({ params }: { params: { id: string } }
     }
 
     const fetchPatientData = async () => {
-      try {
-        // Fetch patient profile
-        const patientDocRef = doc(db, 'users', patientId);
-        const patientDocSnap = await getDoc(patientDocRef);
+      setPageLoading(true);
 
-        if (!patientDocSnap.exists()) {
-          // Handle case where patient doesn't exist
-          setPageLoading(false);
-          return;
-        }
-        
-        const patientData = patientDocSnap.data();
-        setPatient({
-            uid: patientData.uid,
-            name: patientData.displayName,
-            email: patientData.email,
-            photoURL: patientData.photoURL,
-            createdAt: patientData.createdAt,
+      // Fetch patient profile
+      const patientDocRef = doc(db, 'users', patientId);
+      getDoc(patientDocRef)
+        .then(patientDocSnap => {
+          if (!patientDocSnap.exists()) {
+            setPageLoading(false);
+            return;
+          }
+          const patientData = patientDocSnap.data();
+          setPatient({
+              uid: patientData.uid,
+              name: patientData.displayName,
+              email: patientData.email,
+              photoURL: patientData.photoURL,
+              createdAt: patientData.createdAt,
+          });
+
+          // Fetch patient appointments with this doctor
+          const appointmentsRef = collection(db, 'appointments');
+          const q = query(
+            appointmentsRef,
+            where('doctorId', '==', user.uid),
+            where('patientId', '==', patientId),
+            orderBy('appointmentDate', 'desc')
+          );
+          
+          return getDocs(q);
+        })
+        .then(appointmentSnapshots => {
+           if (appointmentSnapshots) {
+             const appointmentList: Appointment[] = appointmentSnapshots.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            } as Appointment));
+            setAppointments(appointmentList);
+           }
+        })
+        .catch(serverError => {
+            const permissionError = new FirestorePermissionError({
+                path: patientDocRef.path,
+                operation: 'get',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        })
+        .finally(() => {
+            setPageLoading(false);
         });
-
-        // Fetch patient appointments with this doctor
-        const appointmentsRef = collection(db, 'appointments');
-        const q = query(
-          appointmentsRef,
-          where('doctorId', '==', user.uid),
-          where('patientId', '==', patientId),
-          orderBy('appointmentDate', 'desc')
-        );
-        const appointmentSnapshots = await getDocs(q);
-        
-        const appointmentList: Appointment[] = appointmentSnapshots.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        } as Appointment));
-
-        setAppointments(appointmentList);
-
-      } catch (error) {
-        console.error("Error fetching patient data: ", error);
-      } finally {
-        setPageLoading(false);
-      }
     };
 
     fetchPatientData();
