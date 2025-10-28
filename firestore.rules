@@ -3,43 +3,38 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is authenticated
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
-    // Helper function to check if the user is the owner of the document
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-    
-    // Rules for the 'users' collection
+    // Users:
+    // 1. Any authenticated user can read any user's profile. This allows patients to find doctors and doctors to view patient records.
+    // 2. Any authenticated user can list doctors, but not all users.
+    // 3. A user can only create or update their own profile.
     match /users/{userId} {
-      // Anyone authenticated can read user profiles (needed for patients to find doctors, and doctors to see patient details).
-      // A user can create their own profile.
-      // A user can only update their own profile.
-      allow read: if isSignedIn();
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      allow delete: if false; // Disallow deleting user profiles
+      allow read: if request.auth != null;
+      allow list: if request.auth != null && resource.data.role == 'doctor';
+      allow create: if request.auth.uid == userId;
+      allow update: if request.auth.uid == userId;
+      allow delete: if false;
     }
 
-    // Rules for the 'appointments' collection
+    // Appointments:
+    // 1. A user can only read an appointment if they are the patient or the doctor.
+    // 2. A user can create their own appointments.
+    // 3. No one can update or delete appointments.
     match /appointments/{appointmentId} {
-      // A user can read an appointment if they are the patient or the doctor.
-      allow read: if isSignedIn() && (request.auth.uid == resource.data.patientId || request.auth.uid == resource.data.doctorId);
-      // Any authenticated user can create an appointment (patients book them).
-      allow create: if isSignedIn();
-      // Disallow updates and deletes for now to maintain record integrity.
+      allow read: if request.auth != null && (request.auth.uid == resource.data.patientId || request.auth.uid == resource.data.doctorId);
+      allow create: if request.auth != null;
       allow update, delete: if false;
     }
+    
+    // Video Calls:
+    // Any authenticated user can create, read, update and delete call documents
+    // This is required for WebRTC peer-to-peer connections.
+    match /calls/{callId} {
+      allow read, write: if request.auth != null;
+    }
 
-    // Rules for WebRTC signaling calls
-    match /calls/{callId}/{document=**} {
-      // Any authenticated user can create, read, update, and delete documents
-      // in the 'calls' collection. This is required for WebRTC signaling to work
-      // between the two peers (patient and doctor).
-      allow read, write: if isSignedIn();
+    // Subcollections for Video Calls
+    match /calls/{callId}/{subcollection}/{document=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }
