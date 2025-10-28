@@ -32,6 +32,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const ProfileDetailItem = ({ icon, label, value, isBio = false }) => {
   if (!value && !isBio) return null;
@@ -65,15 +67,26 @@ export default function ProfilePage() {
       }
       
       const userDocRef = doc(db, 'users', user.uid);
-      const unsubscribe = onSnapshot(userDocRef, (doc) => {
-        if (doc.exists()) {
-          setProfile(doc.data());
-        } else {
-          // Handle the case where the document does not exist
-          console.error("No such user document!");
+      const unsubscribe = onSnapshot(
+        userDocRef, 
+        (doc) => {
+          if (doc.exists()) {
+            setProfile(doc.data());
+          } else {
+            // Handle the case where the document does not exist
+            console.error("No such user document!");
+          }
+          setProfileLoading(false);
+        },
+        (serverError) => {
+           const permissionError = new FirestorePermissionError({
+                path: userDocRef.path,
+                operation: 'get',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+            setProfileLoading(false);
         }
-        setProfileLoading(false);
-      });
+      );
 
       // Cleanup subscription on unmount
       return () => unsubscribe();
