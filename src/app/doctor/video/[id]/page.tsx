@@ -104,6 +104,9 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
                     setRemoteCameraOff(callData.patientCameraOff);
                     if (callData.doctorMuted !== undefined) {
                       setIsMuted(callData.doctorMuted);
+                    } else {
+                      // If undefined (on initial join), assume not muted
+                      setIsMuted(false);
                     }
                     if (callData.doctorCameraOff !== undefined) {
                       setIsCameraOff(callData.doctorCameraOff);
@@ -216,7 +219,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
         <div className="absolute bottom-20 right-4 h-32 w-24 md:relative md:bottom-auto md:right-auto md:h-auto md:w-full rounded-md bg-secondary aspect-video">
           <video
             ref={localVideoRef}
-            className="h-full w-full rounded-md object-cover"
+            className="h-full w-full rounded-md object-cover [-webkit-transform:scaleX(-1)] [transform:scaleX(-1)]"
             autoPlay
             playsInline
             muted
