@@ -21,6 +21,7 @@ import {
   toggleMute,
   toggleCamera,
   getCall,
+  setupStreams,
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
 
@@ -38,6 +39,8 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   const [callStatus, setCallStatus] = useState('Initializing...');
   const { user, loading } = useAuthState();
   const { id } = use(params);
+  
+  const pcRef = useRef<RTCPeerConnection | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -46,27 +49,32 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
       return;
     }
 
+    let localHangup = false;
+
     registerEventHandlers(
       localVideoRef,
       remoteVideoRef,
       () => setCallStatus('Waiting for doctor to join...'),
       () => setCallStatus('Connected'),
       () => {
-        toast({ title: 'Call Ended' });
-        router.push('/patient/appointments');
+        if (!localHangup) {
+            toast({ title: 'Call Ended', description: 'The other user has left the call.' });
+            router.push('/patient/appointments');
+        }
       }
     );
 
     const startCall = async () => {
       try {
-        await createCall(id);
-      } catch (error) {
+        const { pc } = await setupStreams();
+        pcRef.current = pc;
+        await createCall(id, pc);
+      } catch (error: any) {
         console.error('Error starting call:', error);
         toast({
           variant: 'destructive',
           title: 'Call Failed',
-          description:
-            'Could not start the video call. Please check permissions and try again.',
+          description: error.message || 'Could not start the video call. Please check permissions and try again.',
         });
         setCallStatus('Call failed');
       }
@@ -82,25 +90,28 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
     });
 
     return () => {
+      localHangup = true;
       unsubscribe();
-      hangup(id);
+      hangup(id, pcRef.current);
+      pcRef.current = null;
     };
   }, [id, router, toast, user, loading]);
 
   const handleToggleMute = () => {
     const newMutedState = !isMuted;
     setIsMuted(newMutedState);
-    toggleMute(newMutedState);
+    toggleMute(newMutedState, pcRef.current);
   };
 
   const handleToggleCamera = () => {
     const newCameraState = !isCameraOff;
     setIsCameraOff(newCameraState);
-    toggleCamera(newCameraState);
+    toggleCamera(newCameraState, pcRef.current);
   };
 
   const endCall = () => {
-    hangup(id);
+    hangup(id, pcRef.current);
+    // onCallEnded callback handles redirection
   };
 
   if (loading || !user) {
@@ -193,4 +204,3 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
     </div>
   );
 }
-

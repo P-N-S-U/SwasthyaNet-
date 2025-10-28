@@ -23,12 +23,8 @@ const servers = {
   iceCandidatePoolSize: 10,
 };
 
-let pc: RTCPeerConnection | null = null;
-let localStream: MediaStream | null = null;
-let remoteStream: MediaStream | null = null;
 let callId: string | null = null;
 let role: 'patient' | 'doctor' | null = null;
-
 
 let localVideoRef: React.RefObject<HTMLVideoElement> | null = null;
 let remoteVideoRef: React.RefObject<HTMLVideoElement> | null = null;
@@ -50,21 +46,21 @@ export const registerEventHandlers = (
   onCallEnded = onEnded;
 };
 
-const setupStreams = async () => {
-    pc = new RTCPeerConnection(servers);
-    localStream = await navigator.mediaDevices.getUserMedia({
+export const setupStreams = async () => {
+    const pc = new RTCPeerConnection(servers);
+    const localStream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true,
     });
-    remoteStream = new MediaStream();
+    const remoteStream = new MediaStream();
 
     localStream.getTracks().forEach(track => {
-        pc!.addTrack(track, localStream!);
+        pc.addTrack(track, localStream);
     });
 
     pc.ontrack = event => {
         event.streams[0].getTracks().forEach(track => {
-            remoteStream!.addTrack(track);
+            remoteStream.addTrack(track);
         });
     };
 
@@ -74,23 +70,24 @@ const setupStreams = async () => {
     if (remoteVideoRef?.current) {
         remoteVideoRef.current.srcObject = remoteStream;
     }
+
+    return { pc, localStream, remoteStream };
 };
 
-export const createCall = async (id: string) => {
+export const createCall = async (id: string, pc: RTCPeerConnection) => {
   callId = id;
   role = 'patient';
-  await setupStreams();
 
   const callDoc = doc(db, 'calls', callId);
   const offerCandidates = collection(callDoc, 'offerCandidates');
   const answerCandidates = collection(callDoc, 'answerCandidates');
 
-  pc!.onicecandidate = event => {
+  pc.onicecandidate = event => {
     event.candidate && addDoc(offerCandidates, event.candidate.toJSON());
   };
 
-  const offerDescription = await pc!.createOffer();
-  await pc!.setLocalDescription(offerDescription);
+  const offerDescription = await pc.createOffer();
+  await pc.setLocalDescription(offerDescription);
 
   const offer = {
     sdp: offerDescription.sdp,
@@ -101,9 +98,9 @@ export const createCall = async (id: string) => {
 
   onSnapshot(callDoc, snapshot => {
     const data = snapshot.data();
-    if (!pc!.currentRemoteDescription && data?.answer) {
+    if (!pc.currentRemoteDescription && data?.answer) {
       const answerDescription = new RTCSessionDescription(data.answer);
-      pc!.setRemoteDescription(answerDescription);
+      pc.setRemoteDescription(answerDescription);
       onCallConnected && onCallConnected();
     }
   });
@@ -112,7 +109,7 @@ export const createCall = async (id: string) => {
     snapshot.docChanges().forEach(change => {
       if (change.type === 'added') {
         const candidate = new RTCIceCandidate(change.doc.data());
-        pc!.addIceCandidate(candidate);
+        pc.addIceCandidate(candidate);
       }
     });
   });
@@ -120,16 +117,15 @@ export const createCall = async (id: string) => {
   onCallCreated && onCallCreated();
 };
 
-export const answerCall = async (id: string) => {
+export const answerCall = async (id: string, pc: RTCPeerConnection) => {
   callId = id;
   role = 'doctor';
-  await setupStreams();
 
   const callDoc = doc(db, 'calls', callId);
   const offerCandidates = collection(callDoc, 'offerCandidates');
   const answerCandidates = collection(callDoc, 'answerCandidates');
 
-  pc!.onicecandidate = event => {
+  pc.onicecandidate = event => {
     event.candidate && addDoc(answerCandidates, event.candidate.toJSON());
   };
 
@@ -138,10 +134,10 @@ export const answerCall = async (id: string) => {
 
   if (callData?.offer) {
     const offerDescription = callData.offer;
-    await pc!.setRemoteDescription(new RTCSessionDescription(offerDescription));
+    await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
 
-    const answerDescription = await pc!.createAnswer();
-    await pc!.setLocalDescription(answerDescription);
+    const answerDescription = await pc.createAnswer();
+    await pc.setLocalDescription(answerDescription);
 
     const answer = {
       type: answerDescription.type,
@@ -155,7 +151,7 @@ export const answerCall = async (id: string) => {
       snapshot.docChanges().forEach(change => {
         if (change.type === 'added') {
           let data = change.doc.data();
-          pc!.addIceCandidate(new RTCIceCandidate(data));
+          pc.addIceCandidate(new RTCIceCandidate(data));
         }
       });
     });
@@ -163,17 +159,17 @@ export const answerCall = async (id: string) => {
     console.warn("Offer not found when trying to answer call. Waiting for offer via snapshot.");
     const unsubscribe = onSnapshot(callDoc, (snapshot) => {
         const data = snapshot.data();
-        if (data?.offer && !pc!.remoteDescription) {
+        if (data?.offer && !pc.remoteDescription) {
             console.log("Offer received via snapshot, proceeding to answer.");
-            unsubscribe(); // Stop listening once we've acted.
-            answerCall(id).catch(err => console.error("Error retrying answerCall:", err));
+            unsubscribe(); 
+            answerCall(id, pc).catch(err => console.error("Error retrying answerCall:", err));
         }
     })
   }
 };
 
 
-export const hangup = async (id: string) => {
+export const hangup = async (id: string, pc: RTCPeerConnection | null) => {
   if (pc) {
     pc.getSenders().forEach((sender) => {
       if (sender.track) {
@@ -207,17 +203,12 @@ export const hangup = async (id: string) => {
       console.error("Error hanging up call:", error);
   }
 
-
-  localStream = null;
-  remoteStream = null;
-  pc = null;
   callId = null;
   role = null;
-  // onCallEnded will be triggered by the onSnapshot listener in getCall now
 };
 
 
-export const toggleMute = async (isMuted: boolean) => {
+export const toggleMute = async (isMuted: boolean, pc: RTCPeerConnection | null) => {
   if (pc) {
     pc.getSenders().forEach(sender => {
       if (sender.track?.kind === 'audio') {
@@ -232,7 +223,7 @@ export const toggleMute = async (isMuted: boolean) => {
   }
 };
 
-export const toggleCamera = async (isCameraOff: boolean) => {
+export const toggleCamera = async (isCameraOff: boolean, pc: RTCPeerConnection | null) => {
   if (pc) {
     pc.getSenders().forEach(sender => {
       if (sender.track?.kind === 'video') {
@@ -253,7 +244,6 @@ export const getCall = (id: string, callback: (data: any) => void): Unsubscribe 
         if (snapshot.exists()) {
             callback(snapshot.data());
         } else {
-            // Document was deleted, meaning the other person hung up.
             callback(null);
             if (onCallEnded) {
               onCallEnded();

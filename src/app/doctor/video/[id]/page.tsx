@@ -21,6 +21,7 @@ import {
   toggleMute,
   toggleCamera,
   getCall,
+  setupStreams,
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
 
@@ -39,12 +40,16 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   const { user, loading } = useAuthState();
   const { id } = use(params);
 
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+
   useEffect(() => {
     if (loading) return;
     if (!user) {
       router.push('/auth');
       return;
     }
+    
+    let localHangup = false;
 
     registerEventHandlers(
       localVideoRef,
@@ -52,20 +57,24 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
       () => {}, // Doctors don't create calls
       () => setCallStatus('Connected'),
       () => {
-        toast({ title: 'Call Ended' });
-        router.push('/doctor/dashboard');
+        if (!localHangup) {
+            toast({ title: 'Call Ended', description: 'The patient has left the call.' });
+            router.push('/doctor/dashboard');
+        }
       }
     );
 
     const joinCall = async () => {
       try {
-        await answerCall(id);
-      } catch (error) {
+        const { pc } = await setupStreams();
+        pcRef.current = pc;
+        await answerCall(id, pc);
+      } catch (error: any) {
         console.error('Error joining call:', error);
         toast({
           variant: 'destructive',
           title: 'Join Failed',
-          description: 'Could not join the video call. It may have ended or there was an error.',
+          description: error.message || 'Could not join the video call. It may have ended or there was an error.',
         });
         setCallStatus('Failed to join');
       }
@@ -81,25 +90,28 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
     });
 
     return () => {
+      localHangup = true;
       unsubscribe();
-      hangup(id);
+      hangup(id, pcRef.current);
+      pcRef.current = null;
     };
   }, [id, router, toast, user, loading]);
 
   const handleToggleMute = () => {
     const newMutedState = !isMuted;
     setIsMuted(newMutedState);
-    toggleMute(newMutedState);
+    toggleMute(newMutedState, pcRef.current);
   };
 
   const handleToggleCamera = () => {
     const newCameraState = !isCameraOff;
     setIsCameraOff(newCameraState);
-    toggleCamera(newCameraState);
+    toggleCamera(newCameraState, pcRef.current);
   };
 
   const endCall = () => {
-    hangup(id);
+    hangup(id, pcRef.current);
+    // onCallEnded callback handles redirection
   };
 
   if (loading || !user) {
