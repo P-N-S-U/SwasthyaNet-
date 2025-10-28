@@ -100,7 +100,6 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
   const endCall = () => {
     hangup(id);
-    router.push('/doctor/dashboard');
   };
 
   if (loading || !user) {

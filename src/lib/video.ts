@@ -166,7 +166,7 @@ export const answerCall = async (id: string) => {
         if (data?.offer && !pc.remoteDescription) {
             console.log("Offer received via snapshot, proceeding to answer.");
             unsubscribe(); // Stop listening once we've acted.
-            answerCall(id);
+            answerCall(id).catch(err => console.error("Error retrying answerCall:", err));
         }
     })
   }
@@ -182,22 +182,24 @@ export const hangup = async (id: string) => {
   }
 
   try {
-    const callDoc = doc(db, 'calls', id);
-    if ((await getDoc(callDoc)).exists()){
-        const offerCandidates = collection(callDoc, 'offerCandidates');
-        const answerCandidates = collection(callDoc, 'answerCandidates');
-    
-        const batch = writeBatch(db);
-    
-        const offerCandidatesSnapshot = await getDocs(offerCandidates);
-        offerCandidatesSnapshot.forEach(doc => batch.delete(doc.ref));
-    
-        const answerCandidatesSnapshot = await getDocs(answerCandidates);
-        answerCandidatesSnapshot.forEach(doc => batch.delete(doc.ref));
-    
-        batch.delete(callDoc);
-    
-        await batch.commit();
+    if (id) {
+        const callDoc = doc(db, 'calls', id);
+        if ((await getDoc(callDoc)).exists()){
+            const offerCandidates = collection(callDoc, 'offerCandidates');
+            const answerCandidates = collection(callDoc, 'answerCandidates');
+        
+            const batch = writeBatch(db);
+        
+            const offerCandidatesSnapshot = await getDocs(offerCandidates);
+            offerCandidatesSnapshot.forEach(doc => batch.delete(doc.ref));
+        
+            const answerCandidatesSnapshot = await getDocs(answerCandidates);
+            answerCandidatesSnapshot.forEach(doc => batch.delete(doc.ref));
+        
+            batch.delete(callDoc);
+        
+            await batch.commit();
+        }
     }
   } catch (error) {
       console.error("Error hanging up call:", error);
@@ -208,7 +210,7 @@ export const hangup = async (id: string) => {
   remoteStream = null;
   callId = null;
   role = null;
-  onCallEnded && onCallEnded();
+  // onCallEnded will be triggered by the onSnapshot listener in getCall now
 };
 
 
@@ -248,8 +250,11 @@ export const getCall = (id: string, callback: (data: any) => void): Unsubscribe 
         if (snapshot.exists()) {
             callback(snapshot.data());
         } else {
+            // Document was deleted, meaning the other person hung up.
             callback(null);
+            if (onCallEnded) {
+              onCallEnded();
+            }
         }
     });
 };
-

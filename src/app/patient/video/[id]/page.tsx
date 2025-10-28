@@ -101,7 +101,6 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
 
   const endCall = () => {
     hangup(id);
-    router.push('/patient/appointments');
   };
 
   if (loading || !user) {
