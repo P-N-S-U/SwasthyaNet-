@@ -152,12 +152,12 @@ export default function AppointmentsPage() {
   }
 
   const now = new Date();
-  const upcomingAppointments = appointments?.filter(
+  const upcomingAppointments = (appointments || []).filter(
     appt => appt.appointmentDate.toDate() >= now
-  ) || [];
-  const pastAppointments = appointments?.filter(
+  );
+  const pastAppointments = (appointments || []).filter(
     appt => appt.appointmentDate.toDate() < now
-  ) || [];
+  );
 
   return (
     <div className="flex min-h-screen flex-col">
