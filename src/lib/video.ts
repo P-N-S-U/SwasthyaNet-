@@ -103,12 +103,17 @@ export const createCall = async (id: string, pc: RTCPeerConnection) => {
 
   onSnapshot(callDoc, snapshot => {
     const data = snapshot.data();
+    if (pc.signalingState === 'closed') {
+        return;
+    }
     if (!pc.currentRemoteDescription && data?.answer) {
       const answerDescription = new RTCSessionDescription(data.answer);
       pc.setRemoteDescription(answerDescription).then(() => {
         // Process any queued candidates
         queuedAnswerCandidates.forEach(candidate => {
-          pc.addIceCandidate(new RTCIceCandidate(candidate));
+          if (pc.signalingState !== 'closed') {
+             pc.addIceCandidate(new RTCIceCandidate(candidate));
+          }
         });
         queuedAnswerCandidates = []; // Clear the queue
       });
@@ -118,6 +123,9 @@ export const createCall = async (id: string, pc: RTCPeerConnection) => {
   });
 
   onSnapshot(answerCandidates, snapshot => {
+    if (pc.signalingState === 'closed') {
+        return;
+    }
     snapshot.docChanges().forEach(change => {
       if (change.type === 'added') {
         const candidate = change.doc.data();
@@ -153,32 +161,39 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
 
   if (callData?.offer) {
     const offerDescription = callData.offer;
-    await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
+    if (pc.signalingState !== 'closed') {
+        await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
 
-    const answerDescription = await pc.createAnswer();
-    await pc.setLocalDescription(answerDescription);
+        const answerDescription = await pc.createAnswer();
+        await pc.setLocalDescription(answerDescription);
 
-    const answer = {
-      type: answerDescription.type,
-      sdp: answerDescription.sdp,
-    };
+        const answer = {
+        type: answerDescription.type,
+        sdp: answerDescription.sdp,
+        };
 
-    await updateDoc(callDoc, {
-      answer,
-      doctorMuted: false,
-      doctorCameraOff: false,
-    });
-    
-    // Process any queued candidates after setting remote description
-    queuedOfferCandidates.forEach(candidate => {
-        pc.addIceCandidate(new RTCIceCandidate(candidate));
-    });
-    queuedOfferCandidates = []; // Clear the queue
+        await updateDoc(callDoc, {
+        answer,
+        doctorMuted: false,
+        doctorCameraOff: false,
+        });
+        
+        // Process any queued candidates after setting remote description
+        queuedOfferCandidates.forEach(candidate => {
+            if (pc.signalingState !== 'closed') {
+                pc.addIceCandidate(new RTCIceCandidate(candidate));
+            }
+        });
+        queuedOfferCandidates = []; // Clear the queue
 
-    wasConnected = true;
-    if (onCallConnected) onCallConnected();
+        wasConnected = true;
+        if (onCallConnected) onCallConnected();
+    }
 
     onSnapshot(offerCandidates, snapshot => {
+        if (pc.signalingState === 'closed') {
+            return;
+        }
       snapshot.docChanges().forEach(change => {
         if (change.type === 'added') {
           let data = change.doc.data();
@@ -194,7 +209,7 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
 };
 
 export const hangup = async (pc: RTCPeerConnection | null, callId?: string) => {
-  if (pc) {
+  if (pc && pc.signalingState !== 'closed') {
     pc.getSenders().forEach(sender => {
       if (sender.track) {
         sender.track.stop();
@@ -216,10 +231,8 @@ export const hangup = async (pc: RTCPeerConnection | null, callId?: string) => {
         const batch = writeBatch(db);
         offerSnapshot.forEach(doc => batch.delete(doc.ref));
         answerSnapshot.forEach(doc => batch.delete(doc.ref));
+        batch.delete(callDoc);
         await batch.commit();
-
-        // Instead of deleting, just reset the answer so a new connection can be made
-        await updateDoc(callDoc, { answer: null });
     }
   }
 
