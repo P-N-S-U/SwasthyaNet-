@@ -129,6 +129,13 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
   };
 
   const callSnap = await getDoc(callDoc);
+  if (!callSnap.exists()) {
+    // This case is handled by the real-time listener in the component.
+    // We shouldn't throw an error here as it creates a race condition.
+    console.warn("Attempted to answer a call that doesn't exist yet.");
+    return;
+  }
+  
   const callData = callSnap.data();
 
   if (callData?.offer) {
@@ -148,6 +155,7 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
       doctorMuted: false,
       doctorCameraOff: false,
     });
+    
     wasConnected = true;
     if (onCallConnected) onCallConnected();
 
@@ -162,7 +170,7 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
   }
 };
 
-export const hangup = async (pc: RTCPeerConnection | null) => {
+export const hangup = async (pc: RTCPeerConnection | null, callId?: string) => {
   if (pc) {
     pc.getSenders().forEach(sender => {
       if (sender.track) {
@@ -171,9 +179,25 @@ export const hangup = async (pc: RTCPeerConnection | null) => {
     });
     pc.close();
   }
-  // The call document is intentionally not deleted to allow for re-connection
-  // and to prevent the other user from being kicked out.
-  if (onCallEnded) onCallEnded();
+
+  if (callId) {
+    const callDoc = doc(db, 'calls', callId);
+    if ((await getDoc(callDoc)).exists()) {
+      const offerCandidates = collection(callDoc, 'offerCandidates');
+      const answerCandidates = collection(callDoc, 'answerCandidates');
+      
+      const offerCandidatesSnap = await getDocs(offerCandidates);
+      const answerCandidatesSnap = await getDocs(answerCandidates);
+      
+      const batch = writeBatch(db);
+      offerCandidatesSnap.forEach(doc => batch.delete(doc.ref));
+      answerCandidatesSnap.forEach(doc => batch.delete(doc.ref));
+      batch.delete(callDoc);
+      await batch.commit();
+    }
+  }
+
+  if (onCallEnded && wasConnected) onCallEnded();
 };
 
 
