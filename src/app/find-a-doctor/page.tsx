@@ -2,14 +2,13 @@ import { DoctorRecommendationForm } from '@/components/doctor-recommendation/Doc
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
 import { Users } from 'lucide-react';
-import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { adminDb } from '@/lib/firebase/server-auth';
 
 async function getRealDoctorSuggestions() {
   try {
-    const usersRef = collection(adminDb, 'users');
-    const q = query(usersRef, where('role', '==', 'doctor'), limit(4));
-    const querySnapshot = await getDocs(q);
+    const usersRef = adminDb.collection('users');
+    const q = usersRef.where('role', '==', 'doctor').limit(4);
+    const querySnapshot = await q.get();
 
     if (querySnapshot.empty) {
       return [

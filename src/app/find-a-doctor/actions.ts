@@ -1,7 +1,6 @@
 
 'use server';
 
-import { collection, query, where, getDocs } from 'firebase/firestore';
 import { adminDb } from '@/lib/firebase/server-auth';
 
 export async function getDoctorRecommendations(
@@ -18,11 +17,15 @@ export async function getDoctorRecommendations(
   }
 
   try {
-    const usersRef = collection(adminDb, 'users');
-    // Query for all documents where the user is a doctor
-    const q = query(usersRef, where('role', '==', 'doctor'));
+    const usersRef = adminDb.collection('users');
+    const q = usersRef.where('role', '==', 'doctor');
 
-    const querySnapshot = await getDocs(q);
+    const querySnapshot = await q.get();
+
+    if (querySnapshot.empty) {
+        return { data: { doctors: [] }, error: null };
+    }
+
     const doctors = querySnapshot.docs.map(doc => {
       const data = doc.data();
       return {

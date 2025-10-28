@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, addDoc, Timestamp, doc, getDoc, query, where, getDocs, limit } from 'firebase/firestore';
+import { Timestamp } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
 import { adminDb } from '@/lib/firebase/server-auth';
 import { getSession } from '@/lib/firebase/server-auth';
@@ -22,35 +22,33 @@ export async function bookAppointment(prevState: any, formData: FormData) {
 
   try {
     // Check for existing confirmed appointments with this doctor
-    const appointmentsRef = collection(adminDb, 'appointments');
-    const q = query(
-      appointmentsRef,
-      where('patientId', '==', patientId),
-      where('doctorId', '==', doctorId),
-      where('status', '==', 'Confirmed'),
-      limit(1)
-    );
+    const appointmentsRef = adminDb.collection('appointments');
+    const q = appointmentsRef
+      .where('patientId', '==', patientId)
+      .where('doctorId', '==', doctorId)
+      .where('status', '==', 'Confirmed')
+      .limit(1);
 
-    const existingAppointments = await getDocs(q);
+    const existingAppointments = await q.get();
 
     if (!existingAppointments.empty) {
       return { error: 'You already have a confirmed appointment with this doctor.' };
     }
 
-    const patientDocRef = doc(adminDb, 'users', patientId);
-    const doctorDocRef = doc(adminDb, 'users', doctorId);
+    const patientDocRef = adminDb.collection('users').doc(patientId);
+    const doctorDocRef = adminDb.collection('users').doc(doctorId);
 
     const [patientSnap, doctorSnap] = await Promise.all([
-      getDoc(patientDocRef),
-      getDoc(doctorDocRef),
+      patientDocRef.get(),
+      doctorDocRef.get(),
     ]);
 
-    if (!patientSnap.exists() || !doctorSnap.exists()) {
+    if (!patientSnap.exists || !doctorSnap.exists) {
       return { error: 'Invalid patient or doctor.' };
     }
 
-    const patientData = patientSnap.data();
-    const doctorData = doctorSnap.data();
+    const patientData = patientSnap.data()!;
+    const doctorData = doctorSnap.data()!;
 
     // For now, let's schedule it for 24 hours from now.
     // A real app would have a calendar to pick a slot.
@@ -69,7 +67,7 @@ export async function bookAppointment(prevState: any, formData: FormData) {
       createdAt: Timestamp.now(),
     };
 
-    const appointmentRef = await addDoc(collection(adminDb, 'appointments'), newAppointment);
+    const appointmentRef = await appointmentsRef.add(newAppointment);
 
     // Revalidate paths to refresh data on the respective pages
     revalidatePath('/patient/appointments');
