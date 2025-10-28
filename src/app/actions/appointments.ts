@@ -1,19 +1,9 @@
 
 'use server';
 
-import {
-  collection,
-  addDoc,
-  Timestamp,
-  doc,
-  getDoc,
-  query,
-  where,
-  getDocs,
-  limit,
-} from 'firebase/firestore';
+import { collection, addDoc, Timestamp, doc, getDoc, query, where, getDocs, limit } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
-import { db } from '@/lib/firebase/firebase';
+import { adminDb } from '@/lib/firebase/server-auth';
 import { getSession } from '@/lib/firebase/server-auth';
 
 export async function bookAppointment(prevState: any, formData: FormData) {
@@ -32,7 +22,7 @@ export async function bookAppointment(prevState: any, formData: FormData) {
 
   try {
     // Check for existing confirmed appointments with this doctor
-    const appointmentsRef = collection(db, 'appointments');
+    const appointmentsRef = collection(adminDb, 'appointments');
     const q = query(
       appointmentsRef,
       where('patientId', '==', patientId),
@@ -47,8 +37,8 @@ export async function bookAppointment(prevState: any, formData: FormData) {
       return { error: 'You already have a confirmed appointment with this doctor.' };
     }
 
-    const patientDocRef = doc(db, 'users', patientId);
-    const doctorDocRef = doc(db, 'users', doctorId);
+    const patientDocRef = doc(adminDb, 'users', patientId);
+    const doctorDocRef = doc(adminDb, 'users', doctorId);
 
     const [patientSnap, doctorSnap] = await Promise.all([
       getDoc(patientDocRef),
@@ -79,7 +69,7 @@ export async function bookAppointment(prevState: any, formData: FormData) {
       createdAt: Timestamp.now(),
     };
 
-    const appointmentRef = await addDoc(collection(db, 'appointments'), newAppointment);
+    const appointmentRef = await addDoc(collection(adminDb, 'appointments'), newAppointment);
 
     // Revalidate paths to refresh data on the respective pages
     revalidatePath('/patient/appointments');
