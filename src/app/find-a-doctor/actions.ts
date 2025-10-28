@@ -2,7 +2,7 @@
 'use server';
 
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase/firebase';
+import { adminDb } from '@/lib/firebase/server-auth';
 
 export async function getDoctorRecommendations(
   prevState: any,
@@ -18,7 +18,7 @@ export async function getDoctorRecommendations(
   }
 
   try {
-    const usersRef = collection(db, 'users');
+    const usersRef = collection(adminDb, 'users');
     // Query for all documents where the user is a doctor
     const q = query(usersRef, where('role', '==', 'doctor'));
 

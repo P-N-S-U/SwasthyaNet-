@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import type { DecodedIdToken } from 'firebase-admin/auth';
+import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
 import { NextResponse } from 'next/server';
 
 export function initializeFirebaseAdmin(): App {
@@ -74,3 +75,6 @@ export async function getSession(): Promise<DecodedIdToken | null> {
     return null;
   }
 }
+
+const adminApp = initializeFirebaseAdmin();
+export const adminDb = getAdminFirestore(adminApp);

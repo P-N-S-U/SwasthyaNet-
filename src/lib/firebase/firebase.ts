@@ -1,9 +1,10 @@
+
 // Import the functions you need from the SDKs you need
-import { initializeApp, getApps } from 'firebase/app';
+import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
-// Your web app's Firebase configuration
+// Your web app's Firebase configuration for the client
 const firebaseConfig = {
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   appId: '1:135620499940:web:34fe26db446817fcfb4ff1',
@@ -12,7 +13,7 @@ const firebaseConfig = {
   messagingSenderId: '135620499940',
 };
 
-// Initialize Firebase
+// Initialize Firebase for the CLIENT
 let app;
 if (!getApps().length) {
   app = initializeApp(firebaseConfig);
