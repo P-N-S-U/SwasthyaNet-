@@ -128,32 +128,45 @@ export const answerCall = async (callId: string) => {
   const callSnap = await getDoc(callDoc);
   const callData = callSnap.data();
 
-  if(callData?.offer) {
+  // Ensure offer exists before creating an answer
+  if (callData?.offer) {
     const offerDescription = callData.offer;
     await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
-  }
 
+    const answerDescription = await pc.createAnswer();
+    await pc.setLocalDescription(answerDescription);
 
-  const answerDescription = await pc.createAnswer();
-  await pc.setLocalDescription(answerDescription);
+    const answer = {
+      type: answerDescription.type,
+      sdp: answerDescription.sdp,
+    };
 
-  const answer = {
-    type: answerDescription.type,
-    sdp: answerDescription.sdp,
-  };
+    await updateDoc(callDoc, { answer });
+    onCallConnected && onCallConnected();
 
-  await updateDoc(callDoc, { answer });
-  onCallConnected && onCallConnected();
-
-  onSnapshot(offerCandidates, snapshot => {
-    snapshot.docChanges().forEach(change => {
-      if (change.type === 'added') {
-        const candidate = new RTCIceCandidate(change.doc.data());
-        pc.addIceCandidate(candidate);
-      }
+    onSnapshot(offerCandidates, snapshot => {
+      snapshot.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          let data = change.doc.data();
+          pc.addIceCandidate(new RTCIceCandidate(data));
+        }
+      });
     });
-  });
+  } else {
+    console.warn("Offer not found when trying to answer call. Waiting for offer via snapshot.");
+    // Fallback: If doctor joins before patient creates offer,
+    // the existing snapshot listener in `createCall` (for the patient)
+    // and a new one here (for the doctor) will handle connection.
+    onSnapshot(callDoc, (snapshot) => {
+        const data = snapshot.data();
+        if (data?.offer && !pc.remoteDescription) {
+            console.log("Offer received via snapshot, proceeding to answer.");
+            answerCall(callId); // Re-run the answer logic now that offer exists.
+        }
+    })
+  }
 };
+
 
 export const hangup = async (callId: string) => {
   if (pc) {
