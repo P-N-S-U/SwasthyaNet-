@@ -132,11 +132,12 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
     // Cleanup function
     return () => {
-      localHangup.current = true;
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      hangup(pcRef.current);
+      if (!localHangup.current) {
+        hangup(pcRef.current);
+      }
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
