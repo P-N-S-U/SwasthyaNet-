@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, addDoc, Timestamp, doc, getDoc, query, where, getDocs, limit } from 'firebase-admin/firestore';
+import { collection, addDoc, Timestamp, doc, getDoc, query, where, getDocs, limit } from 'firebase/firestore';
 import { revalidatePath } from 'next/cache';
 import { adminDb } from '@/lib/firebase/server-auth';
 import { getSession } from '@/lib/firebase/server-auth';

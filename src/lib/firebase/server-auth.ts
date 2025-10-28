@@ -29,7 +29,7 @@ export function initializeFirebaseAdmin(): App {
   }
   
   if (getApps().length > 0) {
-    console.log('[v3] [server-auth] Firebase Admin SDK already initialized.');
+    // console.log('[v3] [server-auth] Firebase Admin SDK already initialized.');
     return getApps()[0];
   }
 
@@ -58,14 +58,14 @@ export async function getSession(): Promise<DecodedIdToken | null> {
   
   const cookieValue = cookies().get(COOKIE_NAME)?.value;
   if (!cookieValue) {
-    console.log('[v3] [server-auth] Session cookie not found in request.');
+    // console.log('[v3] [server-auth] Session cookie not found in request.');
     return null;
   }
 
   try {
-    console.log('[v3] [server-auth] Found session cookie. Attempting to verify...');
+    // console.log('[v3] [server-auth] Found session cookie. Attempting to verify...');
     const decodedIdToken = await getAuth(app).verifySessionCookie(cookieValue, true);
-    console.log(`[v3] [server-auth] Session cookie verified for UID: ${decodedIdToken.uid}`);
+    // console.log(`[v3] [server-auth] Session cookie verified for UID: ${decodedIdToken.uid}`);
     return decodedIdToken;
   } catch (error: any) {
     console.error(`[v3] [server-auth] Error verifying session cookie: ${error.code} - ${error.message}`);
