@@ -143,6 +143,12 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
             playsInline
             muted
           />
+           {(isMuted || isCameraOff) && (
+              <div className="absolute inset-0 flex items-center justify-center gap-4 rounded-md bg-black/50">
+                  {isMuted && <MicOff className="h-6 w-6 text-white" />}
+                  {isCameraOff && <VideoOff className="h-6 w-6 text-white" />}
+              </div>
+            )}
           <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-xs">
             You
           </div>
