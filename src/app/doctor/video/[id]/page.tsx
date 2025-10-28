@@ -44,6 +44,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const localHangup = useRef(false);
 
   useEffect(() => {
     if (loading) return;
@@ -52,12 +53,11 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
       return;
     }
     
-    let localHangup = false;
     let callUnsubscribe: (() => void) | null = null;
     let hasAnswered = false;
 
     const handleCallEnded = () => {
-        if (!localHangup) {
+        if (!localHangup.current) {
             toast({ title: 'Call Ended', description: 'The patient has left the call.' });
             setCallStatus('Ended');
             router.push('/doctor/dashboard');
@@ -123,7 +123,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
     // Cleanup function
     return () => {
-      localHangup = true;
+      localHangup.current = true;
       if (callUnsubscribe) {
         callUnsubscribe();
       }
@@ -149,6 +149,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   };
 
   const endCall = () => {
+    localHangup.current = true;
     hangup(pcRef.current);
     router.push('/doctor/dashboard');
   };
