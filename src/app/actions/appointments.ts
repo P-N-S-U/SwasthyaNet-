@@ -21,18 +21,19 @@ export async function bookAppointment(prevState: any, formData: FormData) {
   }
 
   try {
-    // Check for existing confirmed appointments with this doctor
+    // Check for existing confirmed appointments with this doctor that are in the future
     const appointmentsRef = adminDb.collection('appointments');
     const q = appointmentsRef
       .where('patientId', '==', patientId)
       .where('doctorId', '==', doctorId)
       .where('status', '==', 'Confirmed')
+      .where('appointmentDate', '>=', Timestamp.now())
       .limit(1);
 
     const existingAppointments = await q.get();
 
     if (!existingAppointments.empty) {
-      return { error: 'You already have a confirmed appointment with this doctor.' };
+      return { error: 'You already have a future confirmed appointment with this doctor.' };
     }
 
     const patientDocRef = adminDb.collection('users').doc(patientId);
@@ -72,6 +73,7 @@ export async function bookAppointment(prevState: any, formData: FormData) {
     // Revalidate paths to refresh data on the respective pages
     revalidatePath('/patient/appointments');
     revalidatePath('/doctor/schedule');
+    revalidatePath('/patient/dashboard');
 
     return { data: { appointmentId: appointmentRef.id } };
   } catch (error) {

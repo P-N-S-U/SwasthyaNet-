@@ -25,6 +25,7 @@ const fetcher = async ([path, uid]) => {
   const q = query(
     collection(db, path),
     where('patientId', '==', uid),
+    where('status', '==', 'Confirmed'),
     where('appointmentDate', '>=', Timestamp.now())
   );
   const snapshot = await getDocs(q);

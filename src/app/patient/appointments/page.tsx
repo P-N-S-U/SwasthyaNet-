@@ -66,6 +66,7 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
     hour: '2-digit',
     minute: '2-digit',
   });
+  const isUpcoming = appointmentDate >= new Date() && appointment.status === 'Confirmed';
 
   return (
     <Card className="border-border/30 bg-background">
@@ -99,7 +100,7 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
             <span>{time}</span>
           </div>
         </div>
-        {appointment.status === 'Confirmed' && (
+        {isUpcoming && (
           <div className="flex gap-2">
             <Button asChild size="sm">
               <Link href={`/patient/video/${appointment.id}`}>
@@ -153,10 +154,10 @@ export default function AppointmentsPage() {
 
   const now = new Date();
   const upcomingAppointments = (appointments || []).filter(
-    appt => appt.appointmentDate.toDate() >= now
+    appt => appt.appointmentDate.toDate() >= now && appt.status === 'Confirmed'
   );
   const pastAppointments = (appointments || []).filter(
-    appt => appt.appointmentDate.toDate() < now
+    appt => appt.appointmentDate.toDate() < now || appt.status !== 'Confirmed'
   );
 
   return (
