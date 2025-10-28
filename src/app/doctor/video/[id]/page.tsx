@@ -102,6 +102,12 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
                 if(callData) {
                     setRemoteMuted(callData.patientMuted);
                     setRemoteCameraOff(callData.patientCameraOff);
+                    if (callData.doctorMuted !== undefined) {
+                      setIsMuted(callData.doctorMuted);
+                    }
+                    if (callData.doctorCameraOff !== undefined) {
+                      setIsCameraOff(callData.doctorCameraOff);
+                    }
                 } else if (hasAnswered) {
                     // If we have answered and the call doc disappears, the other user hung up
                     handleCallEnded();
