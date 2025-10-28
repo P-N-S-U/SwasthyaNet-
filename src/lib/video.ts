@@ -92,12 +92,15 @@ export const createCall = async (id: string, pc: RTCPeerConnection) => {
     type: offerDescription.type,
   };
 
-  await setDoc(callDoc, {
-    offer,
-    id: id,
-    patientMuted: false,
-    patientCameraOff: false,
-  });
+  const callData = { 
+      offer,
+      id: id,
+      patientMuted: false,
+      patientCameraOff: false,
+  };
+  
+  // Set doc with merge to allow rejoining
+  await setDoc(callDoc, callData, { merge: true });
 
   if (onCallCreated) onCallCreated();
 
@@ -116,7 +119,8 @@ export const createCall = async (id: string, pc: RTCPeerConnection) => {
           }
         });
         queuedAnswerCandidates = []; // Clear the queue
-      });
+      }).catch(e => console.error("Error setting remote description: ", e));
+      
       wasConnected = true;
       if (onCallConnected) onCallConnected();
     }
@@ -153,42 +157,39 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
 
   const callSnap = await getDoc(callDoc);
   if (!callSnap.exists()) {
-    console.warn("Attempted to answer a call that doesn't exist yet.");
     return;
   }
   
   const callData = callSnap.data();
 
-  if (callData?.offer) {
+  if (callData?.offer && pc.signalingState !== 'closed') {
     const offerDescription = callData.offer;
-    if (pc.signalingState !== 'closed') {
-        await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
+    await pc.setRemoteDescription(new RTCSessionDescription(offerDescription)).catch(e => console.error("Error setting remote description: ", e));
 
-        const answerDescription = await pc.createAnswer();
-        await pc.setLocalDescription(answerDescription);
+    const answerDescription = await pc.createAnswer();
+    await pc.setLocalDescription(answerDescription);
 
-        const answer = {
-        type: answerDescription.type,
-        sdp: answerDescription.sdp,
-        };
+    const answer = {
+      type: answerDescription.type,
+      sdp: answerDescription.sdp,
+    };
 
-        await updateDoc(callDoc, {
-        answer,
-        doctorMuted: false,
-        doctorCameraOff: false,
-        });
-        
-        // Process any queued candidates after setting remote description
-        queuedOfferCandidates.forEach(candidate => {
-            if (pc.signalingState !== 'closed') {
-                pc.addIceCandidate(new RTCIceCandidate(candidate));
-            }
-        });
-        queuedOfferCandidates = []; // Clear the queue
+    await updateDoc(callDoc, {
+      answer,
+      doctorMuted: false,
+      doctorCameraOff: false,
+    });
+    
+    // Process any queued candidates after setting remote description
+    queuedOfferCandidates.forEach(candidate => {
+        if (pc.signalingState !== 'closed') {
+            pc.addIceCandidate(new RTCIceCandidate(candidate));
+        }
+    });
+    queuedOfferCandidates = []; // Clear the queue
 
-        wasConnected = true;
-        if (onCallConnected) onCallConnected();
-    }
+    wasConnected = true;
+    if (onCallConnected) onCallConnected();
 
     onSnapshot(offerCandidates, snapshot => {
         if (pc.signalingState === 'closed') {
@@ -218,7 +219,13 @@ export const hangup = async (pc: RTCPeerConnection | null) => {
     pc.close();
   }
   
-  if (onCallEnded && wasConnected) onCallEnded();
+  // Do not delete the call document, just close local connection
+  // This allows the other user to stay in the call
+  
+  if (onCallEnded && wasConnected) {
+      onCallEnded();
+      wasConnected = false; // Prevent multiple triggers
+  }
 };
 
 
@@ -280,5 +287,3 @@ export const getCall = (
     }
   });
 };
-
-    
