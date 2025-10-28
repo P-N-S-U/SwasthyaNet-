@@ -25,6 +25,8 @@ import {
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
 
+type CallStatus = 'Joining' | 'Connected' | 'Ended' | 'Failed';
+
 export default function DoctorVideoCallPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -36,11 +38,12 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   const [remoteMuted, setRemoteMuted] = useState(false);
   const [remoteCameraOff, setRemoteCameraOff] = useState(false);
 
-  const [callStatus, setCallStatus] = useState('Joining call...');
+  const [callStatus, setCallStatus] = useState<CallStatus>('Joining');
   const { user, loading } = useAuthState();
   const { id } = use(params);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -51,23 +54,27 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
     
     let localHangup = false;
 
+    const handleCallEnded = () => {
+        if (!localHangup) {
+            toast({ title: 'Call Ended', description: 'The patient has left the call.' });
+            setCallStatus('Ended');
+            router.push('/doctor/dashboard');
+        }
+    };
+
     registerEventHandlers(
       localVideoRef,
       remoteVideoRef,
       () => {}, // Doctors don't create calls
       () => setCallStatus('Connected'),
-      () => {
-        if (!localHangup) {
-            toast({ title: 'Call Ended', description: 'The patient has left the call.' });
-            router.push('/doctor/dashboard');
-        }
-      }
+      handleCallEnded
     );
 
     const joinCall = async () => {
       try {
-        const { pc } = await setupStreams();
+        const { pc, localStream } = await setupStreams();
         pcRef.current = pc;
+        localStreamRef.current = localStream;
         await answerCall(id, pc);
       } catch (error: any) {
         console.error('Error joining call:', error);
@@ -76,7 +83,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
           title: 'Join Failed',
           description: error.message || 'Could not join the video call. It may have ended or there was an error.',
         });
-        setCallStatus('Failed to join');
+        setCallStatus('Failed');
       }
     };
 
@@ -89,29 +96,42 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
         }
     });
 
+    // Cleanup function
     return () => {
       localHangup = true;
       unsubscribe();
-      hangup(id, pcRef.current);
+      if (pcRef.current) {
+        hangup(id, pcRef.current);
+      }
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop());
+      }
       pcRef.current = null;
+      localStreamRef.current = null;
     };
   }, [id, router, toast, user, loading]);
 
   const handleToggleMute = () => {
+    if (!user || !pcRef.current) return;
     const newMutedState = !isMuted;
     setIsMuted(newMutedState);
-    toggleMute(newMutedState, pcRef.current);
+    toggleMute(newMutedState, pcRef.current, 'doctor', id);
   };
 
   const handleToggleCamera = () => {
+    if (!user || !pcRef.current) return;
     const newCameraState = !isCameraOff;
     setIsCameraOff(newCameraState);
-    toggleCamera(newCameraState, pcRef.current);
+    toggleCamera(newCameraState, pcRef.current, 'doctor', id);
   };
 
   const endCall = () => {
-    hangup(id, pcRef.current);
-    // onCallEnded callback handles redirection
+    if (pcRef.current) {
+      hangup(id, pcRef.current);
+    }
+     // onCallEnded callback handles redirection
+    setCallStatus('Ended');
+    router.push('/doctor/dashboard');
   };
 
   if (loading || !user) {
@@ -121,6 +141,21 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
          <p className="mt-4">Authenticating...</p>
       </div>
     );
+  }
+  
+  const getStatusText = () => {
+    switch (callStatus) {
+      case 'Joining':
+        return 'Joining call...';
+      case 'Connected':
+        return 'Connected';
+      case 'Ended':
+        return 'Call has ended.';
+      case 'Failed':
+        return 'Failed to connect.';
+      default:
+        return '...';
+    }
   }
 
   return (
@@ -146,7 +181,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
            {callStatus !== 'Connected' && (
              <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-background/80">
                <Loader2 className="h-8 w-8 animate-spin" />
-               <p className="mt-2 text-center text-sm">{callStatus}</p>
+               <p className="mt-2 text-center text-sm">{getStatusText()}</p>
              </div>
           )}
         </div>

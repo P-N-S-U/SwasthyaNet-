@@ -25,6 +25,8 @@ import {
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
 
+type CallStatus = 'Initializing' | 'Waiting' | 'Connected' | 'Ended';
+
 export default function VideoCallPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -36,11 +38,12 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   const [remoteMuted, setRemoteMuted] = useState(false);
   const [remoteCameraOff, setRemoteCameraOff] = useState(false);
   
-  const [callStatus, setCallStatus] = useState('Initializing...');
+  const [callStatus, setCallStatus] = useState<CallStatus>('Initializing');
   const { user, loading } = useAuthState();
   const { id } = use(params);
   
   const pcRef = useRef<RTCPeerConnection | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     if (loading) return;
@@ -51,23 +54,27 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
 
     let localHangup = false;
 
+    const handleCallEnded = () => {
+        if (!localHangup) {
+            toast({ title: 'Call Ended', description: 'The doctor has left the call.' });
+            setCallStatus('Ended');
+            router.push('/patient/appointments');
+        }
+    };
+
     registerEventHandlers(
       localVideoRef,
       remoteVideoRef,
-      () => setCallStatus('Waiting for doctor to join...'),
+      () => setCallStatus('Waiting'),
       () => setCallStatus('Connected'),
-      () => {
-        if (!localHangup) {
-            toast({ title: 'Call Ended', description: 'The other user has left the call.' });
-            router.push('/patient/appointments');
-        }
-      }
+      handleCallEnded
     );
 
     const startCall = async () => {
       try {
-        const { pc } = await setupStreams();
+        const { pc, localStream } = await setupStreams();
         pcRef.current = pc;
+        localStreamRef.current = localStream;
         await createCall(id, pc);
       } catch (error: any) {
         console.error('Error starting call:', error);
@@ -76,7 +83,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
           title: 'Call Failed',
           description: error.message || 'Could not start the video call. Please check permissions and try again.',
         });
-        setCallStatus('Call failed');
+        setCallStatus('Ended'); // Or a 'Failed' state
       }
     };
 
@@ -89,29 +96,41 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
         }
     });
 
+    // Cleanup function
     return () => {
       localHangup = true;
       unsubscribe();
-      hangup(id, pcRef.current);
+      if (pcRef.current) {
+        hangup(id, pcRef.current);
+      }
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(track => track.stop());
+      }
       pcRef.current = null;
+      localStreamRef.current = null;
     };
   }, [id, router, toast, user, loading]);
 
   const handleToggleMute = () => {
+    if (!user || !pcRef.current) return;
     const newMutedState = !isMuted;
     setIsMuted(newMutedState);
-    toggleMute(newMutedState, pcRef.current);
+    toggleMute(newMutedState, pcRef.current, 'patient', id);
   };
 
   const handleToggleCamera = () => {
+    if (!user || !pcRef.current) return;
     const newCameraState = !isCameraOff;
     setIsCameraOff(newCameraState);
-    toggleCamera(newCameraState, pcRef.current);
+    toggleCamera(newCameraState, pcRef.current, 'patient', id);
   };
 
   const endCall = () => {
-    hangup(id, pcRef.current);
-    // onCallEnded callback handles redirection
+    if (pcRef.current) {
+      hangup(id, pcRef.current);
+    }
+    setCallStatus('Ended');
+    router.push('/patient/appointments');
   };
 
   if (loading || !user) {
@@ -121,6 +140,16 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
          <p className="mt-4">Loading user information...</p>
       </div>
     );
+  }
+  
+  const getStatusText = () => {
+    switch (callStatus) {
+        case 'Initializing': return 'Initializing call...';
+        case 'Waiting': return 'Waiting for doctor to join...';
+        case 'Connected': return 'Connected';
+        case 'Ended': return 'Call has ended.';
+        default: return 'Connecting...';
+    }
   }
 
   return (
@@ -146,7 +175,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
           {callStatus !== 'Connected' && (
              <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-background/80">
                <Loader2 className="h-8 w-8 animate-spin" />
-               <p className="mt-2 text-center text-sm">{callStatus}</p>
+               <p className="mt-2 text-center text-sm">{getStatusText()}</p>
              </div>
           )}
         </div>

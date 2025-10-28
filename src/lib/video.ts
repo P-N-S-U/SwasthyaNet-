@@ -23,62 +23,58 @@ const servers = {
   iceCandidatePoolSize: 10,
 };
 
-let callId: string | null = null;
-let role: 'patient' | 'doctor' | null = null;
-
 let localVideoRef: React.RefObject<HTMLVideoElement> | null = null;
 let remoteVideoRef: React.RefObject<HTMLVideoElement> | null = null;
 let onCallConnected: (() => void) | null = null;
 let onCallCreated: (() => void) | null = null;
 let onCallEnded: (() => void) | null = null;
+let wasConnected = false;
 
 export const registerEventHandlers = (
   localRef: React.RefObject<HTMLVideoElement>,
   remoteRef: React.RefObject<HTMLVideoElement>,
   onCreated: () => void,
   onConnected: () => void,
-  onEnded: () => void,
+  onEnded: () => void
 ) => {
   localVideoRef = localRef;
   remoteVideoRef = remoteRef;
   onCallCreated = onCreated;
   onCallConnected = onConnected;
   onCallEnded = onEnded;
+  wasConnected = false; // Reset on new registration
 };
 
 export const setupStreams = async () => {
-    const pc = new RTCPeerConnection(servers);
-    const localStream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
+  const pc = new RTCPeerConnection(servers);
+  const localStream = await navigator.mediaDevices.getUserMedia({
+    video: true,
+    audio: true,
+  });
+  const remoteStream = new MediaStream();
+
+  localStream.getTracks().forEach(track => {
+    pc.addTrack(track, localStream);
+  });
+
+  pc.ontrack = event => {
+    event.streams[0].getTracks().forEach(track => {
+      remoteStream.addTrack(track);
     });
-    const remoteStream = new MediaStream();
+  };
 
-    localStream.getTracks().forEach(track => {
-        pc.addTrack(track, localStream);
-    });
+  if (localVideoRef?.current) {
+    localVideoRef.current.srcObject = localStream;
+  }
+  if (remoteVideoRef?.current) {
+    remoteVideoRef.current.srcObject = remoteStream;
+  }
 
-    pc.ontrack = event => {
-        event.streams[0].getTracks().forEach(track => {
-            remoteStream.addTrack(track);
-        });
-    };
-
-    if (localVideoRef?.current) {
-        localVideoRef.current.srcObject = localStream;
-    }
-    if (remoteVideoRef?.current) {
-        remoteVideoRef.current.srcObject = remoteStream;
-    }
-
-    return { pc, localStream, remoteStream };
+  return { pc, localStream, remoteStream };
 };
 
 export const createCall = async (id: string, pc: RTCPeerConnection) => {
-  callId = id;
-  role = 'patient';
-
-  const callDoc = doc(db, 'calls', callId);
+  const callDoc = doc(db, 'calls', id);
   const offerCandidates = collection(callDoc, 'offerCandidates');
   const answerCandidates = collection(callDoc, 'answerCandidates');
 
@@ -94,14 +90,22 @@ export const createCall = async (id: string, pc: RTCPeerConnection) => {
     type: offerDescription.type,
   };
 
-  await setDoc(callDoc, { offer, id: callId, patientMuted: false, patientCameraOff: false });
+  await setDoc(callDoc, {
+    offer,
+    id: id,
+    patientMuted: false,
+    patientCameraOff: false,
+  });
+
+  if (onCallCreated) onCallCreated();
 
   onSnapshot(callDoc, snapshot => {
     const data = snapshot.data();
     if (!pc.currentRemoteDescription && data?.answer) {
       const answerDescription = new RTCSessionDescription(data.answer);
       pc.setRemoteDescription(answerDescription);
-      onCallConnected && onCallConnected();
+      wasConnected = true;
+      if (onCallConnected) onCallConnected();
     }
   });
 
@@ -113,15 +117,10 @@ export const createCall = async (id: string, pc: RTCPeerConnection) => {
       }
     });
   });
-
-  onCallCreated && onCallCreated();
 };
 
 export const answerCall = async (id: string, pc: RTCPeerConnection) => {
-  callId = id;
-  role = 'doctor';
-
-  const callDoc = doc(db, 'calls', callId);
+  const callDoc = doc(db, 'calls', id);
   const offerCandidates = collection(callDoc, 'offerCandidates');
   const answerCandidates = collection(callDoc, 'answerCandidates');
 
@@ -130,6 +129,9 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
   };
 
   const callSnap = await getDoc(callDoc);
+  if (!callSnap.exists()) {
+    throw new Error("Call document doesn't exist.");
+  }
   const callData = callSnap.data();
 
   if (callData?.offer) {
@@ -144,8 +146,13 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
       sdp: answerDescription.sdp,
     };
 
-    await updateDoc(callDoc, { answer, doctorMuted: false, doctorCameraOff: false });
-    onCallConnected && onCallConnected();
+    await updateDoc(callDoc, {
+      answer,
+      doctorMuted: false,
+      doctorCameraOff: false,
+    });
+    wasConnected = true;
+    if (onCallConnected) onCallConnected();
 
     onSnapshot(offerCandidates, snapshot => {
       snapshot.docChanges().forEach(change => {
@@ -155,23 +162,12 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
         }
       });
     });
-  } else {
-    console.warn("Offer not found when trying to answer call. Waiting for offer via snapshot.");
-    const unsubscribe = onSnapshot(callDoc, (snapshot) => {
-        const data = snapshot.data();
-        if (data?.offer && !pc.remoteDescription) {
-            console.log("Offer received via snapshot, proceeding to answer.");
-            unsubscribe(); 
-            answerCall(id, pc).catch(err => console.error("Error retrying answerCall:", err));
-        }
-    })
   }
 };
 
-
 export const hangup = async (id: string, pc: RTCPeerConnection | null) => {
   if (pc) {
-    pc.getSenders().forEach((sender) => {
+    pc.getSenders().forEach(sender => {
       if (sender.track) {
         sender.track.stop();
       }
@@ -181,34 +177,39 @@ export const hangup = async (id: string, pc: RTCPeerConnection | null) => {
 
   try {
     if (id) {
-        const callDoc = doc(db, 'calls', id);
-        if ((await getDoc(callDoc)).exists()){
-            const offerCandidates = collection(callDoc, 'offerCandidates');
-            const answerCandidates = collection(callDoc, 'answerCandidates');
-        
-            const batch = writeBatch(db);
-        
-            const offerCandidatesSnapshot = await getDocs(offerCandidates);
-            offerCandidatesSnapshot.forEach(doc => batch.delete(doc.ref));
-        
-            const answerCandidatesSnapshot = await getDocs(answerCandidates);
-            answerCandidatesSnapshot.forEach(doc => batch.delete(doc.ref));
-        
-            batch.delete(callDoc);
-        
-            await batch.commit();
-        }
+      const callDoc = doc(db, 'calls', id);
+      const callSnap = await getDoc(callDoc);
+
+      if (callSnap.exists()) {
+        const offerCandidates = collection(callDoc, 'offerCandidates');
+        const answerCandidates = collection(callDoc, 'answerCandidates');
+
+        const batch = writeBatch(db);
+
+        const offerCandidatesSnapshot = await getDocs(offerCandidates);
+        offerCandidatesSnapshot.forEach(doc => batch.delete(doc.ref));
+
+        const answerCandidatesSnapshot = await getDocs(answerCandidates);
+        answerCandidatesSnapshot.forEach(doc => batch.delete(doc.ref));
+
+        batch.delete(callDoc);
+
+        await batch.commit();
+      }
     }
   } catch (error) {
-      console.error("Error hanging up call:", error);
+    console.error('Error hanging up call:', error);
   }
 
-  callId = null;
-  role = null;
+  if (onCallEnded) onCallEnded();
 };
 
-
-export const toggleMute = async (isMuted: boolean, pc: RTCPeerConnection | null) => {
+export const toggleMute = async (
+  isMuted: boolean,
+  pc: RTCPeerConnection | null,
+  role: 'patient' | 'doctor',
+  callId: string
+) => {
   if (pc) {
     pc.getSenders().forEach(sender => {
       if (sender.track?.kind === 'audio') {
@@ -218,12 +219,17 @@ export const toggleMute = async (isMuted: boolean, pc: RTCPeerConnection | null)
     if (callId && role) {
       const callDoc = doc(db, 'calls', callId);
       const field = role === 'patient' ? 'patientMuted' : 'doctorMuted';
-      await updateDoc(callDoc, { [field]: isMuted });
+      updateDoc(callDoc, { [field]: isMuted });
     }
   }
 };
 
-export const toggleCamera = async (isCameraOff: boolean, pc: RTCPeerConnection | null) => {
+export const toggleCamera = async (
+  isCameraOff: boolean,
+  pc: RTCPeerConnection | null,
+  role: 'patient' | 'doctor',
+  callId: string
+) => {
   if (pc) {
     pc.getSenders().forEach(sender => {
       if (sender.track?.kind === 'video') {
@@ -233,21 +239,27 @@ export const toggleCamera = async (isCameraOff: boolean, pc: RTCPeerConnection |
     if (callId && role) {
       const callDoc = doc(db, 'calls', callId);
       const field = role === 'patient' ? 'patientCameraOff' : 'doctorCameraOff';
-      await updateDoc(callDoc, { [field]: isCameraOff });
+      updateDoc(callDoc, { [field]: isCameraOff });
     }
   }
 };
 
-export const getCall = (id: string, callback: (data: any) => void): Unsubscribe => {
-    const callDoc = doc(db, 'calls', id);
-    return onSnapshot(callDoc, (snapshot) => {
-        if (snapshot.exists()) {
-            callback(snapshot.data());
-        } else {
-            callback(null);
-            if (onCallEnded) {
-              onCallEnded();
-            }
-        }
-    });
+export const getCall = (
+  id: string,
+  callback: (data: any) => void
+): Unsubscribe => {
+  const callDoc = doc(db, 'calls', id);
+  return onSnapshot(callDoc, snapshot => {
+    if (snapshot.exists()) {
+      wasConnected = true;
+      callback(snapshot.data());
+    } else {
+      callback(null);
+      // Only trigger onCallEnded if we were previously connected.
+      // This prevents the "call ended" toast on initial join.
+      if (wasConnected && onCallEnded) {
+        onCallEnded();
+      }
+    }
+  });
 };
