@@ -55,10 +55,10 @@ export async function bookAppointment(prevState: any, formData: FormData) {
     const patientData = patientSnap.data()!;
     const doctorData = doctorSnap.data()!;
 
-    // Schedule for 15 minutes from now for consistency and easier testing.
-    // A real app would have a calendar to pick a slot.
+    // Schedule for a random time between 40 and 90 minutes from now.
+    const randomMinutes = Math.floor(Math.random() * (90 - 40 + 1)) + 40;
     const appointmentDate = new Date();
-    appointmentDate.setMinutes(appointmentDate.getMinutes() + 15);
+    appointmentDate.setMinutes(appointmentDate.getMinutes() + randomMinutes);
 
     const newAppointment = {
       patientId,
