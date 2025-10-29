@@ -27,6 +27,9 @@ let onCallCreated: (() => void) | null = null;
 let onCallEnded: (() => void) | null = null;
 let wasConnected = false;
 
+// Array to hold all active unsubscribers
+let activeUnsubs: Unsubscribe[] = [];
+
 export const registerEventHandlers = (
   localRef: React.RefObject<HTMLVideoElement>,
   remoteRef: React.RefObject<HTMLVideoElement>,
@@ -59,7 +62,6 @@ export const setupStreams = async () => {
       localVideoRef.current.srcObject = localStream;
     }
 
-    // This is the crucial part for receiving the remote stream
     pc.ontrack = event => {
       if (remoteVideoRef?.current) {
         remoteVideoRef.current.srcObject = event.streams[0];
@@ -86,6 +88,7 @@ export const createCall = async (id: string, pc: RTCPeerConnection) => {
   const answerCandidates = collection(callDoc, 'answerCandidates');
 
   pc.onicecandidate = event => {
+    if (pc.signalingState === 'closed') return;
     event.candidate && addDoc(offerCandidates, event.candidate.toJSON());
   };
 
@@ -102,21 +105,26 @@ export const createCall = async (id: string, pc: RTCPeerConnection) => {
     id: id,
     patientMuted: false,
     patientCameraOff: false,
+    doctorMuted: false,
+    doctorCameraOff: false
   };
 
   await setDoc(callDoc, callData, { merge: true });
 
   if (onCallCreated) onCallCreated();
 
-  onSnapshot(callDoc, snapshot => {
+  const callUnsub = onSnapshot(callDoc, snapshot => {
+    if (pc.signalingState === 'closed') return;
     const data = snapshot.data();
     if (!pc.currentRemoteDescription && data?.answer) {
       const answerDescription = new RTCSessionDescription(data.answer);
       pc.setRemoteDescription(answerDescription);
     }
   });
+  activeUnsubs.push(callUnsub);
 
-  onSnapshot(answerCandidates, snapshot => {
+  const answerCandidatesUnsub = onSnapshot(answerCandidates, snapshot => {
+    if (pc.signalingState === 'closed') return;
     snapshot.docChanges().forEach(change => {
       if (change.type === 'added') {
         const candidate = new RTCIceCandidate(change.doc.data());
@@ -124,6 +132,7 @@ export const createCall = async (id: string, pc: RTCPeerConnection) => {
       }
     });
   });
+  activeUnsubs.push(answerCandidatesUnsub);
 };
 
 export const answerCall = async (id: string, pc: RTCPeerConnection) => {
@@ -132,6 +141,7 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
   const answerCandidates = collection(callDoc, 'answerCandidates');
 
   pc.onicecandidate = event => {
+    if (pc.signalingState === 'closed') return;
     event.candidate && addDoc(answerCandidates, event.candidate.toJSON());
   };
 
@@ -153,13 +163,10 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
       sdp: answerDescription.sdp,
     };
 
-    await updateDoc(callDoc, {
-      answer,
-      doctorMuted: false,
-      doctorCameraOff: false,
-    });
+    await updateDoc(callDoc, { answer });
     
-    onSnapshot(offerCandidates, snapshot => {
+    const offerCandidatesUnsub = onSnapshot(offerCandidates, snapshot => {
+      if (pc.signalingState === 'closed') return;
       snapshot.docChanges().forEach(change => {
         if (change.type === 'added') {
           const candidate = new RTCIceCandidate(change.doc.data());
@@ -167,11 +174,16 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
         }
       });
     });
+    activeUnsubs.push(offerCandidatesUnsub);
   }
 };
 
 
 export const hangup = async (pc: RTCPeerConnection | null) => {
+  // Unsubscribe from all listeners first
+  activeUnsubs.forEach(unsub => unsub());
+  activeUnsubs = [];
+
   if (pc && pc.signalingState !== 'closed') {
     pc.getSenders().forEach(sender => {
       if (sender.track) {
@@ -183,7 +195,7 @@ export const hangup = async (pc: RTCPeerConnection | null) => {
   
   if (onCallEnded && wasConnected) {
       onCallEnded();
-      wasConnected = false; // Prevent multiple triggers
+      wasConnected = false;
   }
 };
 
@@ -231,9 +243,9 @@ export const toggleCamera = async (
 export const getCall = (
   id: string,
   callback: (data: any) => void
-): Unsubscribe => {
+) => {
   const callDoc = doc(db, 'calls', id);
-  return onSnapshot(callDoc, snapshot => {
+  const unsub = onSnapshot(callDoc, snapshot => {
     if (snapshot.exists()) {
       callback(snapshot.data());
     } else {
@@ -243,4 +255,10 @@ export const getCall = (
       }
     }
   });
+
+  // Register this unsubscriber so it can be cleaned up
+  activeUnsubs.push(unsub);
+  
+  // Return the main unsubscriber for the component to use
+  return unsub;
 };
