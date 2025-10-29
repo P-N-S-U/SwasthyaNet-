@@ -1,14 +1,11 @@
 
 import { db } from './firebase/firebase';
-import { completeAppointment } from '@/app/actions/appointments';
 import {
   doc,
   collection,
   addDoc,
   onSnapshot,
   updateDoc,
-  deleteDoc,
-  getDoc,
   setDoc,
   writeBatch,
   getDocs,
@@ -210,7 +207,7 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
   }
 };
 
-export const hangup = async (pc: RTCPeerConnection | null, callId: string | null) => {
+export const hangup = async (pc: RTCPeerConnection | null) => {
   if (pc && pc.signalingState !== 'closed') {
     pc.getSenders().forEach(sender => {
       if (sender.track) {
@@ -220,10 +217,8 @@ export const hangup = async (pc: RTCPeerConnection | null, callId: string | null
     pc.close();
   }
   
-  // This will set the appointment status to "Completed" and delete the call document.
-  if (callId) {
-    await completeAppointment(callId);
-  }
+  // The call document is NOT deleted here, to allow for reconnection.
+  // It is deleted by the `completeAppointment` server action.
   
   if (onCallEnded && wasConnected) {
       onCallEnded();

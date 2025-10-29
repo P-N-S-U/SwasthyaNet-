@@ -72,9 +72,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
         if (!localHangup.current) {
             toast({ title: 'Call Ended', description: 'The patient has left the call.' });
             setCallStatus('Ended');
-            // The doctor is forcefully redirected after their hangup action cleans up.
-            // This handles the case where the patient leaves first.
-            router.push('/doctor/dashboard');
+            // The doctor can stay on the page until they choose to leave
         }
     };
 
@@ -140,8 +138,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      // Hangup without callId to prevent duplicate server action calls
-      hangup(pcRef.current, null); 
+      hangup(pcRef.current); 
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
@@ -163,9 +160,9 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   };
 
   const endCall = () => {
-    hangup(pcRef.current, callId).then(() => {
-        router.push('/doctor/dashboard');
-    });
+    // Just hangup locally and go back to dashboard. Does not complete the appointment.
+    hangup(pcRef.current);
+    router.push('/doctor/dashboard');
   };
 
   if (loading || !user) {
@@ -184,7 +181,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
       case 'Connected':
         return 'Connected';
       case 'Ended':
-        return 'Call has ended.';
+        return 'Patient has disconnected.';
       case 'Failed':
         return 'Failed to connect.';
       default:
@@ -271,14 +268,14 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>End Call?</AlertDialogTitle>
+                  <AlertDialogTitle>Leave Call?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Are you sure you want to end this consultation? This action will mark the appointment as completed.
+                    Are you sure you want to leave the video call? You can rejoin anytime as long as the appointment is active.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={endCall}>End Call</AlertDialogAction>
+                  <AlertDialogAction onClick={endCall}>Leave Call</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>

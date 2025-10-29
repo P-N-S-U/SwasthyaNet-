@@ -12,6 +12,7 @@ import {
   Video,
   IndianRupee,
   Award,
+  CheckCircle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
@@ -30,6 +31,8 @@ import {
 import { db } from '@/lib/firebase/firebase';
 import useSWR from 'swr';
 import { getUserProfile } from '@/lib/firebase/firestore';
+import { completeAppointment } from '@/app/actions/appointments';
+import { useToast } from '@/hooks/use-toast';
 
 interface Appointment {
   id: string;
@@ -97,13 +100,14 @@ const getWeeklyChartData = (appointments: Appointment[] = []) => {
 export default function DoctorDashboardPage() {
   const { user, loading: authLoading, role } = useAuthState();
   const router = useRouter();
+  const { toast } = useToast();
 
   const { data: profile, isLoading: profileLoading } = useSWR(
     user ? user.uid : null,
     profileFetcher
   );
 
-  const { data: allAppointments, isLoading: appointmentsLoading } = useSWR(
+  const { data: allAppointments, isLoading: appointmentsLoading, mutate } = useSWR(
     user ? ['appointments', user.uid] : null,
     appointmentsFetcher,
     { revalidateOnFocus: true }
@@ -117,6 +121,23 @@ export default function DoctorDashboardPage() {
       router.replace('/patient/dashboard');
     }
   }, [user, authLoading, role, router]);
+  
+  const handleCompleteAppointment = async (appointmentId: string) => {
+    const result = await completeAppointment(appointmentId);
+    if (result.error) {
+      toast({
+        title: 'Error',
+        description: result.error,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Success',
+        description: 'Appointment marked as completed.',
+      });
+      mutate(); // Re-fetch appointments
+    }
+  };
 
   const pageIsLoading = authLoading || profileLoading || appointmentsLoading || !user;
 
@@ -204,11 +225,21 @@ export default function DoctorDashboardPage() {
                         Today at {nextAppointment.appointmentDate.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                     </p>
                     </div>
-                    <Button asChild size="lg" disabled={!isProfileComplete}>
-                    <Link href={`/doctor/video/${nextAppointment.id}`}>
-                        <Video className="mr-2 h-5 w-5" /> Join Call
-                    </Link>
-                    </Button>
+                    <div className="flex gap-2">
+                        <Button asChild size="lg" disabled={!isProfileComplete}>
+                            <Link href={`/doctor/video/${nextAppointment.id}`}>
+                                <Video className="mr-2 h-5 w-5" /> Join Call
+                            </Link>
+                        </Button>
+                         <Button
+                            size="lg"
+                            variant="outline"
+                            onClick={() => handleCompleteAppointment(nextAppointment.id)}
+                            disabled={!isProfileComplete}
+                        >
+                            <CheckCircle className="mr-2 h-5 w-5" /> Mark as Complete
+                        </Button>
+                    </div>
                 </CardContent>
                 </Card>
             ) : (
