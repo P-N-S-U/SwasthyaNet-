@@ -7,7 +7,7 @@ import { adminDb } from '@/lib/firebase/server-auth';
 async function getRealDoctorSuggestions() {
   try {
     const usersRef = adminDb.collection('users');
-    const q = usersRef.where('role', '==', 'doctor').limit(4);
+    const q = usersRef.where('role', '==', 'doctor').limit(10); // Fetch a few more to find complete ones
     const querySnapshot = await q.get();
 
     if (querySnapshot.empty) {
@@ -24,16 +24,30 @@ async function getRealDoctorSuggestions() {
 
     querySnapshot.forEach(doc => {
       const data = doc.data();
-      if (data.displayName) {
-        suggestions.push(data.displayName);
-      }
-      if (data.specialization) {
-        specializations.add(data.specialization);
+      const isProfileComplete = !!(data.specialization && data.qualifications && data.experience && data.consultationFee);
+      
+      if (isProfileComplete) {
+        if (data.displayName) {
+          suggestions.push(data.displayName);
+        }
+        if (data.specialization) {
+          specializations.add(data.specialization);
+        }
       }
     });
 
     const combinedSuggestions = [...new Set([...Array.from(specializations), ...suggestions])];
     
+    // If no complete profiles found, return fallback
+    if (combinedSuggestions.length === 0) {
+        return [
+            'Cardiology',
+            'Dermatology',
+            'Neurology',
+            'Dr. Vikram Singh',
+        ];
+    }
+
     return combinedSuggestions.slice(0, 4);
 
   } catch (error) {
