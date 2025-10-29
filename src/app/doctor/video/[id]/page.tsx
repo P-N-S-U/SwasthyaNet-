@@ -24,6 +24,18 @@ import {
   setupStreams,
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+
 
 type CallStatus = 'Joining' | 'Connected' | 'Ended' | 'Failed';
 
@@ -54,10 +66,10 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
     }
     
     let callUnsubscribe: (() => void) | null = null;
-    let localHangup = false;
+    const localHangup = { current: false };
 
     const handleCallEnded = () => {
-        if (!localHangup) {
+        if (!localHangup.current) {
             toast({ title: 'Call Ended', description: 'The patient has left the call.' });
             setCallStatus('Ended');
             // The doctor is forcefully redirected after their hangup action cleans up.
@@ -86,6 +98,8 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
             // Listen for the call document
             callUnsubscribe = getCall(callId, async (callData) => {
+                if (pcRef.current?.signalingState === 'closed') return;
+                
                 if (callData?.offer && pcRef.current && !hasAnswered.current) {
                     hasAnswered.current = true;
                     try {
@@ -122,7 +136,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
     // Cleanup function
     return () => {
-      localHangup = true;
+      localHangup.current = true;
       if (callUnsubscribe) {
         callUnsubscribe();
       }
@@ -245,14 +259,29 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
             >
               {isCameraOff ? <VideoOff /> : <Video />}
             </Button>
-            <Button
-              variant="destructive"
-              size="icon"
-              className="rounded-full h-12 w-12 md:h-16 md:w-16"
-              onClick={endCall}
-            >
-              <PhoneOff />
-            </Button>
+             <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                    variant="destructive"
+                    size="icon"
+                    className="rounded-full h-12 w-12 md:h-16 md:w-16"
+                >
+                    <PhoneOff />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>End Call?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to end this consultation? This action will mark the appointment as completed.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={endCall}>End Call</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </Card>
       </div>

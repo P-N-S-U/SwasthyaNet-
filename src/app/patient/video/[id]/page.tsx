@@ -24,6 +24,17 @@ import {
   setupStreams,
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 type CallStatus = 'Initializing' | 'Waiting' | 'Connected' | 'Ended' | 'Failed';
 
@@ -44,6 +55,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const localHangup = useRef(false);
 
   useEffect(() => {
     if (loading) return;
@@ -53,11 +65,10 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
     }
 
     let callUnsubscribe: (() => void) | null = null;
-    let localHangup = false;
     let hasCreated = false;
 
     const handleCallEnded = () => {
-        if (!localHangup) {
+        if (!localHangup.current) {
             toast({ title: 'Call Ended', description: 'The doctor has left the call.' });
             setCallStatus('Ended');
             router.push('/patient/appointments');
@@ -99,6 +110,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
     startCall();
     
     callUnsubscribe = getCall(callId, (callData) => {
+        if (pcRef.current?.signalingState === 'closed') return;
         if(callData) {
             setRemoteMuted(callData.doctorMuted);
             setRemoteCameraOff(callData.doctorCameraOff);
@@ -110,7 +122,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
 
     // Cleanup function
     return () => {
-      localHangup = true;
+      localHangup.current = true;
       if(callUnsubscribe) {
           callUnsubscribe();
       }
@@ -228,14 +240,29 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
             >
               {isCameraOff ? <VideoOff /> : <Video />}
             </Button>
-            <Button
-              variant="destructive"
-              size="icon"
-              className="rounded-full h-12 w-12 md:h-16 md:w-16"
-              onClick={endCall}
-            >
-              <PhoneOff />
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                    variant="destructive"
+                    size="icon"
+                    className="rounded-full h-12 w-12 md:h-16 md:w-16"
+                >
+                    <PhoneOff />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>End Call?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to end this consultation? This action will mark the appointment as completed.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={endCall}>End Call</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </Card>
       </div>
