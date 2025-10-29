@@ -133,7 +133,9 @@ export default function DoctorDashboardPage() {
   }, [user, authLoading, role, router]);
 
   const handleCompleteAppointment = async (appointmentId: string) => {
-    const optimisticData = allAppointments?.filter(appt => appt.id !== appointmentId);
+    const optimisticData = allAppointments?.map(appt => 
+        appt.id === appointmentId ? { ...appt, status: 'Completed' } : appt
+    ).filter(appt => appt.id !== appointmentId);
     
     mutate(optimisticData, { revalidate: false });
 
@@ -150,9 +152,9 @@ export default function DoctorDashboardPage() {
         description: result.error,
         variant: 'destructive',
       });
-      mutate(allAppointments); // Revert to original data
+      mutate(); // Revert to original data from server
     } else {
-      mutate();
+      mutate(); // Re-fetch to ensure consistency
     }
   };
 

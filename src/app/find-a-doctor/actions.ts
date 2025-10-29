@@ -38,6 +38,8 @@ export async function getDoctorRecommendations(
         clinic: data.clinic || '',
         consultationFee: data.consultationFee || null,
         photoURL: data.photoURL || null,
+        // Flag to check for completeness
+        isProfileComplete: !!(data.specialization && data.qualifications && data.experience && data.consultationFee)
       };
     });
 
@@ -45,8 +47,10 @@ export async function getDoctorRecommendations(
     const lowerCaseQuery = searchQuery.toLowerCase();
     const filteredDoctors = doctors.filter(
       doctor =>
-        doctor.name.toLowerCase().includes(lowerCaseQuery) ||
-        doctor.specialization.toLowerCase().includes(lowerCaseQuery)
+        // Only include doctors with complete profiles
+        doctor.isProfileComplete &&
+        (doctor.name.toLowerCase().includes(lowerCaseQuery) ||
+        doctor.specialization.toLowerCase().includes(lowerCaseQuery))
     );
 
     return { data: { doctors: filteredDoctors }, error: null };
