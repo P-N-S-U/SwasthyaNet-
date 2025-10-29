@@ -9,6 +9,8 @@ import {
   setDoc,
   getDoc,
   Unsubscribe,
+  deleteDoc,
+  getDocs,
 } from 'firebase/firestore';
 
 const servers = {
@@ -27,6 +29,9 @@ let onCallCreated: (() => void) | null = null;
 let onCallEnded: (() => void) | null = null;
 let wasConnected = false;
 
+// Queue for ICE candidates
+let pendingIceCandidates: RTCIceCandidateInit[] = [];
+
 export const registerEventHandlers = (
   localRef: React.RefObject<HTMLVideoElement>,
   remoteRef: React.RefObject<HTMLVideoElement>,
@@ -40,32 +45,39 @@ export const registerEventHandlers = (
   onCallConnected = onConnected;
   onCallEnded = onEnded;
   wasConnected = false; // Reset on new registration
+  pendingIceCandidates = []; // Clear queue on new registration
 };
 
 export const setupStreams = async () => {
   const pc = new RTCPeerConnection(servers);
-  const localStream = await navigator.mediaDevices.getUserMedia({
-    video: true,
-    audio: true,
-  });
 
-  localStream.getTracks().forEach(track => {
-    pc.addTrack(track, localStream);
-  });
+  try {
+    const localStream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: true,
+    });
 
-  // More reliable way to handle remote stream
-  pc.ontrack = event => {
-    if (remoteVideoRef?.current) {
-      remoteVideoRef.current.srcObject = event.streams[0];
+    localStream.getTracks().forEach(track => {
+      pc.addTrack(track, localStream);
+    });
+
+    if (localVideoRef?.current) {
+      localVideoRef.current.srcObject = localStream;
     }
-  };
 
-  if (localVideoRef?.current) {
-    localVideoRef.current.srcObject = localStream;
+    pc.ontrack = event => {
+      if (remoteVideoRef?.current) {
+        remoteVideoRef.current.srcObject = event.streams[0];
+      }
+    };
+
+    return { pc, localStream };
+
+  } catch (error) {
+    console.error("Error accessing media devices.", error);
+    // This will be caught by the calling function in the component
+    throw new Error("Camera and microphone permissions are required. Please enable them and refresh the page.");
   }
-  
-  // No need to set remote srcObject here, `ontrack` will handle it.
-  return { pc, localStream };
 };
 
 export const createCall = async (id: string, pc: RTCPeerConnection) => {
@@ -85,43 +97,47 @@ export const createCall = async (id: string, pc: RTCPeerConnection) => {
     type: offerDescription.type,
   };
 
-  const callData = { 
-      offer,
-      id: id,
-      patientMuted: false,
-      patientCameraOff: false,
+  const callData = {
+    offer,
+    id: id,
+    patientMuted: false,
+    patientCameraOff: false,
   };
-  
+
   await setDoc(callDoc, callData, { merge: true });
 
   if (onCallCreated) onCallCreated();
 
+  // Listen for the answer
   onSnapshot(callDoc, snapshot => {
     const data = snapshot.data();
-    if (pc.signalingState === 'closed') {
-        return;
-    }
     if (!pc.currentRemoteDescription && data?.answer) {
       const answerDescription = new RTCSessionDescription(data.answer);
-      pc.setRemoteDescription(answerDescription).then(() => {
-        // Remote description is set, now we can process candidates
-      }).catch(e => console.error("Error setting remote description: ", e));
-      
-      wasConnected = true;
-      if (onCallConnected) onCallConnected();
+      pc.setRemoteDescription(answerDescription)
+        .then(() => {
+          // Process any queued candidates
+          pendingIceCandidates.forEach(candidate => pc.addIceCandidate(new RTCIceCandidate(candidate)));
+          pendingIceCandidates = [];
+          if (!wasConnected) {
+            wasConnected = true;
+            if (onCallConnected) onCallConnected();
+          }
+        })
+        .catch(e => console.error("Error setting remote description in createCall: ", e));
     }
   });
 
+  // Listen for answer candidates
   onSnapshot(answerCandidates, snapshot => {
-    if (pc.signalingState === 'closed') {
-        return;
-    }
     snapshot.docChanges().forEach(change => {
       if (change.type === 'added') {
         const candidate = new RTCIceCandidate(change.doc.data());
-         if (pc.currentRemoteDescription) {
-            pc.addIceCandidate(candidate);
-         }
+        if (pc.currentRemoteDescription) {
+          pc.addIceCandidate(candidate);
+        } else {
+          // Queue candidate if remote description is not set
+          pendingIceCandidates.push(change.doc.data());
+        }
       }
     });
   });
@@ -138,14 +154,13 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
 
   const callSnap = await getDoc(callDoc);
   if (!callSnap.exists()) {
-    return;
+    throw new Error("Call document not found. The patient may not have started the call yet.");
   }
-  
+
   const callData = callSnap.data();
 
-  if (callData?.offer && pc.signalingState !== 'closed') {
-    const offerDescription = callData.offer;
-    await pc.setRemoteDescription(new RTCSessionDescription(offerDescription)).catch(e => console.error("Error setting remote description: ", e));
+  if (callData?.offer) {
+    await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
 
     const answerDescription = await pc.createAnswer();
     await pc.setLocalDescription(answerDescription);
@@ -161,26 +176,33 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
       doctorCameraOff: false,
     });
     
-    wasConnected = true;
-    if (onCallConnected) onCallConnected();
+    // Process any queued candidates
+    pendingIceCandidates.forEach(candidate => pc.addIceCandidate(new RTCIceCandidate(candidate)));
+    pendingIceCandidates = [];
 
+    if (!wasConnected) {
+        wasConnected = true;
+        if (onCallConnected) onCallConnected();
+    }
+
+    // Listen for offer candidates
     onSnapshot(offerCandidates, snapshot => {
-        if (pc.signalingState === 'closed') {
-            return;
-        }
       snapshot.docChanges().forEach(change => {
         if (change.type === 'added') {
-          let data = change.doc.data();
-           if (pc.currentRemoteDescription) {
-                pc.addIceCandidate(new RTCIceCandidate(data));
-           }
+          const candidate = new RTCIceCandidate(change.doc.data());
+          if (pc.currentRemoteDescription) {
+            pc.addIceCandidate(candidate);
+          } else {
+             pendingIceCandidates.push(change.doc.data());
+          }
         }
       });
     });
   }
 };
 
-export const hangup = async (pc: RTCPeerConnection | null) => {
+
+export const hangup = async (pc: RTCPeerConnection | null, callId?: string) => {
   if (pc && pc.signalingState !== 'closed') {
     pc.getSenders().forEach(sender => {
       if (sender.track) {
@@ -190,13 +212,11 @@ export const hangup = async (pc: RTCPeerConnection | null) => {
     pc.close();
   }
   
-  // The call document is NOT deleted here, to allow for reconnection.
-  // It is deleted by the `completeAppointment` server action.
-  
   if (onCallEnded && wasConnected) {
       onCallEnded();
       wasConnected = false; // Prevent multiple triggers
   }
+  pendingIceCandidates = []; // Clear queue on hangup
 };
 
 
@@ -250,8 +270,6 @@ export const getCall = (
       callback(snapshot.data());
     } else {
       callback(null);
-      // Only trigger onCallEnded if we were previously connected.
-      // This prevents the "call ended" toast on initial join.
       if (wasConnected && onCallEnded) {
         onCallEnded();
       }
