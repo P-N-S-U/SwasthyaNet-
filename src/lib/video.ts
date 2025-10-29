@@ -9,8 +9,6 @@ import {
   setDoc,
   getDoc,
   Unsubscribe,
-  deleteDoc,
-  getDocs,
 } from 'firebase/firestore';
 
 const servers = {
@@ -29,9 +27,6 @@ let onCallCreated: (() => void) | null = null;
 let onCallEnded: (() => void) | null = null;
 let wasConnected = false;
 
-// Queue for ICE candidates
-let pendingIceCandidates: RTCIceCandidateInit[] = [];
-
 export const registerEventHandlers = (
   localRef: React.RefObject<HTMLVideoElement>,
   remoteRef: React.RefObject<HTMLVideoElement>,
@@ -45,7 +40,6 @@ export const registerEventHandlers = (
   onCallConnected = onConnected;
   onCallEnded = onEnded;
   wasConnected = false; // Reset on new registration
-  pendingIceCandidates = []; // Clear queue on new registration
 };
 
 export const setupStreams = async () => {
@@ -65,9 +59,16 @@ export const setupStreams = async () => {
       localVideoRef.current.srcObject = localStream;
     }
 
+    // This is the crucial part for receiving the remote stream
     pc.ontrack = event => {
       if (remoteVideoRef?.current) {
         remoteVideoRef.current.srcObject = event.streams[0];
+      }
+      if (!wasConnected) {
+        wasConnected = true;
+        if (onCallConnected) {
+          onCallConnected();
+        }
       }
     };
 
@@ -75,7 +76,6 @@ export const setupStreams = async () => {
 
   } catch (error) {
     console.error("Error accessing media devices.", error);
-    // This will be caught by the calling function in the component
     throw new Error("Camera and microphone permissions are required. Please enable them and refresh the page.");
   }
 };
@@ -108,36 +108,19 @@ export const createCall = async (id: string, pc: RTCPeerConnection) => {
 
   if (onCallCreated) onCallCreated();
 
-  // Listen for the answer
   onSnapshot(callDoc, snapshot => {
     const data = snapshot.data();
     if (!pc.currentRemoteDescription && data?.answer) {
       const answerDescription = new RTCSessionDescription(data.answer);
-      pc.setRemoteDescription(answerDescription)
-        .then(() => {
-          // Process any queued candidates
-          pendingIceCandidates.forEach(candidate => pc.addIceCandidate(new RTCIceCandidate(candidate)));
-          pendingIceCandidates = [];
-          if (!wasConnected) {
-            wasConnected = true;
-            if (onCallConnected) onCallConnected();
-          }
-        })
-        .catch(e => console.error("Error setting remote description in createCall: ", e));
+      pc.setRemoteDescription(answerDescription);
     }
   });
 
-  // Listen for answer candidates
   onSnapshot(answerCandidates, snapshot => {
     snapshot.docChanges().forEach(change => {
       if (change.type === 'added') {
         const candidate = new RTCIceCandidate(change.doc.data());
-        if (pc.currentRemoteDescription) {
-          pc.addIceCandidate(candidate);
-        } else {
-          // Queue candidate if remote description is not set
-          pendingIceCandidates.push(change.doc.data());
-        }
+        pc.addIceCandidate(candidate);
       }
     });
   });
@@ -176,25 +159,11 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
       doctorCameraOff: false,
     });
     
-    // Process any queued candidates
-    pendingIceCandidates.forEach(candidate => pc.addIceCandidate(new RTCIceCandidate(candidate)));
-    pendingIceCandidates = [];
-
-    if (!wasConnected) {
-        wasConnected = true;
-        if (onCallConnected) onCallConnected();
-    }
-
-    // Listen for offer candidates
     onSnapshot(offerCandidates, snapshot => {
       snapshot.docChanges().forEach(change => {
         if (change.type === 'added') {
           const candidate = new RTCIceCandidate(change.doc.data());
-          if (pc.currentRemoteDescription) {
-            pc.addIceCandidate(candidate);
-          } else {
-             pendingIceCandidates.push(change.doc.data());
-          }
+          pc.addIceCandidate(candidate);
         }
       });
     });
@@ -202,7 +171,7 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
 };
 
 
-export const hangup = async (pc: RTCPeerConnection | null, callId?: string) => {
+export const hangup = async (pc: RTCPeerConnection | null) => {
   if (pc && pc.signalingState !== 'closed') {
     pc.getSenders().forEach(sender => {
       if (sender.track) {
@@ -216,7 +185,6 @@ export const hangup = async (pc: RTCPeerConnection | null, callId?: string) => {
       onCallEnded();
       wasConnected = false; // Prevent multiple triggers
   }
-  pendingIceCandidates = []; // Clear queue on hangup
 };
 
 
