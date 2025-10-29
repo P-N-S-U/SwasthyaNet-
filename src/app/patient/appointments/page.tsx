@@ -48,7 +48,7 @@ interface Appointment {
 const fetcher = async ([path, uid]) => {
   if (!uid) return [];
   const q = query(
-    collection(db, path),
+    collection(db, 'appointments'),
     where('patientId', '==', uid),
     orderBy('appointmentDate', 'desc')
   );
@@ -162,7 +162,7 @@ export default function AppointmentsPage() {
   const router = useRouter();
 
   const { data: appointments, isLoading: appointmentsLoading } = useSWR(
-    user ? ['appointments', user.uid] : null,
+    user ? ['appointments/list', user.uid] : null,
     fetcher,
     { revalidateOnFocus: true }
   );
@@ -263,5 +263,3 @@ export default function AppointmentsPage() {
     </div>
   );
 }
-
-    

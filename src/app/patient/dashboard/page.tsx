@@ -24,7 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 const fetcher = async ([path, uid]) => {
   if (!uid) return 0;
   const q = query(
-    collection(db, path),
+    collection(db, 'appointments'),
     where('patientId', '==', uid),
     where('status', '==', 'Confirmed'),
     where('appointmentDate', '>=', Timestamp.now())
@@ -38,7 +38,7 @@ export default function PatientDashboardPage() {
   const router = useRouter();
 
   const { data: upcomingCount, isLoading: appointmentsLoading } = useSWR(
-    user ? ['appointments', user.uid] : null,
+    user ? ['appointments/count', user.uid] : null,
     fetcher
   );
 
