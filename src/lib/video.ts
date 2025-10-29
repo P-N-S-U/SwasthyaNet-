@@ -7,10 +7,8 @@ import {
   onSnapshot,
   updateDoc,
   setDoc,
-  writeBatch,
-  getDocs,
-  Unsubscribe,
   getDoc,
+  Unsubscribe,
 } from 'firebase/firestore';
 
 const servers = {
@@ -50,34 +48,30 @@ export const setupStreams = async () => {
     video: true,
     audio: true,
   });
-  const remoteStream = new MediaStream();
 
   localStream.getTracks().forEach(track => {
     pc.addTrack(track, localStream);
   });
 
+  // More reliable way to handle remote stream
   pc.ontrack = event => {
-    event.streams[0].getTracks().forEach(track => {
-      remoteStream.addTrack(track);
-    });
+    if (remoteVideoRef?.current) {
+      remoteVideoRef.current.srcObject = event.streams[0];
+    }
   };
 
   if (localVideoRef?.current) {
     localVideoRef.current.srcObject = localStream;
   }
-  if (remoteVideoRef?.current) {
-    remoteVideoRef.current.srcObject = remoteStream;
-  }
-
-  return { pc, localStream, remoteStream };
+  
+  // No need to set remote srcObject here, `ontrack` will handle it.
+  return { pc, localStream };
 };
 
 export const createCall = async (id: string, pc: RTCPeerConnection) => {
   const callDoc = doc(db, 'calls', id);
   const offerCandidates = collection(callDoc, 'offerCandidates');
   const answerCandidates = collection(callDoc, 'answerCandidates');
-
-  let queuedAnswerCandidates: RTCIceCandidateInit[] = [];
 
   pc.onicecandidate = event => {
     event.candidate && addDoc(offerCandidates, event.candidate.toJSON());
@@ -98,7 +92,6 @@ export const createCall = async (id: string, pc: RTCPeerConnection) => {
       patientCameraOff: false,
   };
   
-  // Set doc with merge to allow rejoining
   await setDoc(callDoc, callData, { merge: true });
 
   if (onCallCreated) onCallCreated();
@@ -111,13 +104,7 @@ export const createCall = async (id: string, pc: RTCPeerConnection) => {
     if (!pc.currentRemoteDescription && data?.answer) {
       const answerDescription = new RTCSessionDescription(data.answer);
       pc.setRemoteDescription(answerDescription).then(() => {
-        // Process any queued candidates
-        queuedAnswerCandidates.forEach(candidate => {
-          if (pc.signalingState !== 'closed') {
-             pc.addIceCandidate(new RTCIceCandidate(candidate));
-          }
-        });
-        queuedAnswerCandidates = []; // Clear the queue
+        // Remote description is set, now we can process candidates
       }).catch(e => console.error("Error setting remote description: ", e));
       
       wasConnected = true;
@@ -131,13 +118,10 @@ export const createCall = async (id: string, pc: RTCPeerConnection) => {
     }
     snapshot.docChanges().forEach(change => {
       if (change.type === 'added') {
-        const candidate = change.doc.data();
-        if (pc.currentRemoteDescription) {
-          pc.addIceCandidate(new RTCIceCandidate(candidate));
-        } else {
-          // Queue the candidate if remote description is not set yet
-          queuedAnswerCandidates.push(candidate);
-        }
+        const candidate = new RTCIceCandidate(change.doc.data());
+         if (pc.currentRemoteDescription) {
+            pc.addIceCandidate(candidate);
+         }
       }
     });
   });
@@ -147,8 +131,6 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
   const callDoc = doc(db, 'calls', id);
   const offerCandidates = collection(callDoc, 'offerCandidates');
   const answerCandidates = collection(callDoc, 'answerCandidates');
-
-  let queuedOfferCandidates: RTCIceCandidateInit[] = [];
 
   pc.onicecandidate = event => {
     event.candidate && addDoc(answerCandidates, event.candidate.toJSON());
@@ -179,14 +161,6 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
       doctorCameraOff: false,
     });
     
-    // Process any queued candidates after setting remote description
-    queuedOfferCandidates.forEach(candidate => {
-        if (pc.signalingState !== 'closed') {
-            pc.addIceCandidate(new RTCIceCandidate(candidate));
-        }
-    });
-    queuedOfferCandidates = []; // Clear the queue
-
     wasConnected = true;
     if (onCallConnected) onCallConnected();
 
@@ -197,11 +171,9 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
       snapshot.docChanges().forEach(change => {
         if (change.type === 'added') {
           let data = change.doc.data();
-          if (pc.currentRemoteDescription) {
-            pc.addIceCandidate(new RTCIceCandidate(data));
-          } else {
-             queuedOfferCandidates.push(data);
-          }
+           if (pc.currentRemoteDescription) {
+                pc.addIceCandidate(new RTCIceCandidate(data));
+           }
         }
       });
     });
