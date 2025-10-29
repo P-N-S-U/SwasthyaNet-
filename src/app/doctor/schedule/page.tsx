@@ -67,8 +67,11 @@ export default function SchedulePage() {
   }
 
   const selectedDay = date || new Date();
-  const todaysAppointments = (appointments || []).filter(appt => isSameDay(appt.appointmentDate.toDate(), selectedDay))
+  const todaysAppointments = (appointments || [])
+    .filter(appt => appt.appointmentDate && isSameDay(appt.appointmentDate.toDate(), selectedDay))
     .sort((a, b) => a.appointmentDate.toDate().getTime() - b.appointmentDate.toDate().getTime());
+
+  const bookedDates = (appointments || []).map(a => a.appointmentDate?.toDate()).filter(Boolean) as Date[];
 
   return (
     <div>
@@ -89,7 +92,7 @@ export default function SchedulePage() {
                 onSelect={setDate}
                 className="w-full"
                 modifiers={{
-                    booked: (appointments || []).map(a => a.appointmentDate.toDate())
+                    booked: bookedDates
                 }}
                 modifiersStyles={{
                     booked: { border: "2px solid hsl(var(--primary))", borderRadius: 'var(--radius)' }
