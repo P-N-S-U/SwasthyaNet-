@@ -34,16 +34,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Skeleton } from '@/components/ui/skeleton';
 
-const ProfileDetailItem = ({ icon, label, value, isBio = false }) => {
-  if (!value && !isBio) return null;
+const ProfileDetailItem = ({ icon, label, value, isBio = false, loading = false }) => {
+  if (!value && !loading && !isBio) return null;
 
   return (
     <div className="flex items-start gap-4 rounded-lg bg-secondary/50 p-4">
       <div className="mt-1 text-primary">{icon}</div>
       <div>
         <p className="text-sm text-muted-foreground">{label}</p>
-        <p className={`font-medium ${isBio ? 'whitespace-pre-wrap' : ''}`}>{value || 'Not provided'}</p>
+        {loading ? <Skeleton className="h-6 w-32 mt-1" /> : <p className={`font-medium ${isBio ? 'whitespace-pre-wrap' : ''}`}>{value || 'Not provided'}</p>}
       </div>
     </div>
   );
@@ -73,7 +74,6 @@ export default function ProfilePage() {
           if (doc.exists()) {
             setProfile(doc.data());
           } else {
-            // Handle the case where the document does not exist
             console.error("No such user document!");
           }
           setProfileLoading(false);
@@ -88,12 +88,11 @@ export default function ProfilePage() {
         }
       );
 
-      // Cleanup subscription on unmount
       return () => unsubscribe();
     }
   }, [user, loading, role, router]);
 
-  if (loading || !user || profileLoading || !profile) {
+  if (loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -152,8 +151,9 @@ export default function ProfilePage() {
                     {getInitials(user.email)}
                 </AvatarFallback>
                 </Avatar>
-                {profile.role === 'doctor' && (
-                <p className="mt-2 text-lg text-muted-foreground">{profile.specialization || 'Specialization not set'}</p>
+                {profile?.role === 'doctor' && (
+                  profileLoading ? <Skeleton className="h-6 w-36 mx-auto mt-2" /> :
+                <p className="mt-2 text-lg text-muted-foreground">{profile?.specialization || 'Specialization not set'}</p>
                 )}
             </div>
             </CardHeader>
@@ -164,14 +164,14 @@ export default function ProfilePage() {
             </CardContent>
         </Card>
 
-        {profile.role === 'doctor' && (
+        {profile?.role === 'doctor' && (
             <Card className="border-border/30 bg-background">
             <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="font-headline text-2xl">
                 Professional Details
                 </CardTitle>
                 <Dialog>
-                <DialogTrigger asChild>
+                <DialogTrigger asChild disabled={profileLoading}>
                     <Button variant="outline" size="sm">
                     <Edit className="mr-2 h-4 w-4" />
                     Edit
@@ -192,13 +192,13 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <ProfileDetailItem icon={<Briefcase className="h-5 w-5" />} label="Specialization" value={profile.specialization} />
-                    <ProfileDetailItem icon={<GraduationCap className="h-5 w-5" />} label="Qualifications" value={profile.qualifications} />
-                    <ProfileDetailItem icon={<CalendarClock className="h-5 w-5" />} label="Years of Experience" value={profile.experience ? `${profile.experience} years` : ''} />
-                    <ProfileDetailItem icon={<IndianRupee className="h-5 w-5" />} label="Consultation Fee" value={profile.consultationFee ? `₹${profile.consultationFee}` : ''} />
+                    <ProfileDetailItem loading={profileLoading} icon={<Briefcase className="h-5 w-5" />} label="Specialization" value={profile.specialization} />
+                    <ProfileDetailItem loading={profileLoading} icon={<GraduationCap className="h-5 w-5" />} label="Qualifications" value={profile.qualifications} />
+                    <ProfileDetailItem loading={profileLoading} icon={<CalendarClock className="h-5 w-5" />} label="Years of Experience" value={profile.experience ? `${profile.experience} years` : ''} />
+                    <ProfileDetailItem loading={profileLoading} icon={<IndianRupee className="h-5 w-5" />} label="Consultation Fee" value={profile.consultationFee ? `₹${profile.consultationFee}` : ''} />
                 </div>
-                <ProfileDetailItem icon={<Hospital className="h-5 w-5" />} label="Clinic / Hospital" value={profile.clinic} />
-                <ProfileDetailItem icon={<FileText className="h-5 w-5" />} label="Bio" value={profile.bio} isBio={true} />
+                <ProfileDetailItem loading={profileLoading} icon={<Hospital className="h-5 w-5" />} label="Clinic / Hospital" value={profile.clinic} />
+                <ProfileDetailItem loading={profileLoading} icon={<FileText className="h-5 w-5" />} label="Bio" value={profile.bio} isBio={true} />
             </CardContent>
             </Card>
         )}
@@ -206,3 +206,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    

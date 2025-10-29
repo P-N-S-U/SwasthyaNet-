@@ -41,6 +41,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Appointment {
   id: string;
@@ -92,6 +93,7 @@ const getWeeklyChartData = (appointments: Appointment[] = []) => {
   return dateRange.map(date => {
     const day = dayStrings[date.getDay()];
     const appointmentsOnDay = (appointments || []).filter(appt => {
+      if (!appt.appointmentDate) return false;
       const apptDate = appt.appointmentDate.toDate();
       return (
         apptDate.getFullYear() === date.getFullYear() &&
@@ -131,19 +133,17 @@ export default function DoctorDashboardPage() {
   }, [user, authLoading, role, router]);
   
   const handleCompleteAppointment = async (appointmentId: string) => {
-    // Optimistic UI update
-    const updatedAppointments = allAppointments?.filter(appt => appt.id !== appointmentId);
-    mutate(updatedAppointments, false); // Update the local data without revalidation
+    const optimisticData = allAppointments?.filter(appt => appt.id !== appointmentId);
+    
+    mutate(optimisticData, { revalidate: false });
 
     toast({
       title: 'Success',
       description: 'Appointment marked as completed.',
     });
 
-    // Server action
     const result = await completeAppointment(appointmentId);
     
-    // If server action fails, rollback the optimistic update and show an error
     if (result.error) {
       toast({
         title: 'Error',
@@ -152,12 +152,11 @@ export default function DoctorDashboardPage() {
       });
       mutate(allAppointments); // Revert to original data
     } else {
-      // Optional: revalidate to ensure data consistency after a successful operation
       mutate();
     }
   };
 
-  const pageIsLoading = authLoading || profileLoading || appointmentsLoading || !user;
+  const pageIsLoading = authLoading || !user;
 
   if (pageIsLoading) {
     return (
@@ -175,7 +174,7 @@ export default function DoctorDashboardPage() {
     profile.consultationFee;
 
   const upcomingAppointments = (allAppointments || []).filter(
-    appt => appt.appointmentDate.toDate() >= new Date() && appt.status === 'Confirmed'
+    appt => appt.appointmentDate?.toDate() >= new Date() && appt.status === 'Confirmed'
   ).sort((a,b) => a.appointmentDate.toDate().getTime() - b.appointmentDate.toDate().getTime());
   
   const nextAppointment = upcomingAppointments.length > 0 ? upcomingAppointments[0] : null;
@@ -185,7 +184,6 @@ export default function DoctorDashboardPage() {
   const getRecentPatients = (): RecentPatient[] => {
     const uniquePatients = new Map<string, RecentPatient>();
     
-    // Appointments are already sorted by date descending
     for (const appt of (allAppointments || [])) {
       if (!uniquePatients.has(appt.patientId) && uniquePatients.size < 5) {
         uniquePatients.set(appt.patientId, { id: appt.patientId, name: appt.patientName, photoURL: appt.patientPhotoURL });
@@ -211,7 +209,9 @@ export default function DoctorDashboardPage() {
         </p>
       </div>
 
-      {!isProfileComplete && (
+      {profileLoading ? (
+        <Skeleton className="h-24 w-full" />
+      ) : !isProfileComplete && (
         <Alert variant="destructive" className="border-amber-500/50 text-amber-400 [&>svg]:text-amber-400">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle className="font-bold">
@@ -229,7 +229,12 @@ export default function DoctorDashboardPage() {
       {/* Primary Actions & Overview */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
-            {nextAppointment ? (
+            {appointmentsLoading ? (
+                 <Card className="border-border/30 bg-gradient-to-br from-primary/10 to-background">
+                    <CardHeader><CardTitle className="font-headline">Next Appointment</CardTitle></CardHeader>
+                    <CardContent><Skeleton className="h-16 w-full" /></CardContent>
+                 </Card>
+            ) : nextAppointment ? (
                 <Card className="border-border/30 bg-gradient-to-br from-primary/10 to-background">
                 <CardHeader>
                     <CardTitle className="font-headline">Next Appointment</CardTitle>
@@ -285,7 +290,7 @@ export default function DoctorDashboardPage() {
             <CardTitle>Today's Schedule</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-4xl font-bold">{todaysAppointmentsCount}</p>
+            {appointmentsLoading ? <Skeleton className="h-10 w-1/4" /> : <p className="text-4xl font-bold">{todaysAppointmentsCount}</p>}
             <p className="text-muted-foreground">Confirmed appointments today.</p>
              <Button asChild size="sm" variant="outline" className="mt-4" disabled={!isProfileComplete}>
               <Link href="/doctor/schedule">View Full Schedule</Link>
@@ -302,7 +307,7 @@ export default function DoctorDashboardPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{recentPatients.length}</div>
+             {appointmentsLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{recentPatients.length}</div>}
             <p className="text-xs text-muted-foreground">All-time consulted patients</p>
           </CardContent>
         </Card>
@@ -312,7 +317,7 @@ export default function DoctorDashboardPage() {
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{upcomingAppointments.length}</div>
+             {appointmentsLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{upcomingAppointments.length}</div>}
             <p className="text-xs text-muted-foreground">Total confirmed appointments</p>
           </CardContent>
         </Card>
@@ -322,7 +327,7 @@ export default function DoctorDashboardPage() {
             <IndianRupee className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{profile?.consultationFee || 'N/A'}</div>
+            {profileLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">₹{profile?.consultationFee || 'N/A'}</div>}
             <p className="text-xs text-muted-foreground">Per consultation</p>
           </CardContent>
         </Card>
@@ -332,7 +337,7 @@ export default function DoctorDashboardPage() {
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{profile?.experience || 'N/A'} yrs</div>
+            {profileLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{profile?.experience || 'N/A'} yrs</div>}
             <p className="text-xs text-muted-foreground">In {profile?.specialization || 'field'}</p>
           </CardContent>
         </Card>
@@ -346,7 +351,7 @@ export default function DoctorDashboardPage() {
             <p className="text-sm text-muted-foreground">Overview of appointments for the week.</p>
           </CardHeader>
           <CardContent>
-            <AppointmentsChart data={weeklyChartData} />
+            {appointmentsLoading ? <Skeleton className="h-[350px] w-full" /> : <AppointmentsChart data={weeklyChartData} />}
           </CardContent>
         </Card>
         <Card className="col-span-1 border-border/30 bg-background lg:col-span-2">
@@ -355,7 +360,7 @@ export default function DoctorDashboardPage() {
              <p className="text-sm text-muted-foreground">Your 5 most recently consulted patients.</p>
           </CardHeader>
           <CardContent>
-            <RecentPatients patients={recentPatients}/>
+            {appointmentsLoading ? <div className="space-y-4"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : <RecentPatients patients={recentPatients}/>}
           </CardContent>
         </Card>
       </div>
@@ -363,5 +368,4 @@ export default function DoctorDashboardPage() {
   );
 }
 
-    
     

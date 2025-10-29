@@ -35,6 +35,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 import useSWR from 'swr';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Appointment {
   id: string;
@@ -121,7 +122,7 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
             <Button size="sm" variant="outline" disabled>
               <FileText className="mr-2 h-4 w-4" /> View Prescription
             </Button>
-            <Button size="sm" variant="outline">
+            <Button size="sm" variant="outline" disabled>
               <User className="mr-2 h-4 w-4" /> View Doctor's Profile
             </Button>
           </div>
@@ -130,6 +131,30 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
     </Card>
   );
 };
+
+const AppointmentSkeleton = () => {
+    return (
+        <Card className="border-border/30 bg-background">
+            <CardHeader>
+                <div className="flex items-start justify-between">
+                    <div>
+                        <Skeleton className="h-7 w-40 mb-2"/>
+                        <Skeleton className="h-4 w-28"/>
+                    </div>
+                     <Skeleton className="h-6 w-24"/>
+                </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <div className="flex items-center gap-4">
+                     <Skeleton className="h-5 w-48"/>
+                </div>
+                <div className="flex gap-2">
+                     <Skeleton className="h-9 w-36"/>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
 
 export default function AppointmentsPage() {
   const { user, loading: authLoading } = useAuthState();
@@ -148,7 +173,7 @@ export default function AppointmentsPage() {
     }
   }, [user, authLoading, router]);
 
-  if (authLoading || !user || appointmentsLoading) {
+  if (authLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -189,7 +214,12 @@ export default function AppointmentsPage() {
             </TabsList>
             <TabsContent value="upcoming">
               <div className="space-y-6">
-                {upcomingAppointments.length > 0 ? (
+                {appointmentsLoading ? (
+                    <>
+                        <AppointmentSkeleton />
+                        <AppointmentSkeleton />
+                    </>
+                ) : upcomingAppointments.length > 0 ? (
                   upcomingAppointments.map((appt) => (
                     <AppointmentCard key={appt.id} appointment={appt} />
                   ))
@@ -207,7 +237,12 @@ export default function AppointmentsPage() {
             </TabsContent>
             <TabsContent value="past">
               <div className="space-y-6">
-                {pastAppointments.length > 0 ? (
+                 {appointmentsLoading ? (
+                    <>
+                        <AppointmentSkeleton />
+                        <AppointmentSkeleton />
+                    </>
+                ) : pastAppointments.length > 0 ? (
                   pastAppointments.map((appt) => (
                     <AppointmentCard key={appt.id} appointment={appt} />
                   ))
@@ -227,3 +262,5 @@ export default function AppointmentsPage() {
     </div>
   );
 }
+
+    

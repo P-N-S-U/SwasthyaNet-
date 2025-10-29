@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, use } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
 import { doc, getDoc, collection, query, where, getDocs, orderBy, Timestamp } from 'firebase/firestore';
@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import useSWR from 'swr';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface PatientProfile {
   uid: string;
@@ -39,21 +40,22 @@ const getInitials = (name: string | null | undefined) => {
   return name.substring(0, 2).toUpperCase();
 };
 
-const ProfileDetailItem = ({ icon, label, value }) => {
-  if (!value) return null;
+const ProfileDetailItem = ({ icon, label, value, loading = false }) => {
+  if (!value && !loading) return null;
 
   return (
     <div className="flex items-start gap-4 rounded-lg bg-secondary/50 p-3">
       <div className="mt-1 text-primary">{icon}</div>
       <div>
         <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="font-medium">{value}</p>
+        {loading ? <Skeleton className="h-6 w-32 mt-1" /> : <p className="font-medium">{value}</p>}
       </div>
     </div>
   );
 };
 
-const patientFetcher = async (patientId: string) => {
+const patientFetcher = async ([, patientId]) => {
+    if (!patientId) return null;
     const patientDocRef = doc(db, 'users', patientId);
     try {
         const patientDocSnap = await getDoc(patientDocRef);
@@ -106,12 +108,11 @@ const appointmentsFetcher = async ([doctorId, patientId]) => {
 
 
 export default function PatientRecordPage({ params }: { params: { id: string } }) {
-  const { id: patientId } = use(params);
   const { user, loading: authLoading, role } = useAuthState();
   const router = useRouter();
 
-  const { data: patient, isLoading: patientLoading, error: patientError } = useSWR(patientId, patientFetcher);
-  const { data: appointments, isLoading: appointmentsLoading } = useSWR(user ? [user.uid, patientId] : null, appointmentsFetcher);
+  const { data: patient, isLoading: patientLoading, error: patientError } = useSWR(['patient', params.id], patientFetcher);
+  const { data: appointments, isLoading: appointmentsLoading } = useSWR(user ? [user.uid, params.id] : null, appointmentsFetcher);
 
   useEffect(() => {
     if (authLoading) return;
@@ -122,21 +123,19 @@ export default function PatientRecordPage({ params }: { params: { id: string } }
     if (role && role !== 'doctor') {
         router.replace('/patient/dashboard');
     }
-  }, [user, authLoading, role, router]);
+  }, [user, authLoading, role, router, params.id]);
 
 
-  const pageLoading = authLoading || patientLoading || appointmentsLoading;
-
-  if (pageLoading) {
+  if (authLoading || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
-        <p className="ml-2">Loading Patient Record...</p>
+        <p className="ml-2">Verifying access...</p>
       </div>
     );
   }
 
-  if (!patient || patientError) {
+  if (patientError) {
      return (
       <div>
         <Button asChild variant="outline" size="sm" className="mb-6">
@@ -164,22 +163,25 @@ export default function PatientRecordPage({ params }: { params: { id: string } }
             <Card className="border-border/30 bg-background">
                 <CardHeader>
                     <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
-                        <Avatar className="h-24 w-24 border-4 border-primary">
-                            <AvatarImage src={patient.photoURL} alt={patient.name} />
-                            <AvatarFallback className="text-3xl">{getInitials(patient.name)}</AvatarFallback>
-                        </Avatar>
+                        {patientLoading ? <Skeleton className="h-24 w-24 rounded-full" /> : 
+                          <Avatar className="h-24 w-24 border-4 border-primary">
+                              <AvatarImage src={patient.photoURL} alt={patient.name} />
+                              <AvatarFallback className="text-3xl">{getInitials(patient.name)}</AvatarFallback>
+                          </Avatar>
+                        }
                         <div>
-                            <h1 className="text-3xl font-bold font-headline">{patient.name}</h1>
-                             <Badge variant="secondary">Patient</Badge>
+                            {patientLoading ? <Skeleton className="h-9 w-48 mb-2" /> : <h1 className="text-3xl font-bold font-headline">{patient.name}</h1>}
+                            <Badge variant="secondary">Patient</Badge>
                         </div>
                     </div>
                 </CardHeader>
                 <CardContent className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                    <ProfileDetailItem icon={<Mail className="h-5 w-5" />} label="Email" value={patient.email} />
+                    <ProfileDetailItem icon={<Mail className="h-5 w-5" />} label="Email" value={patient?.email} loading={patientLoading}/>
                     <ProfileDetailItem 
                         icon={<Calendar className="h-5 w-5" />} 
                         label="Member Since" 
-                        value={patient.createdAt ? patient.createdAt.toDate().toLocaleDateString() : 'N/A'} 
+                        value={patient?.createdAt ? patient.createdAt.toDate().toLocaleDateString() : 'N/A'}
+                        loading={patientLoading}
                     />
                 </CardContent>
             </Card>
@@ -195,7 +197,9 @@ export default function PatientRecordPage({ params }: { params: { id: string } }
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
-                        {(appointments || []).length > 0 ? (
+                        {appointmentsLoading ? (
+                           [...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)
+                        ) : (appointments || []).length > 0 ? (
                             (appointments || []).map(appt => (
                                 <div key={appt.id} className="flex items-center justify-between rounded-lg bg-secondary/50 p-4">
                                     <div>
@@ -219,3 +223,4 @@ export default function PatientRecordPage({ params }: { params: { id: string } }
   );
 }
 
+    

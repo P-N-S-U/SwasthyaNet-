@@ -20,6 +20,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import useSWR from 'swr';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 interface Patient {
@@ -53,7 +54,6 @@ const fetcher = async ([path, uid]) => {
   const patientData = new Map<string, { lastAppointment: Timestamp; name: string; photoURL?: string }>();
   appointmentSnapshots.forEach(doc => {
     const data = doc.data();
-    // Ensure appointmentDate exists before processing
     if (data.appointmentDate && !patientData.has(data.patientId)) {
       patientData.set(data.patientId, {
         lastAppointment: data.appointmentDate,
@@ -101,14 +101,25 @@ export default function PatientsPage() {
     }
   }, [user, authLoading, role, router]);
 
-  if (authLoading || pageLoading) {
+  if (authLoading || !user) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
-        <p className="ml-2">Loading Patients...</p>
+        <p className="ml-2">Verifying access...</p>
       </div>
     );
   }
+
+  const TableSkeleton = () => (
+    [...Array(5)].map((_, i) => (
+      <TableRow key={i}>
+        <TableCell><Skeleton className="h-10 w-48" /></TableCell>
+        <TableCell><Skeleton className="h-6 w-32" /></TableCell>
+        <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+        <TableCell className="text-right"><Skeleton className="h-8 w-28 ml-auto" /></TableCell>
+      </TableRow>
+    ))
+  );
 
   return (
     <div>
@@ -139,38 +150,40 @@ export default function PatientsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {patients && patients.length > 0 ? (
-                patients.map(patient => (
-                  <TableRow key={patient.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9">
-                          <AvatarImage src={patient.photoURL} alt={patient.name} />
-                          <AvatarFallback>{getInitials(patient.name)}</AvatarFallback>
-                        </Avatar>
-                        <span className="font-medium">{patient.name}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{patient.email}</TableCell>
-                    <TableCell>
-                      {patient.lastAppointment?.toDate().toLocaleDateString() || 'N/A'}
-                    </TableCell>
-                    <TableCell className="text-right">
-                       <Button asChild variant="outline" size="sm">
-                         <Link href={`/doctor/patients/${patient.id}`}>
-                           <Eye className="mr-2 h-4 w-4" /> View Record
-                         </Link>
-                       </Button>
+              {pageLoading ? <TableSkeleton /> : 
+                (patients && patients.length > 0 ? (
+                  patients.map(patient => (
+                    <TableRow key={patient.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-9 w-9">
+                            <AvatarImage src={patient.photoURL} alt={patient.name} />
+                            <AvatarFallback>{getInitials(patient.name)}</AvatarFallback>
+                          </Avatar>
+                          <span className="font-medium">{patient.name}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>{patient.email}</TableCell>
+                      <TableCell>
+                        {patient.lastAppointment?.toDate().toLocaleDateString() || 'N/A'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                         <Button asChild variant="outline" size="sm">
+                           <Link href={`/doctor/patients/${patient.id}`}>
+                             <Eye className="mr-2 h-4 w-4" /> View Record
+                           </Link>
+                         </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={4} className="h-24 text-center">
+                      No patients found.
                     </TableCell>
                   </TableRow>
                 ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
-                    No patients found.
-                  </TableCell>
-                </TableRow>
-              )}
+              }
             </TableBody>
           </Table>
         </CardContent>
@@ -178,3 +191,5 @@ export default function PatientsPage() {
     </div>
   );
 }
+
+    
