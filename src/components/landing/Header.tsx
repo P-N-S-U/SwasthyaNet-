@@ -27,8 +27,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 const UserMenu = ({ user }) => {
   const router = useRouter();
 
-  const handleSignOut = async () => {
-    await signOut();
+  const handleSignOut = () => {
+    // Don't await signOut(), just fire and forget.
+    // The onAuthStateChanged listener will handle UI updates.
+    signOut();
     router.push('/');
   };
 
