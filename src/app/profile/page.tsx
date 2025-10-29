@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
 import { Header } from '@/components/landing/Header';
@@ -15,7 +15,6 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { getUserProfile } from '@/lib/firebase/firestore';
 import { UpdateProfileForm } from '@/components/profile/UpdateProfileForm';
 import {
   Dialog,
@@ -45,7 +44,6 @@ const ProfileDetailItem = ({ icon, label, value }) => {
 export default function ProfilePage() {
   const { user, loading, role } = useAuthState();
   const router = useRouter();
-  const [profileLoading, setProfileLoading] = useState(true);
 
   useEffect(() => {
     if (!loading) {
@@ -53,23 +51,16 @@ export default function ProfilePage() {
             router.push('/auth');
         } else if (role === 'doctor') {
             router.replace('/doctor/profile');
-        } else {
-            setProfileLoading(false);
         }
     }
   }, [user, loading, role, router]);
 
-  if (loading || profileLoading) {
+  if (loading || !user || role === 'doctor') {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
-  }
-
-  // If we reach here, it's a patient
-  if (!user) {
-      return null; // Should have been redirected, but as a fallback
   }
 
   const getInitials = email => {

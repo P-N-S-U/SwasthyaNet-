@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { onSnapshot, doc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 import { DoctorProfileForm } from '@/components/doctor/DoctorProfileForm';
 import { UpdateProfileForm } from '@/components/profile/UpdateProfileForm';
@@ -35,6 +35,8 @@ import { Button } from '@/components/ui/button';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Skeleton } from '@/components/ui/skeleton';
+import useSWR from 'swr';
+import { getDoc } from 'firebase/firestore';
 
 const ProfileDetailItem = ({ icon, label, value, isBio = false, loading = false }) => {
   if (!value && !loading && !isBio) return null;
@@ -50,45 +52,37 @@ const ProfileDetailItem = ({ icon, label, value, isBio = false, loading = false 
   );
 };
 
+const profileFetcher = async ([, uid]) => {
+  if (!uid) return null;
+  const userDocRef = doc(db, 'users', uid);
+  try {
+    const docSnap = await getDoc(userDocRef);
+    if (docSnap.exists()) {
+      return docSnap.data();
+    }
+    return null;
+  } catch(serverError) {
+    const permissionError = new FirestorePermissionError({
+      path: userDocRef.path,
+      operation: 'get',
+    });
+    errorEmitter.emit('permission-error', permissionError);
+    throw permissionError;
+  }
+}
 
 export default function ProfilePage() {
   const { user, loading, role } = useAuthState();
   const router = useRouter();
-  const [profile, setProfile] = useState<any>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
+
+  const { data: profile, isLoading: profileLoading } = useSWR(user ? ['user', user.uid] : null, profileFetcher, { revalidateOnFocus: true });
 
   useEffect(() => {
     if (!loading && !user) {
       router.push('/auth');
     }
-    if (user) {
-      if (role && role !== 'doctor') {
-        router.replace('/patient/dashboard'); // Or a generic unauthorized page
-        return;
-      }
-      
-      const userDocRef = doc(db, 'users', user.uid);
-      const unsubscribe = onSnapshot(
-        userDocRef, 
-        (doc) => {
-          if (doc.exists()) {
-            setProfile(doc.data());
-          } else {
-            console.error("No such user document!");
-          }
-          setProfileLoading(false);
-        },
-        (serverError) => {
-           const permissionError = new FirestorePermissionError({
-                path: userDocRef.path,
-                operation: 'get',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            setProfileLoading(false);
-        }
-      );
-
-      return () => unsubscribe();
+    if (user && role && role !== 'doctor') {
+      router.replace('/patient/dashboard');
     }
   }, [user, loading, role, router]);
 
@@ -192,13 +186,13 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <ProfileDetailItem loading={profileLoading} icon={<Briefcase className="h-5 w-5" />} label="Specialization" value={profile.specialization} />
-                    <ProfileDetailItem loading={profileLoading} icon={<GraduationCap className="h-5 w-5" />} label="Qualifications" value={profile.qualifications} />
-                    <ProfileDetailItem loading={profileLoading} icon={<CalendarClock className="h-5 w-5" />} label="Years of Experience" value={profile.experience ? `${profile.experience} years` : ''} />
-                    <ProfileDetailItem loading={profileLoading} icon={<IndianRupee className="h-5 w-5" />} label="Consultation Fee" value={profile.consultationFee ? `₹${profile.consultationFee}` : ''} />
+                    <ProfileDetailItem loading={profileLoading} icon={<Briefcase className="h-5 w-5" />} label="Specialization" value={profile?.specialization} />
+                    <ProfileDetailItem loading={profileLoading} icon={<GraduationCap className="h-5 w-5" />} label="Qualifications" value={profile?.qualifications} />
+                    <ProfileDetailItem loading={profileLoading} icon={<CalendarClock className="h-5 w-5" />} label="Years of Experience" value={profile?.experience ? `${profile.experience} years` : ''} />
+                    <ProfileDetailItem loading={profileLoading} icon={<IndianRupee className="h-5 w-5" />} label="Consultation Fee" value={profile?.consultationFee ? `₹${profile.consultationFee}` : ''} />
                 </div>
-                <ProfileDetailItem loading={profileLoading} icon={<Hospital className="h-5 w-5" />} label="Clinic / Hospital" value={profile.clinic} />
-                <ProfileDetailItem loading={profileLoading} icon={<FileText className="h-5 w-5" />} label="Bio" value={profile.bio} isBio={true} />
+                <ProfileDetailItem loading={profileLoading} icon={<Hospital className="h-5 w-5" />} label="Clinic / Hospital" value={profile?.clinic} />
+                <ProfileDetailItem loading={profileLoading} icon={<FileText className="h-5 w-5" />} label="Bio" value={profile?.bio} isBio={true} />
             </CardContent>
             </Card>
         )}
@@ -206,5 +200,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
