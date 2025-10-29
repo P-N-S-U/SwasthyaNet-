@@ -131,19 +131,29 @@ export default function DoctorDashboardPage() {
   }, [user, authLoading, role, router]);
   
   const handleCompleteAppointment = async (appointmentId: string) => {
+    // Optimistic UI update
+    const updatedAppointments = allAppointments?.filter(appt => appt.id !== appointmentId);
+    mutate(updatedAppointments, false); // Update the local data without revalidation
+
+    toast({
+      title: 'Success',
+      description: 'Appointment marked as completed.',
+    });
+
+    // Server action
     const result = await completeAppointment(appointmentId);
+    
+    // If server action fails, rollback the optimistic update and show an error
     if (result.error) {
       toast({
         title: 'Error',
         description: result.error,
         variant: 'destructive',
       });
+      mutate(allAppointments); // Revert to original data
     } else {
-      toast({
-        title: 'Success',
-        description: 'Appointment marked as completed.',
-      });
-      mutate(); // Re-fetch appointments
+      // Optional: revalidate to ensure data consistency after a successful operation
+      mutate();
     }
   };
 
