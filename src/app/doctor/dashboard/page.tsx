@@ -13,6 +13,8 @@ import {
   IndianRupee,
   Award,
   CheckCircle,
+  ChevronDown,
+  User,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
@@ -33,6 +35,12 @@ import useSWR from 'swr';
 import { getUserProfile } from '@/lib/firebase/firestore';
 import { completeAppointment } from '@/app/actions/appointments';
 import { useToast } from '@/hooks/use-toast';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface Appointment {
   id: string;
@@ -225,20 +233,31 @@ export default function DoctorDashboardPage() {
                         Today at {nextAppointment.appointmentDate.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                     </p>
                     </div>
-                    <div className="flex gap-2">
-                        <Button asChild size="lg" disabled={!isProfileComplete}>
+                    <div className="flex rounded-md shadow-sm">
+                        <Button asChild size="lg" className="rounded-r-none" disabled={!isProfileComplete}>
                             <Link href={`/doctor/video/${nextAppointment.id}`}>
                                 <Video className="mr-2 h-5 w-5" /> Join Call
                             </Link>
                         </Button>
-                         <Button
-                            size="lg"
-                            variant="outline"
-                            onClick={() => handleCompleteAppointment(nextAppointment.id)}
-                            disabled={!isProfileComplete}
-                        >
-                            <CheckCircle className="mr-2 h-5 w-5" /> Mark as Complete
-                        </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button size="lg" className="rounded-l-none px-3" disabled={!isProfileComplete}>
+                                    <ChevronDown className="h-5 w-5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem onSelect={() => handleCompleteAppointment(nextAppointment.id)}>
+                                    <CheckCircle className="mr-2 h-4 w-4" />
+                                    Mark as Complete
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <Link href={`/doctor/patients/${nextAppointment.patientId}`}>
+                                        <User className="mr-2 h-4 w-4" />
+                                        View Patient Profile
+                                    </Link>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </CardContent>
                 </Card>
@@ -334,4 +353,5 @@ export default function DoctorDashboardPage() {
   );
 }
 
+    
     
