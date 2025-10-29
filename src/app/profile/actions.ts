@@ -2,8 +2,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase/firebase';
+import { adminDb } from '@/lib/firebase/server-auth';
 import { getSession } from '@/lib/firebase/server-auth';
 
 export async function updateDoctorProfile(prevState: any, formData: FormData) {
@@ -21,7 +20,7 @@ export async function updateDoctorProfile(prevState: any, formData: FormData) {
   const consultationFee = formData.get('consultationFee') as string;
 
   try {
-    const userRef = doc(db, 'users', session.uid);
+    const userRef = adminDb.collection('users').doc(session.uid);
     const dataToUpdate: {
         specialization?: string;
         clinic?: string;
@@ -39,7 +38,7 @@ export async function updateDoctorProfile(prevState: any, formData: FormData) {
     if (consultationFee) dataToUpdate.consultationFee = parseFloat(consultationFee);
     
     if (Object.keys(dataToUpdate).length > 0) {
-        await updateDoc(userRef, dataToUpdate, { merge: true });
+        await userRef.set(dataToUpdate, { merge: true });
     }
     
     revalidatePath('/doctor/profile');
