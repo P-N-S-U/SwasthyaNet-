@@ -10,6 +10,7 @@ import {
   writeBatch,
   getDocs,
   Unsubscribe,
+  getDoc,
 } from 'firebase/firestore';
 
 const servers = {
