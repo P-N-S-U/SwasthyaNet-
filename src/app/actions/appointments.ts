@@ -5,6 +5,7 @@ import { Timestamp } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
 import { adminDb } from '@/lib/firebase/server-auth';
 import { getSession } from '@/lib/firebase/server-auth';
+import { FieldValue } from 'firebase-admin/firestore';
 
 export async function bookAppointment(prevState: any, formData: FormData) {
   const session = await getSession();
@@ -84,4 +85,51 @@ export async function bookAppointment(prevState: any, formData: FormData) {
     console.error('Error booking appointment:', error);
     return { error: 'An unexpected error occurred while booking the appointment.' };
   }
+}
+
+export async function completeAppointment(appointmentId: string) {
+    const session = await getSession();
+    if (!session) {
+        return { error: 'Unauthorized' };
+    }
+
+    if (!appointmentId) {
+        return { error: 'Appointment ID is missing.' };
+    }
+
+    try {
+        const appointmentRef = adminDb.collection('appointments').doc(appointmentId);
+        const callRef = adminDb.collection('calls').doc(appointmentId);
+
+        // Use a batch to ensure atomicity
+        const batch = adminDb.batch();
+
+        // 1. Update appointment status
+        batch.update(appointmentRef, { status: 'Completed' });
+
+        // 2. Delete the call document and its subcollections
+        const offerCandidatesRef = callRef.collection('offerCandidates');
+        const answerCandidatesRef = callRef.collection('answerCandidates');
+
+        const offerCandidatesSnap = await offerCandidatesRef.get();
+        offerCandidatesSnap.forEach(doc => batch.delete(doc.ref));
+
+        const answerCandidatesSnap = await answerCandidatesRef.get();
+        answerCandidatesSnap.forEach(doc => batch.delete(doc.ref));
+        
+        batch.delete(callRef);
+
+        await batch.commit();
+
+        revalidatePath('/patient/appointments');
+        revalidatePath('/doctor/dashboard');
+        revalidatePath('/patient/dashboard');
+        revalidatePath('/doctor/schedule');
+
+        return { data: 'Appointment completed successfully' };
+
+    } catch (error) {
+        console.error('Error completing appointment:', error);
+        return { error: 'An unexpected error occurred.' };
+    }
 }

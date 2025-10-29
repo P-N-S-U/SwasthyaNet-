@@ -40,11 +40,10 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   
   const [callStatus, setCallStatus] = useState<CallStatus>('Initializing');
   const { user, loading } = useAuthState();
-  const { id } = use(params);
+  const { id: callId } = use(params);
   
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-  const localHangup = useRef(false);
 
   useEffect(() => {
     if (loading) return;
@@ -54,10 +53,11 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
     }
 
     let callUnsubscribe: (() => void) | null = null;
+    let localHangup = false;
     let hasCreated = false;
 
     const handleCallEnded = () => {
-        if (!localHangup.current) {
+        if (!localHangup) {
             toast({ title: 'Call Ended', description: 'The doctor has left the call.' });
             setCallStatus('Ended');
             router.push('/patient/appointments');
@@ -83,7 +83,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
             localVideoRef.current.srcObject = localStream;
         }
 
-        await createCall(id, pc);
+        await createCall(callId, pc);
         hasCreated = true;
       } catch (error: any) {
         console.error('Error starting call:', error);
@@ -98,7 +98,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
 
     startCall();
     
-    callUnsubscribe = getCall(id, (callData) => {
+    callUnsubscribe = getCall(callId, (callData) => {
         if(callData) {
             setRemoteMuted(callData.doctorMuted);
             setRemoteCameraOff(callData.doctorCameraOff);
@@ -110,35 +110,35 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
 
     // Cleanup function
     return () => {
-      localHangup.current = true;
+      localHangup = true;
       if(callUnsubscribe) {
           callUnsubscribe();
       }
-      hangup(pcRef.current);
+      hangup(pcRef.current, null);
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [id, router, toast, user, loading]);
+  }, [callId, router, toast, user, loading]);
 
   const handleToggleMute = () => {
     if (!user || !pcRef.current) return;
     const newMutedState = !isMuted;
     setIsMuted(newMutedState);
-    toggleMute(newMutedState, pcRef.current, 'patient', id);
+    toggleMute(newMutedState, pcRef.current, 'patient', callId);
   };
 
   const handleToggleCamera = () => {
     if (!user || !pcRef.current) return;
     const newCameraState = !isCameraOff;
     setIsCameraOff(newCameraState);
-    toggleCamera(newCameraState, pcRef.current, 'patient', id);
+    toggleCamera(newCameraState, pcRef.current, 'patient', callId);
   };
 
   const endCall = () => {
-    localHangup.current = true;
-    hangup(pcRef.current);
-    router.push('/patient/appointments');
+    hangup(pcRef.current, callId).then(() => {
+        router.push('/patient/appointments');
+    });
   };
 
   if (loading || !user) {

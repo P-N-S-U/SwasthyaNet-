@@ -82,7 +82,11 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
           </div>
           <Badge
             variant={
-              appointment.status === 'Confirmed' ? 'default' : 'secondary'
+              appointment.status === 'Confirmed'
+                ? 'default'
+                : appointment.status === 'Completed'
+                ? 'secondary'
+                : 'destructive'
             }
           >
             {appointment.status}
@@ -107,14 +111,14 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
                 <Video className="mr-2 h-4 w-4" /> Join Video Call
               </Link>
             </Button>
-            <Button size="sm" variant="outline">
+            <Button size="sm" variant="outline" disabled>
               Reschedule
             </Button>
           </div>
         )}
         {appointment.status === 'Completed' && (
           <div className="flex gap-2">
-            <Button size="sm" variant="outline">
+            <Button size="sm" variant="outline" disabled>
               <FileText className="mr-2 h-4 w-4" /> View Prescription
             </Button>
             <Button size="sm" variant="outline">
@@ -134,7 +138,7 @@ export default function AppointmentsPage() {
   const { data: appointments, isLoading: appointmentsLoading } = useSWR(
     user ? ['appointments', user.uid] : null,
     fetcher,
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: true }
   );
 
   useEffect(() => {

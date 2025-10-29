@@ -40,11 +40,11 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
   const [callStatus, setCallStatus] = useState<CallStatus>('Joining');
   const { user, loading } = useAuthState();
-  const { id } = use(params);
+  const { id: callId } = use(params);
 
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-  const localHangup = useRef(false);
+  const hasAnswered = useRef(false);
 
   useEffect(() => {
     if (loading) return;
@@ -54,12 +54,14 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
     }
     
     let callUnsubscribe: (() => void) | null = null;
-    let hasAnswered = false;
+    let localHangup = false;
 
     const handleCallEnded = () => {
-        if (!localHangup.current) {
+        if (!localHangup) {
             toast({ title: 'Call Ended', description: 'The patient has left the call.' });
             setCallStatus('Ended');
+            // The doctor is forcefully redirected after their hangup action cleans up.
+            // This handles the case where the patient leaves first.
             router.push('/doctor/dashboard');
         }
     };
@@ -83,11 +85,11 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
             }
 
             // Listen for the call document
-            callUnsubscribe = getCall(id, async (callData) => {
-                if (callData?.offer && pcRef.current && !hasAnswered) {
-                    hasAnswered = true;
+            callUnsubscribe = getCall(callId, async (callData) => {
+                if (callData?.offer && pcRef.current && !hasAnswered.current) {
+                    hasAnswered.current = true;
                     try {
-                        await answerCall(id, pcRef.current);
+                        await answerCall(callId, pcRef.current);
                     } catch (error: any) {
                        console.error('Error answering call:', error);
                         toast({
@@ -102,18 +104,6 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
                 if(callData) {
                     setRemoteMuted(callData.patientMuted);
                     setRemoteCameraOff(callData.patientCameraOff);
-                    if (callData.doctorMuted !== undefined) {
-                      setIsMuted(callData.doctorMuted);
-                    } else {
-                      // If undefined (on initial join), assume not muted
-                      setIsMuted(false);
-                    }
-                    if (callData.doctorCameraOff !== undefined) {
-                      setIsCameraOff(callData.doctorCameraOff);
-                    }
-                } else if (hasAnswered) {
-                    // If we have answered and the call doc disappears, the other user hung up
-                    handleCallEnded();
                 }
             });
 
@@ -132,35 +122,36 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
     // Cleanup function
     return () => {
-      localHangup.current = true;
+      localHangup = true;
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      hangup(pcRef.current);
+      // Hangup without callId to prevent duplicate server action calls
+      hangup(pcRef.current, null); 
       if (localStreamRef.current) {
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [id, router, toast, user, loading]);
+  }, [callId, router, toast, user, loading]);
 
   const handleToggleMute = () => {
     if (!user || !pcRef.current) return;
     const newMutedState = !isMuted;
     setIsMuted(newMutedState);
-    toggleMute(newMutedState, pcRef.current, 'doctor', id);
+    toggleMute(newMutedState, pcRef.current, 'doctor', callId);
   };
 
   const handleToggleCamera = () => {
     if (!user || !pcRef.current) return;
     const newCameraState = !isCameraOff;
     setIsCameraOff(newCameraState);
-    toggleCamera(newCameraState, pcRef.current, 'doctor', id);
+    toggleCamera(newCameraState, pcRef.current, 'doctor', callId);
   };
 
   const endCall = () => {
-    localHangup.current = true;
-    hangup(pcRef.current);
-    router.push('/doctor/dashboard');
+    hangup(pcRef.current, callId).then(() => {
+        router.push('/doctor/dashboard');
+    });
   };
 
   if (loading || !user) {

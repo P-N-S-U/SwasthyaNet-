@@ -106,7 +106,7 @@ export default function DoctorDashboardPage() {
   const { data: allAppointments, isLoading: appointmentsLoading } = useSWR(
     user ? ['appointments', user.uid] : null,
     appointmentsFetcher,
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: true }
   );
 
   useEffect(() => {

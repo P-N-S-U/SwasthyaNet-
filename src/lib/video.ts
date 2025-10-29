@@ -1,5 +1,6 @@
 
 import { db } from './firebase/firebase';
+import { completeAppointment } from '@/app/actions/appointments';
 import {
   doc,
   collection,
@@ -209,7 +210,7 @@ export const answerCall = async (id: string, pc: RTCPeerConnection) => {
   }
 };
 
-export const hangup = async (pc: RTCPeerConnection | null) => {
+export const hangup = async (pc: RTCPeerConnection | null, callId: string | null) => {
   if (pc && pc.signalingState !== 'closed') {
     pc.getSenders().forEach(sender => {
       if (sender.track) {
@@ -219,8 +220,10 @@ export const hangup = async (pc: RTCPeerConnection | null) => {
     pc.close();
   }
   
-  // Do not delete the call document, just close local connection
-  // This allows the other user to stay in the call
+  // This will set the appointment status to "Completed" and delete the call document.
+  if (callId) {
+    await completeAppointment(callId);
+  }
   
   if (onCallEnded && wasConnected) {
       onCallEnded();
