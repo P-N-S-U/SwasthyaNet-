@@ -5,7 +5,16 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
 import { Loader2, Users, Eye } from 'lucide-react';
-import { collection, query, where, getDocs, doc, getDoc, Timestamp, orderBy } from 'firebase/firestore';
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  getDoc,
+  Timestamp,
+  orderBy,
+} from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 import {
   Table,
@@ -21,7 +30,6 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import useSWR from 'swr';
 import { Skeleton } from '@/components/ui/skeleton';
-
 
 interface Patient {
   id: string;
@@ -42,7 +50,7 @@ const getInitials = (name: string | null | undefined) => {
 
 const fetcher = async ([path, uid]) => {
   if (!uid) return [];
-  
+
   const appointmentsRef = collection(db, path);
   const q = query(
     appointmentsRef,
@@ -51,7 +59,10 @@ const fetcher = async ([path, uid]) => {
   );
   const appointmentSnapshots = await getDocs(q);
 
-  const patientData = new Map<string, { lastAppointment: Timestamp; name: string; photoURL?: string }>();
+  const patientData = new Map<
+    string,
+    { lastAppointment: Timestamp; name: string; photoURL?: string }
+  >();
   appointmentSnapshots.forEach(doc => {
     const data = doc.data();
     if (data.appointmentDate && !patientData.has(data.patientId)) {
@@ -62,33 +73,32 @@ const fetcher = async ([path, uid]) => {
       });
     }
   });
-  
+
   const patientList: Patient[] = [];
   for (const [patientId, info] of patientData.entries()) {
-      const userDoc = await getDoc(doc(db, 'users', patientId));
-      if (userDoc.exists()) {
-          const userData = userDoc.data();
-          patientList.push({
-              id: patientId,
-              name: info.name,
-              email: userData.email || 'No email found',
-              photoURL: info.photoURL,
-              lastAppointment: info.lastAppointment,
-          });
-      }
+    const userDoc = await getDoc(doc(db, 'users', patientId));
+    if (userDoc.exists()) {
+      const userData = userDoc.data();
+      patientList.push({
+        id: patientId,
+        name: info.name,
+        email: userData.email || 'No email found',
+        photoURL: info.photoURL,
+        lastAppointment: info.lastAppointment,
+      });
+    }
   }
 
   return patientList;
 };
-
 
 export default function PatientsPage() {
   const { user, loading: authLoading, role } = useAuthState();
   const router = useRouter();
 
   const { data: patients, isLoading: pageLoading } = useSWR(
-      user ? ['appointments', user.uid] : null,
-      fetcher
+    user ? ['appointments', user.uid] : null,
+    fetcher
   );
 
   useEffect(() => {
@@ -110,16 +120,26 @@ export default function PatientsPage() {
     );
   }
 
-  const TableSkeleton = () => (
+  const TableSkeleton = () =>
     [...Array(5)].map((_, i) => (
       <TableRow key={i}>
-        <TableCell><Skeleton className="h-10 w-48" /></TableCell>
-        <TableCell><Skeleton className="h-6 w-32" /></TableCell>
-        <TableCell><Skeleton className="h-6 w-24" /></TableCell>
-        <TableCell className="text-right"><Skeleton className="h-8 w-28 ml-auto" /></TableCell>
+        <TableCell>
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-9 w-9 rounded-full" />
+            <Skeleton className="h-5 w-32" />
+          </div>
+        </TableCell>
+        <TableCell>
+          <Skeleton className="h-5 w-48" />
+        </TableCell>
+        <TableCell>
+          <Skeleton className="h-5 w-24" />
+        </TableCell>
+        <TableCell className="text-right">
+          <Skeleton className="ml-auto h-8 w-28" />
+        </TableCell>
       </TableRow>
-    ))
-  );
+    ));
 
   return (
     <div>
@@ -132,12 +152,10 @@ export default function PatientsPage() {
 
       <Card>
         <CardHeader>
-            <div className="flex items-center gap-3">
-              <Users className="h-6 w-6 text-primary" />
-              <CardTitle className="font-headline text-2xl">
-                Patient Records
-              </CardTitle>
-            </div>
+          <div className="flex items-center gap-3">
+            <Users className="h-6 w-6 text-primary" />
+            <CardTitle className="font-headline text-2xl">Patient Records</CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -150,40 +168,40 @@ export default function PatientsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {pageLoading ? <TableSkeleton /> : 
-                (patients && patients.length > 0 ? (
-                  patients.map(patient => (
-                    <TableRow key={patient.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9">
-                            <AvatarImage src={patient.photoURL} alt={patient.name} />
-                            <AvatarFallback>{getInitials(patient.name)}</AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium">{patient.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{patient.email}</TableCell>
-                      <TableCell>
-                        {patient.lastAppointment?.toDate().toLocaleDateString() || 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                         <Button asChild variant="outline" size="sm">
-                           <Link href={`/doctor/patients/${patient.id}`}>
-                             <Eye className="mr-2 h-4 w-4" /> View Record
-                           </Link>
-                         </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={4} className="h-24 text-center">
-                      No patients found.
+              {pageLoading ? (
+                <TableSkeleton />
+              ) : patients && patients.length > 0 ? (
+                patients.map(patient => (
+                  <TableRow key={patient.id}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-9 w-9">
+                          <AvatarImage src={patient.photoURL} alt={patient.name} />
+                          <AvatarFallback>{getInitials(patient.name)}</AvatarFallback>
+                        </Avatar>
+                        <span className="font-medium">{patient.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{patient.email}</TableCell>
+                    <TableCell>
+                      {patient.lastAppointment?.toDate().toLocaleDateString() || 'N/A'}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/doctor/patients/${patient.id}`}>
+                          <Eye className="mr-2 h-4 w-4" /> View Record
+                        </Link>
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
-              }
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={4} className="h-24 text-center">
+                    No patients found.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

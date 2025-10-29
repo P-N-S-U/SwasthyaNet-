@@ -19,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import useSWR from 'swr';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const fetcher = async ([path, uid]) => {
   if (!uid) return 0;
@@ -32,14 +33,13 @@ const fetcher = async ([path, uid]) => {
   return snapshot.size;
 };
 
-
 export default function PatientDashboardPage() {
   const { user, loading: authLoading } = useAuthState();
   const router = useRouter();
 
   const { data: upcomingCount, isLoading: appointmentsLoading } = useSWR(
-      user ? ['appointments', user.uid] : null, 
-      fetcher
+    user ? ['appointments', user.uid] : null,
+    fetcher
   );
 
   useEffect(() => {
@@ -81,12 +81,13 @@ export default function PatientDashboardPage() {
               </CardHeader>
               <CardContent>
                 {appointmentsLoading ? (
-                  <Loader2 className="h-6 w-6 animate-spin" />
+                  <>
+                    <Skeleton className="h-8 w-1/2" />
+                    <Skeleton className="mt-1 h-4 w-3/4" />
+                  </>
                 ) : (
                   <>
-                    <div className="text-2xl font-bold">
-                      {upcomingCount} Upcoming
-                    </div>
+                    <div className="text-2xl font-bold">{upcomingCount} Upcoming</div>
                     <p className="text-xs text-muted-foreground">
                       View your appointment history.
                     </p>
@@ -104,9 +105,7 @@ export default function PatientDashboardPage() {
                   <div className="mb-4 inline-block rounded-lg bg-primary/10 p-3">
                     <Bot className="h-8 w-8 text-primary" />
                   </div>
-                  <CardTitle className="font-headline">
-                    AI Symptom Checker
-                  </CardTitle>
+                  <CardTitle className="font-headline">AI Symptom Checker</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-foreground/60">
@@ -122,9 +121,7 @@ export default function PatientDashboardPage() {
                   <div className="mb-4 inline-block rounded-lg bg-primary/10 p-3">
                     <Users className="h-8 w-8 text-primary" />
                   </div>
-                  <CardTitle className="font-headline">
-                    Find a Doctor
-                  </CardTitle>
+                  <CardTitle className="font-headline">Find a Doctor</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-foreground/60">
@@ -140,3 +137,5 @@ export default function PatientDashboardPage() {
     </div>
   );
 }
+
+    

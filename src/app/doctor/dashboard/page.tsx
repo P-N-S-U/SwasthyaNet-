@@ -36,10 +36,10 @@ import { getUserProfile } from '@/lib/firebase/firestore';
 import { completeAppointment } from '@/app/actions/appointments';
 import { useToast } from '@/hooks/use-toast';
 import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -53,9 +53,9 @@ interface Appointment {
 }
 
 export interface RecentPatient {
-    id: string;
-    name: string;
-    photoURL?: string;
+  id: string;
+  name: string;
+  photoURL?: string;
 }
 
 const appointmentsFetcher = async ([, uid]) => {
@@ -70,15 +70,14 @@ const appointmentsFetcher = async ([, uid]) => {
 };
 
 const profileFetcher = async (uid) => {
-    if (!uid) return null;
-    try {
-      return await getUserProfile(uid);
-    } catch(e) {
-      // Errors will be handled by the global error emitter in firestore.ts
-      return null;
-    }
+  if (!uid) return null;
+  try {
+    return await getUserProfile(uid);
+  } catch (e) {
+    // Errors will be handled by the global error emitter in firestore.ts
+    return null;
+  }
 };
-
 
 const getWeeklyChartData = (appointments: Appointment[] = []) => {
   // Show from yesterday up to 5 days in the future
@@ -106,7 +105,6 @@ const getWeeklyChartData = (appointments: Appointment[] = []) => {
   });
 };
 
-
 export default function DoctorDashboardPage() {
   const { user, loading: authLoading, role } = useAuthState();
   const router = useRouter();
@@ -117,21 +115,23 @@ export default function DoctorDashboardPage() {
     profileFetcher
   );
 
-  const { data: allAppointments, isLoading: appointmentsLoading, mutate } = useSWR(
-    user ? ['appointments', user.uid] : null,
-    appointmentsFetcher,
-    { revalidateOnFocus: true }
-  );
+  const {
+    data: allAppointments,
+    isLoading: appointmentsLoading,
+    mutate,
+  } = useSWR(user ? ['appointments', user.uid] : null, appointmentsFetcher, {
+    revalidateOnFocus: true,
+  });
 
   useEffect(() => {
     if (!authLoading && !user) {
       router.push('/auth');
     }
-     if (!authLoading && role && role !== 'doctor') {
+    if (!authLoading && role && role !== 'doctor') {
       router.replace('/patient/dashboard');
     }
   }, [user, authLoading, role, router]);
-  
+
   const handleCompleteAppointment = async (appointmentId: string) => {
     const optimisticData = allAppointments?.filter(appt => appt.id !== appointmentId);
     
@@ -165,7 +165,7 @@ export default function DoctorDashboardPage() {
       </div>
     );
   }
-  
+
   const isProfileComplete =
     profile &&
     profile.specialization &&
@@ -173,37 +173,50 @@ export default function DoctorDashboardPage() {
     profile.experience &&
     profile.consultationFee;
 
-  const upcomingAppointments = (allAppointments || []).filter(
-    appt => appt.appointmentDate?.toDate() >= new Date() && appt.status === 'Confirmed'
-  ).sort((a,b) => a.appointmentDate.toDate().getTime() - b.appointmentDate.toDate().getTime());
-  
-  const nextAppointment = upcomingAppointments.length > 0 ? upcomingAppointments[0] : null;
+  const upcomingAppointments = (allAppointments || [])
+    .filter(
+      appt => appt.appointmentDate?.toDate() >= new Date() && appt.status === 'Confirmed'
+    )
+    .sort(
+      (a, b) =>
+        a.appointmentDate.toDate().getTime() - b.appointmentDate.toDate().getTime()
+    );
+
+  const nextAppointment =
+    upcomingAppointments.length > 0 ? upcomingAppointments[0] : null;
 
   const weeklyChartData = getWeeklyChartData(allAppointments);
-  
+
   const getRecentPatients = (): RecentPatient[] => {
     const uniquePatients = new Map<string, RecentPatient>();
-    
-    for (const appt of (allAppointments || [])) {
+
+    for (const appt of allAppointments || []) {
       if (!uniquePatients.has(appt.patientId) && uniquePatients.size < 5) {
-        uniquePatients.set(appt.patientId, { id: appt.patientId, name: appt.patientName, photoURL: appt.patientPhotoURL });
+        uniquePatients.set(appt.patientId, {
+          id: appt.patientId,
+          name: appt.patientName,
+          photoURL: appt.patientPhotoURL,
+        });
       }
     }
-    
+
     return Array.from(uniquePatients.values());
   };
 
   const recentPatients = getRecentPatients();
 
-  const isSameDay = (d1, d2) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
-  const todaysAppointmentsCount = upcomingAppointments.filter(appt => isSameDay(appt.appointmentDate.toDate(), new Date())).length;
+  const isSameDay = (d1, d2) =>
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate();
+  const todaysAppointmentsCount = upcomingAppointments.filter(appt =>
+    isSameDay(appt.appointmentDate.toDate(), new Date())
+  ).length;
 
   return (
     <div className="space-y-8">
       <div className="mb-10">
-        <h1 className="text-4xl font-bold font-headline">
-          Doctor Dashboard
-        </h1>
+        <h1 className="text-4xl font-bold font-headline">Doctor Dashboard</h1>
         <p className="mt-2 text-lg text-foreground/70">
           Welcome back, Dr. {user.displayName || 'User'}!
         </p>
@@ -211,88 +224,125 @@ export default function DoctorDashboardPage() {
 
       {profileLoading ? (
         <Skeleton className="h-24 w-full" />
-      ) : !isProfileComplete && (
-        <Alert variant="destructive" className="border-amber-500/50 text-amber-400 [&>svg]:text-amber-400">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle className="font-bold">
-            Complete Your Profile
-          </AlertTitle>
-          <AlertDescription className="flex items-center justify-between">
-            Please provide your professional details to start accepting appointments.
-            <Button asChild size="sm" className="ml-4">
-              <Link href="/doctor/profile">Update Profile</Link>
-            </Button>
-          </AlertDescription>
-        </Alert>
+      ) : (
+        !isProfileComplete && (
+          <Alert
+            variant="destructive"
+            className="border-amber-500/50 text-amber-400 [&>svg]:text-amber-400"
+          >
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle className="font-bold">Complete Your Profile</AlertTitle>
+            <AlertDescription className="flex items-center justify-between">
+              Please provide your professional details to start accepting
+              appointments.
+              <Button asChild size="sm" className="ml-4">
+                <Link href="/doctor/profile">Update Profile</Link>
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )
       )}
 
       {/* Primary Actions & Overview */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2">
-            {appointmentsLoading ? (
-                 <Card className="border-border/30 bg-gradient-to-br from-primary/10 to-background">
-                    <CardHeader><CardTitle className="font-headline">Next Appointment</CardTitle></CardHeader>
-                    <CardContent><Skeleton className="h-16 w-full" /></CardContent>
-                 </Card>
-            ) : nextAppointment ? (
-                <Card className="border-border/30 bg-gradient-to-br from-primary/10 to-background">
-                <CardHeader>
-                    <CardTitle className="font-headline">Next Appointment</CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                    <p className="text-2xl font-bold">
-                        {nextAppointment.patientName}
-                    </p>
-                    <p className="text-muted-foreground">
-                        Today at {nextAppointment.appointmentDate.toDate().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    </p>
-                    </div>
-                    <div className="flex rounded-md shadow-sm">
-                        <Button asChild size="lg" className="rounded-r-none" disabled={!isProfileComplete}>
-                            <Link href={`/doctor/video/${nextAppointment.id}`}>
-                                <Video className="mr-2 h-5 w-5" /> Join Call
-                            </Link>
-                        </Button>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button size="lg" className="rounded-l-none px-3" disabled={!isProfileComplete}>
-                                    <ChevronDown className="h-5 w-5" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onSelect={() => handleCompleteAppointment(nextAppointment.id)}>
-                                    <CheckCircle className="mr-2 h-4 w-4" />
-                                    Mark as Complete
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                    <Link href={`/doctor/patients/${nextAppointment.patientId}`}>
-                                        <User className="mr-2 h-4 w-4" />
-                                        View Patient Profile
-                                    </Link>
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
-                </CardContent>
-                </Card>
-            ) : (
-                <Card className="flex h-full min-h-[160px] items-center justify-center border-dashed">
-                    <div className="text-center">
-                        <p className="text-lg font-medium text-muted-foreground">No upcoming appointments</p>
-                        <p className="text-sm text-muted-foreground">Your schedule is clear for now.</p>
-                    </div>
-                </Card>
-            )}
+          {appointmentsLoading ? (
+            <Card className="border-border/30 bg-gradient-to-br from-primary/10 to-background">
+              <CardHeader>
+                <CardTitle className="font-headline">Next Appointment</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-16 w-full" />
+              </CardContent>
+            </Card>
+          ) : nextAppointment ? (
+            <Card className="border-border/30 bg-gradient-to-br from-primary/10 to-background">
+              <CardHeader>
+                <CardTitle className="font-headline">Next Appointment</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-2xl font-bold">{nextAppointment.patientName}</p>
+                  <p className="text-muted-foreground">
+                    Today at{' '}
+                    {nextAppointment.appointmentDate
+                      .toDate()
+                      .toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                  </p>
+                </div>
+                <div className="flex rounded-md shadow-sm">
+                  <Button
+                    asChild
+                    size="lg"
+                    className="rounded-r-none"
+                    disabled={!isProfileComplete}
+                  >
+                    <Link href={`/doctor/video/${nextAppointment.id}`}>
+                      <Video className="mr-2 h-5 w-5" /> Join Call
+                    </Link>
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="lg"
+                        className="rounded-l-none px-3"
+                        disabled={!isProfileComplete}
+                      >
+                        <ChevronDown className="h-5 w-5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onSelect={() => handleCompleteAppointment(nextAppointment.id)}
+                      >
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Mark as Complete
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/doctor/patients/${nextAppointment.patientId}`}>
+                          <User className="mr-2 h-4 w-4" />
+                          View Patient Profile
+                        </Link>
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="flex h-full min-h-[160px] items-center justify-center border-dashed">
+              <div className="text-center">
+                <p className="text-lg font-medium text-muted-foreground">
+                  No upcoming appointments
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Your schedule is clear for now.
+                </p>
+              </div>
+            </Card>
+          )}
         </div>
         <Card className="border-border/30 bg-background">
           <CardHeader>
             <CardTitle>Today's Schedule</CardTitle>
           </CardHeader>
           <CardContent>
-            {appointmentsLoading ? <Skeleton className="h-10 w-1/4" /> : <p className="text-4xl font-bold">{todaysAppointmentsCount}</p>}
+            {appointmentsLoading ? (
+              <Skeleton className="h-10 w-1/4" />
+            ) : (
+              <p className="text-4xl font-bold">{todaysAppointmentsCount}</p>
+            )}
             <p className="text-muted-foreground">Confirmed appointments today.</p>
-             <Button asChild size="sm" variant="outline" className="mt-4" disabled={!isProfileComplete}>
+            <Button
+              asChild
+              size="sm"
+              variant="outline"
+              className="mt-4"
+              disabled={!isProfileComplete}
+            >
               <Link href="/doctor/schedule">View Full Schedule</Link>
             </Button>
           </CardContent>
@@ -300,67 +350,113 @@ export default function DoctorDashboardPage() {
       </div>
 
       {/* Key Stats */}
-       <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
         <Card className="border-border/30 bg-secondary/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Patients</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-             {appointmentsLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{recentPatients.length}</div>}
-            <p className="text-xs text-muted-foreground">All-time consulted patients</p>
+            {appointmentsLoading ? (
+              <Skeleton className="h-8 w-1/2" />
+            ) : (
+              <div className="text-2xl font-bold">{recentPatients.length}</div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              All-time consulted patients
+            </p>
           </CardContent>
         </Card>
-         <Card className="border-border/30 bg-secondary/50">
+        <Card className="border-border/30 bg-secondary/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Upcoming</CardTitle>
             <Calendar className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-             {appointmentsLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{upcomingAppointments.length}</div>}
-            <p className="text-xs text-muted-foreground">Total confirmed appointments</p>
+            {appointmentsLoading ? (
+              <Skeleton className="h-8 w-1/2" />
+            ) : (
+              <div className="text-2xl font-bold">{upcomingAppointments.length}</div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Total confirmed appointments
+            </p>
           </CardContent>
         </Card>
-         <Card className="border-border/30 bg-secondary/50">
+        <Card className="border-border/30 bg-secondary/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Consultation Fee</CardTitle>
             <IndianRupee className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {profileLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">₹{profile?.consultationFee || 'N/A'}</div>}
+            {profileLoading ? (
+              <Skeleton className="h-8 w-1/2" />
+            ) : (
+              <div className="text-2xl font-bold">
+                ₹{profile?.consultationFee || 'N/A'}
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">Per consultation</p>
           </CardContent>
         </Card>
-         <Card className="border-border/30 bg-secondary/50">
+        <Card className="border-border/30 bg-secondary/50">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Experience</CardTitle>
             <Award className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {profileLoading ? <Skeleton className="h-8 w-1/2" /> : <div className="text-2xl font-bold">{profile?.experience || 'N/A'} yrs</div>}
-            <p className="text-xs text-muted-foreground">In {profile?.specialization || 'field'}</p>
+            {profileLoading ? (
+              <Skeleton className="h-8 w-1/2" />
+            ) : (
+              <div className="text-2xl font-bold">
+                {profile?.experience || 'N/A'} yrs
+              </div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              In {profile?.specialization || 'field'}
+            </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Main Content Area */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-5">
-        <Card className={`col-span-1 border-border/30 bg-background lg:col-span-3 ${!isProfileComplete && 'opacity-50'}`}>
+        <Card
+          className={`col-span-1 border-border/30 bg-background lg:col-span-3 ${
+            !isProfileComplete && 'opacity-50'
+          }`}
+        >
           <CardHeader>
             <CardTitle>Weekly Activity</CardTitle>
-            <p className="text-sm text-muted-foreground">Overview of appointments for the week.</p>
+            <p className="text-sm text-muted-foreground">
+              Overview of appointments for the week.
+            </p>
           </CardHeader>
           <CardContent>
-            {appointmentsLoading ? <Skeleton className="h-[350px] w-full" /> : <AppointmentsChart data={weeklyChartData} />}
+            {appointmentsLoading ? (
+              <Skeleton className="h-[350px] w-full" />
+            ) : (
+              <AppointmentsChart data={weeklyChartData} />
+            )}
           </CardContent>
         </Card>
         <Card className="col-span-1 border-border/30 bg-background lg:col-span-2">
           <CardHeader>
             <CardTitle>Recent Patients</CardTitle>
-             <p className="text-sm text-muted-foreground">Your 5 most recently consulted patients.</p>
+            <p className="text-sm text-muted-foreground">
+              Your 5 most recently consulted patients.
+            </p>
           </CardHeader>
           <CardContent>
-            {appointmentsLoading ? <div className="space-y-4"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : <RecentPatients patients={recentPatients}/>}
+            {appointmentsLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            ) : (
+              <RecentPatients patients={recentPatients} />
+            )}
           </CardContent>
         </Card>
       </div>

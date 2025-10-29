@@ -67,7 +67,8 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
     hour: '2-digit',
     minute: '2-digit',
   });
-  const isUpcoming = appointmentDate >= new Date() && appointment.status === 'Confirmed';
+  const isUpcoming =
+    appointmentDate >= new Date() && appointment.status === 'Confirmed';
 
   return (
     <Card className="border-border/30 bg-background">
@@ -133,28 +134,28 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
 };
 
 const AppointmentSkeleton = () => {
-    return (
-        <Card className="border-border/30 bg-background">
-            <CardHeader>
-                <div className="flex items-start justify-between">
-                    <div>
-                        <Skeleton className="h-7 w-40 mb-2"/>
-                        <Skeleton className="h-4 w-28"/>
-                    </div>
-                     <Skeleton className="h-6 w-24"/>
-                </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <div className="flex items-center gap-4">
-                     <Skeleton className="h-5 w-48"/>
-                </div>
-                <div className="flex gap-2">
-                     <Skeleton className="h-9 w-36"/>
-                </div>
-            </CardContent>
-        </Card>
-    );
-}
+  return (
+    <Card className="border-border/30 bg-background">
+      <CardHeader>
+        <div className="flex items-start justify-between">
+          <div>
+            <Skeleton className="mb-2 h-7 w-40" />
+            <Skeleton className="h-4 w-28" />
+          </div>
+          <Skeleton className="h-6 w-24" />
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-5 w-48" />
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-36" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
 export default function AppointmentsPage() {
   const { user, loading: authLoading } = useAuthState();
@@ -195,12 +196,12 @@ export default function AppointmentsPage() {
       <main className="flex-grow bg-secondary/30 py-12 md:py-20">
         <div className="container">
           <div className="mb-8">
-             <Button asChild variant="outline" size="sm" className="mb-6">
-                <Link href="/patient/dashboard">
-                    <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Dashboard
-                </Link>
-             </Button>
+            <Button asChild variant="outline" size="sm" className="mb-6">
+              <Link href="/patient/dashboard">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Dashboard
+              </Link>
+            </Button>
             <h1 className="text-4xl font-bold font-headline">My Appointments</h1>
             <p className="mt-2 text-lg text-foreground/70">
               Manage your upcoming and past consultations.
@@ -215,12 +216,12 @@ export default function AppointmentsPage() {
             <TabsContent value="upcoming">
               <div className="space-y-6">
                 {appointmentsLoading ? (
-                    <>
-                        <AppointmentSkeleton />
-                        <AppointmentSkeleton />
-                    </>
+                  <>
+                    <AppointmentSkeleton />
+                    <AppointmentSkeleton />
+                  </>
                 ) : upcomingAppointments.length > 0 ? (
-                  upcomingAppointments.map((appt) => (
+                  upcomingAppointments.map(appt => (
                     <AppointmentCard key={appt.id} appointment={appt} />
                   ))
                 ) : (
@@ -237,17 +238,17 @@ export default function AppointmentsPage() {
             </TabsContent>
             <TabsContent value="past">
               <div className="space-y-6">
-                 {appointmentsLoading ? (
-                    <>
-                        <AppointmentSkeleton />
-                        <AppointmentSkeleton />
-                    </>
+                {appointmentsLoading ? (
+                  <>
+                    <AppointmentSkeleton />
+                    <AppointmentSkeleton />
+                  </>
                 ) : pastAppointments.length > 0 ? (
-                  pastAppointments.map((appt) => (
+                  pastAppointments.map(appt => (
                     <AppointmentCard key={appt.id} appointment={appt} />
                   ))
                 ) : (
-                   <Card className="flex h-40 items-center justify-center border-dashed">
+                  <Card className="flex h-40 items-center justify-center border-dashed">
                     <p className="text-muted-foreground">
                       You have no past appointments.
                     </p>
