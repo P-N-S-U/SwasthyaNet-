@@ -31,6 +31,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { completeAppointment } from '@/app/actions/appointments';
 import { useToast } from '@/hooks/use-toast';
