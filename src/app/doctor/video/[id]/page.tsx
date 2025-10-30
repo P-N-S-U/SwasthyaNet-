@@ -15,7 +15,6 @@ import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import {
   hangup,
-  registerEventHandlers,
   toggleMute,
   toggleCamera,
   getCall,
@@ -57,25 +56,11 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
       router.push('/auth');
       return;
     }
-    
-    const handleCallConnected = () => {
-        setCallStatus('Connected');
-    }
-
-    const handleCallEnded = () => {
-      if (!localHangup.current) {
-        setCallStatus('Ended');
-      }
-    };
-
-    registerEventHandlers(
-      handleCallConnected,
-      handleCallEnded
-    );
 
     const initializeCall = async () => {
         try {
             await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'doctor');
+            setCallStatus('Connected');
         } catch (error: any) {
            console.error('Error initializing call:', error);
             setCallStatus('Failed');
@@ -89,13 +74,15 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
             setRemoteMuted(callData.patientMuted);
             setRemoteCameraOff(callData.patientCameraOff);
         } else if (!localHangup.current) {
-            handleCallEnded();
+            setCallStatus('Ended');
         }
     });
 
     // Cleanup function
     return () => {
       callUnsubscribe();
+      // Only hangup if the user is intentionally leaving the page
+      // This check is important to prevent premature hangups during re-renders
       if (localHangup.current) {
         hangup();
       }

@@ -15,7 +15,6 @@ import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import {
   hangup,
-  registerEventHandlers,
   toggleMute,
   toggleCamera,
   getCall,
@@ -58,21 +57,6 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
       return;
     }
 
-    const handleCallConnected = () => {
-        setCallStatus('Connected');
-    }
-    
-    const handleCallEnded = () => {
-      if (!localHangup.current) {
-        setCallStatus('Ended');
-      }
-    };
-
-    registerEventHandlers(
-      handleCallConnected,
-      handleCallEnded,
-    );
-
     const startCall = async () => {
       setCallStatus('Initializing');
       try {
@@ -91,8 +75,11 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
         if(callData) {
             setRemoteMuted(callData.doctorMuted);
             setRemoteCameraOff(callData.doctorCameraOff);
+            if(callData.answer) {
+              setCallStatus('Connected');
+            }
         } else if (!localHangup.current) {
-            handleCallEnded();
+            setCallStatus('Ended');
         }
     });
 

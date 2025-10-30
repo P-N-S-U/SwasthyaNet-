@@ -36,14 +36,6 @@ let onCallEndedCallback: (() => void) | null = null;
 
 let unsubscribes: Unsubscribe[] = [];
 
-export const registerEventHandlers = (
-  onConnected: () => void,
-  onEnded: () => void
-) => {
-  onCallConnectedCallback = onConnected;
-  onCallEndedCallback = onEnded;
-};
-
 export const setupLocalStream = async (localVideoRef: React.RefObject<HTMLVideoElement>) => {
     try {
         localStream = await navigator.mediaDevices.getUserMedia({
@@ -73,6 +65,14 @@ export const createOrJoinCall = async (
   await setupLocalStream(localVideoRef);
 
   pc = new RTCPeerConnection(servers);
+  const queuedCandidates: RTCIceCandidate[] = [];
+
+  pc.onicecandidate = event => {
+    if (event.candidate) {
+        const candidatesCollection = role === 'caller' ? collection(db, 'calls', callId!, 'offerCandidates') : collection(db, 'calls', callId!, 'answerCandidates');
+        addDoc(candidatesCollection, event.candidate.toJSON());
+    }
+  };
 
   localStream?.getTracks().forEach(track => {
     pc!.addTrack(track, localStream!);
@@ -85,7 +85,7 @@ export const createOrJoinCall = async (
     if (remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
     }
-    onCallConnectedCallback?.();
+    // onCallConnectedCallback?.();
   };
 
   const callDocRef = doc(db, 'calls', callId);
@@ -93,13 +93,6 @@ export const createOrJoinCall = async (
 
   const offerCandidatesCol = collection(callDocRef, 'offerCandidates');
   const answerCandidatesCol = collection(callDocRef, 'answerCandidates');
-
-  pc.onicecandidate = event => {
-    if (event.candidate) {
-      const candidatesCollection = role === 'caller' ? offerCandidatesCol : answerCandidatesCol;
-      addDoc(candidatesCollection, event.candidate.toJSON());
-    }
-  };
 
   if (!callDocSnap.exists()) {
     // This user is the first to join, they become the "caller"
@@ -116,7 +109,9 @@ export const createOrJoinCall = async (
       const data = snapshot.data();
       if (!pc?.currentRemoteDescription && data?.answer) {
         const answerDescription = new RTCSessionDescription(data.answer);
-        pc?.setRemoteDescription(answerDescription);
+        pc?.setRemoteDescription(answerDescription).then(() => {
+          queuedCandidates.forEach(candidate => pc?.addIceCandidate(candidate));
+        });
       }
     });
 
@@ -124,8 +119,12 @@ export const createOrJoinCall = async (
     const unsubAnswerCandidates = onSnapshot(answerCandidatesCol, (snapshot) => {
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
-          const candidate = new RTCIceCandidate(change.doc.data());
-          pc?.addIceCandidate(candidate);
+            const candidate = new RTCIceCandidate(change.doc.data());
+            if (pc?.currentRemoteDescription) {
+                pc.addIceCandidate(candidate);
+            } else {
+                queuedCandidates.push(candidate);
+            }
         }
       });
     });
@@ -136,7 +135,6 @@ export const createOrJoinCall = async (
     // The other user is already here, we are the "callee"
     role = 'callee';
 
-    // Get the offer and create an answer
     const callData = callDocSnap.data();
     if (callData.offer) {
         await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
@@ -157,25 +155,6 @@ export const createOrJoinCall = async (
     });
     unsubscribes.push(unsubOfferCandidates);
   }
-
-  // Common logic: listen for hangup (document deletion)
-  const unsubHangup = onSnapshot(callDocRef, (snapshot) => {
-      if (!snapshot.exists()) {
-        onCallEndedCallback?.();
-      }
-      if(snapshot.data()) {
-        const data = snapshot.data();
-        if (userType === 'doctor') {
-            // patientVideoMuted(data.patientMuted || false)
-            // patientCameraOff(data.patientCameraOff || false)
-        } else {
-            // doctorVideoMuted(data.doctorMuted || false)
-            // doctorCameraOff(data.doctorCameraOff || false)
-        }
-      }
-  });
-  unsubscribes.push(unsubHangup);
-
 };
 
 
@@ -197,19 +176,22 @@ export const hangup = async () => {
     remoteStream = null;
 
     if (callId) {
-        const callDoc = doc(db, 'calls', callId);
+        const callDocRef = doc(db, 'calls', callId);
         
         // Use a batch to delete the main doc and subcollections efficiently
-        const batch = writeBatch(db);
-        batch.delete(callDoc);
+        const callDocSnap = await getDoc(callDocRef);
+        if (callDocSnap.exists()) {
+            const batch = writeBatch(db);
         
-        const offerCandidates = await getDocs(collection(callDoc, 'offerCandidates'));
-        offerCandidates.forEach(candidate => batch.delete(candidate.ref));
+            const offerCandidates = await getDocs(collection(callDocRef, 'offerCandidates'));
+            offerCandidates.forEach(candidate => batch.delete(candidate.ref));
 
-        const answerCandidates = await getDocs(collection(callDoc, 'answerCandidates'));
-        answerCandidates.forEach(candidate => batch.delete(candidate.ref));
-
-        await batch.commit();
+            const answerCandidates = await getDocs(collection(callDocRef, 'answerCandidates'));
+            answerCandidates.forEach(candidate => batch.delete(candidate.ref));
+            
+            batch.delete(callDocRef);
+            await batch.commit();
+        }
     }
     
     callId = null;
@@ -223,7 +205,7 @@ export const toggleMute = async (isMuted: boolean, role: 'patient' | 'doctor') =
   if (callId && role) {
     const callDoc = doc(db, 'calls', callId);
     const field = role === 'patient' ? 'patientMuted' : 'doctorMuted';
-    updateDoc(callDoc, { [field]: isMuted });
+    await updateDoc(callDoc, { [field]: isMuted });
   }
 };
 
@@ -234,7 +216,7 @@ export const toggleCamera = async (isCameraOff: boolean, role: 'patient' | 'doct
   if (callId && role) {
     const callDoc = doc(db, 'calls', callId);
     const field = role === 'patient' ? 'patientCameraOff' : 'doctorCameraOff';
-    updateDoc(callDoc, { [field]: isCameraOff });
+    await updateDoc(callDoc, { [field]: isCameraOff });
   }
 };
 
