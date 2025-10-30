@@ -15,7 +15,6 @@ import { useRouter, useParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import {
   startCall,
-  hangup,
   endCall,
   toggleMute,
   toggleCamera,
@@ -68,6 +67,8 @@ export default function DoctorVideoCallPage() {
     setIsMuted(false);
     setIsCameraOff(false);
     setPatientJoined(false);
+    setRemoteMuted(false);
+    setRemoteCameraOff(false);
   }, [callId]);
   
   // When call ends, redirect back to the dashboard.
@@ -139,8 +140,11 @@ export default function DoctorVideoCallPage() {
              setHasCallEnded(true);
           }
         } else {
-            // Document deleted means the call is definitively over.
-            setHasCallEnded(true);
+            // A call can't have ended if the patient never joined.
+            // This prevents a race condition on new calls.
+            if (patientJoined) {
+                setHasCallEnded(true);
+            }
         }
       });
     }
@@ -148,15 +152,6 @@ export default function DoctorVideoCallPage() {
       if (unsubscribe) unsubscribe();
     };
   }, [callId, patientJoined, toast, hasCallEnded]);
-
-  // Cleanup on unmount or when callId changes.
-  useEffect(() => {
-    return () => {
-      if (pc) {
-        hangup(callId, 'doctor', pc);
-      }
-    };
-  }, [pc, callId]);
 
   const handleToggleMute = async () => {
     if (!pc) return;
@@ -216,7 +211,7 @@ export default function DoctorVideoCallPage() {
               <p className="mt-2 text-center text-sm">{getStatusText()}</p>
             </div>
           )}
-          {callStatus === 'Connected' && !patientJoined && (
+          {isCallInProgress && !patientJoined && (
              <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-background/80">
                  <Loader2 className="h-8 w-8 animate-spin" />
                  <p className="mt-2 text-center text-sm">Waiting for patient to join...</p>
@@ -273,7 +268,7 @@ export default function DoctorVideoCallPage() {
             ) : (
                 <div className="flex items-center gap-2">
                     <Loader2 className="h-5 w-5 animate-spin" />
-                    <p>Connecting...</p>
+                    <p>{getStatusText()}</p>
                 </div>
             )}
           </div>
@@ -282,3 +277,5 @@ export default function DoctorVideoCallPage() {
     </div>
   );
 }
+
+    
