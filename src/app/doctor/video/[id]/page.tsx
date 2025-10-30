@@ -10,7 +10,6 @@ import {
   VideoOff,
   Loader2,
   CheckCircle,
-  PlayCircle,
   AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -37,7 +36,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { completeAppointment } from '@/app/actions/appointments';
 import { Unsubscribe } from 'firebase/firestore';
 
 type CallStatus = 'Idle' | 'Starting' | 'Waiting' | 'Connected' | 'Reconnecting' | 'Ended';
@@ -61,8 +59,8 @@ export default function DoctorVideoCallPage() {
   const [patientJoined, setPatientJoined] = useState(false);
 
   // Memoize the start call function to avoid re-creation
-  const handleStartCall = useCallback(async () => {
-    if (!user || callStatus !== 'Idle') return;
+  const handleStartOrJoinCall = useCallback(async () => {
+    if (!user) return;
     setCallStatus('Starting');
     try {
       const newPc = await startCall(callId, localVideoRef, remoteVideoRef);
@@ -77,10 +75,10 @@ export default function DoctorVideoCallPage() {
           case 'disconnected':
           case 'failed':
             setCallStatus('Reconnecting');
-            // Reconnection is handled by the doctor re-clicking 'start'
+            // Allow user to manually try reconnecting by clicking the button again
             break;
           case 'closed':
-            setCallStatus('Idle');
+            setCallStatus('Idle'); // Or a new state like 'Disconnected'
             break;
         }
       };
@@ -89,7 +87,7 @@ export default function DoctorVideoCallPage() {
       setCallStatus('Idle');
       toast({ title: 'Error Starting Call', description: (error as Error).message, variant: 'destructive' });
     }
-  }, [user, callId, callStatus, toast]);
+  }, [user, callId, toast]);
 
   // Subscribe to call document updates
   useEffect(() => {
@@ -109,19 +107,22 @@ export default function DoctorVideoCallPage() {
           }
           setPatientJoined(patientIsPresent);
 
-          if (data.active === false) {
+          // If the doctor has ended the call, update status
+          if (data.active === false && callStatus !== 'Ended') {
             setCallStatus('Ended');
           }
         } else {
-           // If doc is deleted or doesn't exist, treat as ended.
-           setCallStatus('Ended');
+           // If doc is deleted (e.g., by appointment completion), treat as ended.
+           if (callStatus !== 'Ended') {
+             setCallStatus('Ended');
+           }
         }
       });
     }
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [callId, patientJoined, toast]);
+  }, [callId, patientJoined, toast, callStatus]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -133,32 +134,23 @@ export default function DoctorVideoCallPage() {
   }, [pc, callId]);
 
   const handleToggleMute = async () => {
+    if (!pc) return;
     const newMutedState = await toggleMute(callId, 'doctor');
     setIsMuted(newMutedState);
   };
 
   const handleToggleCamera = async () => {
+    if (!pc) return;
     const newCameraState = await toggleCamera(callId, 'doctor');
     setIsCameraOff(newCameraState);
   };
 
   const handleEndCall = async () => {
     await endCall(callId);
-    toast({ title: 'Call Ended', description: 'The consultation has been terminated.' });
+    toast({ title: 'Call Ended', description: 'The consultation has been terminated for this session.' });
     setCallStatus('Ended');
   };
 
-  const handleCompleteAppointment = async () => {
-    await endCall(callId); // End the live call first
-    const result = await completeAppointment(callId); // Then mark appointment as complete
-    if (result.error) {
-      toast({ title: 'Error', description: result.error, variant: 'destructive' });
-      router.push('/doctor/dashboard');
-    } else {
-      toast({ title: 'Appointment Completed', description: 'The session has been successfully marked as complete.' });
-      router.push('/doctor/dashboard');
-    }
-  };
 
   if (loading) {
     return (
@@ -187,9 +179,11 @@ export default function DoctorVideoCallPage() {
       case 'Reconnecting': return 'Connection lost. Attempting to reconnect...';
       case 'Waiting':
       case 'Idle':
-      default: return 'Waiting for patient to join...';
+      default: return 'Ready to start the call';
     }
   }
+
+  const isCallInProgress = callStatus === 'Connected' || callStatus === 'Starting' || callStatus === 'Reconnecting';
 
   return (
     <div className="flex h-screen flex-col items-center justify-center bg-black text-white p-4">
@@ -204,13 +198,13 @@ export default function DoctorVideoCallPage() {
             </div>
           )}
           <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-sm">Patient</div>
-          {callStatus !== 'Connected' && callStatus !== 'Idle' && (
+          {callStatus === 'Starting' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-background/80">
               <Loader2 className="h-8 w-8 animate-spin" />
               <p className="mt-2 text-center text-sm">{getStatusText()}</p>
             </div>
           )}
-          {!patientJoined && callStatus === 'Connected' && (
+          {callStatus === 'Connected' && !patientJoined && (
              <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-background/80">
                  <p className="mt-2 text-center text-sm">Waiting for patient to join...</p>
              </div>
@@ -233,12 +227,11 @@ export default function DoctorVideoCallPage() {
       <div className="fixed bottom-4 left-1/2 -translate-x-1/2">
         <Card className="bg-secondary/30 p-2 md:p-4">
           <div className="flex items-center justify-center gap-2 md:gap-4">
-             {callStatus === 'Idle' && (
-                 <Button onClick={handleStartCall} size="lg" className="rounded-full h-16 w-32">
-                     <PlayCircle className="mr-2 h-5 w-5" /> Start Call
+             {!isCallInProgress ? (
+                 <Button onClick={handleStartOrJoinCall} size="lg" className="rounded-full h-16 w-32">
+                     <Video className="mr-2 h-5 w-5" /> Start Call
                  </Button>
-             )}
-            {callStatus !== 'Idle' && (
+             ) : (
                 <>
                     <Button variant={isMuted ? 'destructive' : 'outline'} size="icon" className="rounded-full h-12 w-12 md:h-16 md:w-16" onClick={handleToggleMute}>
                         {isMuted ? <MicOff /> : <Mic />}
@@ -254,16 +247,15 @@ export default function DoctorVideoCallPage() {
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>End Consultation?</AlertDialogTitle>
+                          <AlertDialogTitle>End Video Call?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will permanently end the consultation for both you and the patient. You cannot rejoin after this.
+                            This will end the video session for both you and the patient. This will not mark the appointment as complete.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleCompleteAppointment}>
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            End and Complete
+                          <AlertDialogAction onClick={handleEndCall}>
+                            End Call
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>
