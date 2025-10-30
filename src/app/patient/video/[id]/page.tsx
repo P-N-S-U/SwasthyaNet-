@@ -54,7 +54,7 @@ export default function VideoCallPage() {
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [remoteMuted, setRemoteMuted] = useState(false);
   const [remoteCameraOff, setRemoteCameraOff] = useState(false);
-  const [isCallActive, setIsCallActive] = useState(false);
+  const [isCallActiveByDoctor, setIsCallActiveByDoctor] = useState(false);
 
   useEffect(() => {
     if (callStatus === 'Ended') {
@@ -70,18 +70,20 @@ export default function VideoCallPage() {
     let isMounted = true;
     let unsubscribe: Unsubscribe | null = null;
     
-    if (callId) {
+    if (callId && user) {
       unsubscribe = getCall(callId, (data) => {
         if (!isMounted) return;
 
-        if (data) {
-            setIsCallActive(data.active ?? false);
+        if (data && data.active) {
+            setIsCallActiveByDoctor(true);
             setRemoteMuted(data.doctorMuted ?? false);
             setRemoteCameraOff(data.doctorCameraOff ?? false);
         } else {
-            // Document was deleted by doctor ending the call
-            setIsCallActive(false);
-            if (callStatus === 'Connected') {
+            // Doctor hasn't joined or has ended the call
+            setIsCallActiveByDoctor(false);
+            if (pcRef.current) { // If we were in a call, it means it has ended.
+              hangup(pcRef.current, callId);
+              pcRef.current = null;
               setCallStatus('Ended');
             }
         }
@@ -92,10 +94,11 @@ export default function VideoCallPage() {
       isMounted = false;
       if (unsubscribe) unsubscribe();
     };
-  }, [callId, callStatus]);
+  }, [callId, user]);
   
   const handleJoinCall = useCallback(async () => {
-    if (!user || callStatus === 'Joining' || callStatus === 'Connected' || !localVideoRef.current || !remoteVideoRef.current) return;
+    if (!user || !isCallActiveByDoctor || callStatus === 'Joining' || callStatus === 'Connected') return;
+    
     setCallStatus('Joining');
     
     try {
@@ -103,27 +106,28 @@ export default function VideoCallPage() {
       pcRef.current = pc;
 
       pc.onconnectionstatechange = () => {
-        switch (pc.connectionState) {
-          case 'connected':
-            setCallStatus('Connected');
-            break;
-          case 'disconnected':
-          case 'failed':
-            setCallStatus('Reconnecting');
-            break;
-          case 'closed':
-            setCallStatus('Waiting');
-            pcRef.current = null;
-            break;
+        if (pcRef.current) {
+            switch (pcRef.current.connectionState) {
+            case 'connected':
+                setCallStatus('Connected');
+                break;
+            case 'disconnected':
+            case 'failed':
+                setCallStatus('Reconnecting');
+                break;
+            case 'closed':
+                setCallStatus('Ended');
+                break;
+            }
         }
       };
 
     } catch (error) {
       console.error('Error joining call:', error);
-      setCallStatus('Waiting');
+      setCallStatus('Failed');
       toast({ title: 'Error Joining Call', description: (error as Error).message, variant: 'destructive' });
     }
-  }, [user, callId, callStatus, toast]);
+  }, [user, callId, isCallActiveByDoctor, callStatus, toast]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -154,11 +158,13 @@ export default function VideoCallPage() {
       await hangup(pcRef.current, callId);
       pcRef.current = null;
     }
-    setCallStatus('Waiting');
-    toast({ title: 'You left the call', description: 'You can rejoin anytime as long as the consultation is active.' });
+    // We don't set status to 'Ended' because the doctor might still be there.
+    // We just disconnect the patient.
+    setCallStatus('Waiting'); 
+    toast({ title: 'You left the call', description: 'You can rejoin as long as the consultation is active.' });
   };
 
-  if (loading) {
+  if (loading || !user) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-black text-white">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -168,13 +174,13 @@ export default function VideoCallPage() {
   }
 
   const getStatusText = () => {
-    switch (callStatus) {
-      case 'Joining': return 'Joining call...';
-      case 'Connected': return 'Connected';
-      case 'Reconnecting': return 'Connection lost. Please try rejoining.';
-      case 'Waiting':
-      default: return 'Ready to join call';
-    }
+    if (callStatus === 'Failed') return 'Failed to connect.';
+    if (callStatus === 'Reconnecting') return 'Connection lost. Reconnecting...';
+    if (!isCallActiveByDoctor) return 'Waiting for doctor to join...';
+    if (callStatus === 'Waiting') return 'Ready to join.';
+    if (callStatus === 'Joining') return 'Joining call...';
+    if (callStatus === 'Connected') return 'Connected';
+    return '...';
   }
 
   const isCallInProgress = callStatus === 'Connected' || callStatus === 'Joining';
@@ -185,15 +191,16 @@ export default function VideoCallPage() {
         {/* Remote Video */}
         <div className="relative aspect-video w-full rounded-md bg-secondary">
           <video ref={remoteVideoRef} className="h-full w-full rounded-md object-cover" autoPlay playsInline />
-          {(remoteMuted || remoteCameraOff) && (
+          {(remoteMuted || remoteCameraOff) && isCallInProgress && (
             <div className="absolute inset-0 flex items-center justify-center gap-4 rounded-md bg-black/50">
               {remoteMuted && <MicOff className="h-6 w-6 text-white" />}
               {remoteCameraOff && <VideoOff className="h-6 w-6 text-white" />}
             </div>
           )}
           <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-sm">Doctor</div>
-          {callStatus !== 'Connected' && (
+          {!isCallInProgress && (
             <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-background/80">
+               { callStatus === 'Joining' ? <Loader2 className="h-8 w-8 animate-spin" /> : null}
               <p className="mt-2 text-center text-sm">{getStatusText()}</p>
             </div>
           )}
@@ -202,7 +209,7 @@ export default function VideoCallPage() {
         {/* Local Video */}
         <div className="absolute bottom-20 right-4 h-32 w-24 md:relative md:bottom-auto md:right-auto md:h-auto md:w-full rounded-md bg-secondary aspect-video">
           <video ref={localVideoRef} className="h-full w-full rounded-md object-cover [-webkit-transform:scaleX(-1)] [transform:scaleX(-1)]" autoPlay playsInline muted />
-          {(isMuted || isCameraOff) && (
+          {(isMuted || isCameraOff) && isCallInProgress && (
             <div className="absolute inset-0 flex items-center justify-center gap-4 rounded-md bg-black/50">
               {isMuted && <MicOff className="h-6 w-6 text-white" />}
               {isCameraOff && <VideoOff className="h-6 w-6 text-white" />}
@@ -215,7 +222,7 @@ export default function VideoCallPage() {
         <Card className="bg-secondary/30 p-2 md:p-4">
           <div className="flex items-center justify-center gap-2 md:gap-4">
             {!isCallInProgress ? (
-                <Button onClick={handleJoinCall} size="lg" className="rounded-full h-16 w-32" disabled={!isCallActive || callStatus === 'Joining'}>
+                <Button onClick={handleJoinCall} size="lg" className="rounded-full h-16 w-32" disabled={!isCallActiveByDoctor || callStatus === 'Joining'}>
                     {callStatus === 'Joining' ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Video className="mr-2 h-5 w-5" />}
                     Join Call
                 </Button>
@@ -250,7 +257,7 @@ export default function VideoCallPage() {
             )}
           </div>
         </Card>
-        {!isCallActive && callStatus === 'Waiting' && (
+        {!isCallActiveByDoctor && callStatus === 'Waiting' && (
              <div className="mt-4 text-center text-sm text-amber-400 flex items-center justify-center gap-2">
                  <AlertTriangle className="h-4 w-4" /> Waiting for the doctor to start the consultation.
              </div>
