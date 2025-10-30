@@ -83,7 +83,7 @@ export const createOrJoinCall = async (
         await pc.setLocalDescription(offerDescription);
         
         const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
-        await setDoc(callDocRef, { offer, answer: deleteField() }); // Overwrite with fresh offer
+        await setDoc(callDocRef, { offer, answer: deleteField() }, { merge: true }); // Overwrite with fresh offer
 
         const answerUnsubscribe = onSnapshot(callDocRef, (snapshot) => {
             const data = snapshot.data();
