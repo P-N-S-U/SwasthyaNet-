@@ -10,7 +10,6 @@ import {
   getDoc,
   writeBatch,
   getDocs,
-  deleteDoc,
   setDoc,
   Unsubscribe,
 } from 'firebase/firestore';
@@ -25,213 +24,173 @@ const servers = {
   iceCandidatePoolSize: 10,
 };
 
-/**
- * DOCTOR-ONLY: Starts the consultation by creating the call document and offer.
- * @param callId The ID of the consultation.
- * @param localVideoRef Ref to the local video element.
- * @param remoteVideoRef Ref to the remote video element.
- */
-export const startCall = async (
-    callId: string,
-    localVideoRef: React.RefObject<HTMLVideoElement>,
-    remoteVideoRef: React.RefObject<HTMLVideoElement>
-) => {
-    const pc = new RTCPeerConnection(servers);
-    const callDocRef = doc(db, 'calls', callId);
+let localStream: MediaStream | null = null;
+let remoteStream: MediaStream | null = null;
+
+async function setupStreams(
+  localVideoRef: React.RefObject<HTMLVideoElement>,
+  remoteVideoRef: React.RefObject<HTMLVideoElement>
+) {
+  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  remoteStream = new MediaStream();
+
+  if (localVideoRef.current) {
+    localVideoRef.current.srcObject = localStream;
+  }
+  if (remoteVideoRef.current) {
+    remoteVideoRef.current.srcObject = remoteStream;
+  }
+}
+
+export const createOrJoinCall = async (
+  callId: string,
+  localVideoRef: React.RefObject<HTMLVideoElement>,
+  remoteVideoRef: React.RefObject<HTMLVideoElement>,
+  role: 'doctor' | 'patient'
+): Promise<RTCPeerConnection> => {
+  const pc = new RTCPeerConnection(servers);
+  const callDocRef = doc(db, 'calls', callId);
+  
+  await setupStreams(localVideoRef, remoteVideoRef);
+
+  localStream?.getTracks().forEach(track => {
+    pc.addTrack(track, localStream!);
+  });
+
+  pc.ontrack = event => {
+    event.streams[0].getTracks().forEach(track => {
+      remoteStream?.addTrack(track);
+    });
+  };
+
+  if (role === 'doctor') {
     const offerCandidates = collection(callDocRef, 'offerCandidates');
     const answerCandidates = collection(callDocRef, 'answerCandidates');
-
-    // 1. Get media devices and set up streams
-    const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    const remoteStream = new MediaStream();
-
-    localVideoRef.current!.srcObject = localStream;
-    remoteVideoRef.current!.srcObject = remoteStream;
-
-    // 2. Push tracks to connection
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-    // 3. Listen for remote tracks
-    pc.ontrack = event => {
-        event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
-    };
-
-    // 4. Clean up any previous session data aggressively
-    const answerCandidatesSnapshot = await getDocs(answerCandidates);
-    const offerCandidatesSnapshot = await getDocs(offerCandidates);
-    const cleanupBatch = writeBatch(db);
-    answerCandidatesSnapshot.forEach(doc => cleanupBatch.delete(doc.ref));
-    offerCandidatesSnapshot.forEach(doc => cleanupBatch.delete(doc.ref));
-    await cleanupBatch.commit();
     
+    // Clean up previous candidates
+    const [offerSnapshot, answerSnapshot] = await Promise.all([getDocs(offerCandidates), getDocs(answerCandidates)]);
+    const batch = writeBatch(db);
+    offerSnapshot.forEach(doc => batch.delete(doc.ref));
+    answerSnapshot.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
 
-    // 5. Generate and set offer
-    pc.onicecandidate = async (event) => {
-        if (event.candidate) {
-            await addDoc(offerCandidates, event.candidate.toJSON());
-        }
+    pc.onicecandidate = event => {
+      event.candidate && addDoc(offerCandidates, event.candidate.toJSON());
     };
 
     const offerDescription = await pc.createOffer();
     await pc.setLocalDescription(offerDescription);
 
     const offer = {
-        sdp: offerDescription.sdp,
-        type: offerDescription.type,
+      sdp: offerDescription.sdp,
+      type: offerDescription.type,
     };
 
-    // Create/update the call document with the offer
-    await setDoc(callDocRef, {
-        offer,
-        active: true,
-        startedBy: 'doctor',
-        participants: { doctor: true, patient: false },
-    }, { merge: true });
+    await setDoc(callDocRef, { offer, active: true, doctorMuted: false, doctorCameraOff: false }, { merge: true });
 
-    // 6. Listen for the patient's answer
-    onSnapshot(callDocRef, (snapshot) => {
-        const data = snapshot.data();
-        if (pc && !pc.currentRemoteDescription && data?.answer) {
-            const answerDescription = new RTCSessionDescription(data.answer);
-            pc.setRemoteDescription(answerDescription);
+    onSnapshot(callDocRef, snapshot => {
+      const data = snapshot.data();
+      if (!pc.currentRemoteDescription && data?.answer) {
+        const answerDescription = new RTCSessionDescription(data.answer);
+        pc.setRemoteDescription(answerDescription);
+      }
+    });
+
+    onSnapshot(answerCandidates, snapshot => {
+      snapshot.docChanges().forEach(change => {
+        if (change.type === 'added') {
+          const candidate = new RTCIceCandidate(change.doc.data());
+          pc.addIceCandidate(candidate);
         }
+      });
     });
 
-    // 7. Listen for answer candidates from the patient
-    onSnapshot(answerCandidates, (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added') {
-                const candidate = new RTCIceCandidate(change.doc.data());
-                pc.addIceCandidate(candidate);
-            }
-        });
-    });
-
-    return { pc, localStream };
-}
-
-/**
- * PATIENT-ONLY: Joins an existing call started by the doctor.
- * @param callId The ID of the consultation.
- * @param localVideoRef Ref to the local video element.
- * @param remoteVideoRef Ref to the remote video element.
- */
-export const joinCall = async (
-    callId: string,
-    localVideoRef: React.RefObject<HTMLVideoElement>,
-    remoteVideoRef: React.RefObject<HTMLVideoElement>
-) => {
-    const pc = new RTCPeerConnection(servers);
-    const callDocRef = doc(db, 'calls', callId);
-    const offerCandidates = collection(callDocRef, 'offerCandidates');
-    const answerCandidates = collection(callDocRef, 'answerCandidates');
-
-    // 1. Get media devices and set up streams
-    const localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    const remoteStream = new MediaStream();
-    localVideoRef.current!.srcObject = localStream;
-    remoteVideoRef.current!.srcObject = remoteStream;
-
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-    pc.ontrack = event => {
-        event.streams[0].getTracks().forEach(track => remoteStream.addTrack(track));
-    };
-
-    // 2. Get the doctor's offer from Firestore
+  } else if (role === 'patient') {
     const callDoc = await getDoc(callDocRef);
     if (!callDoc.exists() || !callDoc.data().offer) {
-        throw new Error("Doctor has not started the call.");
+        throw new Error("Doctor has not started the call yet.");
     }
-    const offerDescription = callDoc.data().offer;
-    await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
 
-    // 3. Create and set the answer
+    pc.onicecandidate = event => {
+        event.candidate && addDoc(collection(callDocRef, 'answerCandidates'), event.candidate.toJSON());
+    };
+
+    await pc.setRemoteDescription(new RTCSessionDescription(callDoc.data().offer));
+    
     const answerDescription = await pc.createAnswer();
     await pc.setLocalDescription(answerDescription);
 
     const answer = {
-        type: answerDescription.type,
-        sdp: answerDescription.sdp,
+      type: answerDescription.type,
+      sdp: answerDescription.sdp,
     };
-    await updateDoc(callDocRef, { answer, 'participants.patient': true });
+
+    await updateDoc(callDocRef, { answer });
     
-    // 4. Send ICE candidates to the doctor
-    pc.onicecandidate = async (event) => {
-        if (event.candidate) {
-            await addDoc(answerCandidates, event.candidate.toJSON());
-        }
-    };
-    
-    // 5. Listen for ICE candidates from the doctor
-    onSnapshot(offerCandidates, (snapshot) => {
+    onSnapshot(collection(callDocRef, 'offerCandidates'), (snapshot) => {
         snapshot.docChanges().forEach((change) => {
             if (change.type === 'added') {
-                const candidate = new RTCIceCandidate(change.doc.data());
-                pc.addIceCandidate(candidate);
+                pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
             }
         });
     });
+  }
 
-    return { pc, localStream };
-}
-
-/**
- * Gracefully hangs up the call for the current user, updating their presence.
- * @param pc The RTCPeerConnection instance.
- * @param callId The ID of the consultation.
- * @param role 'doctor' or 'patient'.
- */
-export const hangup = async (pc: RTCPeerConnection, callId: string, role: 'doctor' | 'patient') => {
-    pc.getSenders().forEach(sender => {
-        if (sender.track) {
-            sender.track.stop();
-        }
-    });
-    pc.close();
-    
-    const callDocRef = doc(db, 'calls', callId);
-    if ((await getDoc(callDocRef)).exists()) {
-        const participantField = `participants.${role}`;
-        await updateDoc(callDocRef, { [participantField]: false });
-    }
+  return pc;
 };
 
-/**
- * DOCTOR-ONLY: Ends the consultation for all participants by deleting the call document.
- * This is a definitive end to the session.
- * @param callId The ID of the consultation.
- */
-export const endCall = async (callId: string) => {
-    const callDocRef = doc(db, 'calls', callId);
-    if (!(await getDoc(callDocRef)).exists()) return;
-    
-    // Clean up subcollections first
-    const offerCandidates = collection(callDocRef, 'offerCandidates');
-    const answerCandidates = collection(callDocRef, 'answerCandidates');
-    
-    const offerSnapshot = await getDocs(offerCandidates);
-    const answerSnapshot = await getDocs(answerCandidates);
 
-    const deleteBatch = writeBatch(db);
-    offerSnapshot.forEach(doc => deleteBatch.delete(doc.ref));
-    answerSnapshot.forEach(doc => deleteBatch.delete(doc.ref));
-    
-    // Finally, delete the main call document
-    deleteBatch.delete(callDocRef);
-    
-    await deleteBatch.commit();
-};
-
-/**
- * Subscribes to real-time updates on the call document.
- * @param callId The ID of the consultation.
- * @param callback The function to call with the updated data.
- * @returns An unsubscribe function.
- */
-export const onCallUpdate = (callId: string, callback: (data: any | null) => void): Unsubscribe => {
-  const callDoc = doc(db, 'calls', callId);
-  return onSnapshot(callDoc, snapshot => {
-    callback(snapshot.data() ?? null);
+export const hangup = async (pc: RTCPeerConnection | null, callId?: string) => {
+  if (!pc) return;
+  
+  pc.getSenders().forEach(sender => {
+    sender.track?.stop();
   });
+  pc.close();
+  
+  // Clean up local stream tracks
+  localStream?.getTracks().forEach(track => track.stop());
+  localStream = null;
+  remoteStream = null;
+
+  if (callId) {
+    const callDocRef = doc(db, 'calls', callId);
+    const callDoc = await getDoc(callDocRef);
+    if (callDoc.exists()) {
+       // Reset the call document for potential reconnections, but keep it active
+       await updateDoc(callDocRef, {
+           answer: null, // Clear the answer so a new one can be created
+       });
+       const answerCandidates = collection(callDocRef, 'answerCandidates');
+       const answerSnapshot = await getDocs(answerCandidates);
+       const batch = writeBatch(db);
+       answerSnapshot.forEach(doc => batch.delete(doc.ref));
+       await batch.commit();
+    }
+  }
+};
+
+export const getCall = (callId: string, callback: (data: any) => void): Unsubscribe => {
+    const callDocRef = doc(db, 'calls', callId);
+    return onSnapshot(callDocRef, (snapshot) => {
+        callback(snapshot.data());
+    });
+};
+
+export const toggleMute = (isMuted: boolean, callId: string, role: 'doctor' | 'patient') => {
+    localStream?.getAudioTracks().forEach(track => {
+        track.enabled = !isMuted;
+    });
+    const callDocRef = doc(db, 'calls', callId);
+    const field = role === 'doctor' ? 'doctorMuted' : 'patientMuted';
+    updateDoc(callDocRef, { [field]: isMuted });
+};
+
+export const toggleCamera = (isCameraOff: boolean, callId: string, role: 'doctor' | 'patient') => {
+    localStream?.getVideoTracks().forEach(track => {
+        track.enabled = !isCameraOff;
+    });
+    const callDocRef = doc(db, 'calls', callId);
+    const field = role === 'doctor' ? 'doctorCameraOff' : 'patientCameraOff';
+    updateDoc(callDocRef, { [field]: isCameraOff });
 };
