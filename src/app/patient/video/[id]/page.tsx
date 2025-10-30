@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -31,6 +32,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Unsubscribe } from 'firebase/firestore';
@@ -257,7 +259,7 @@ export default function VideoCallPage() {
           </div>
         </Card>
         {!isCallActive && callStatus === 'Waiting' && (
-             <div className="mt-4 text-center text-sm text-amber-400 flex items-center gap-2">
+             <div className="mt-4 text-center text-sm text-amber-400 flex items-center justify-center gap-2">
                  <AlertTriangle className="h-4 w-4" /> Waiting for the doctor to start the consultation.
              </div>
         )}
@@ -265,3 +267,5 @@ export default function VideoCallPage() {
     </div>
   );
 }
+
+    
