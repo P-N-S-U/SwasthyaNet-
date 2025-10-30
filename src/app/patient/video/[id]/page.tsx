@@ -9,7 +9,6 @@ import {
   Video,
   VideoOff,
   Loader2,
-  CheckCircle,
   AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -117,7 +116,7 @@ export default function VideoCallPage() {
   }, [callId, doctorJoined, toast, isCallActive, callStatus]);
   
   const handleJoinCall = useCallback(async () => {
-    if (!user || callStatus === 'Joining' || callStatus === 'Connected') return;
+    if (!user || callStatus === 'Joining' || callStatus === 'Connected' || !localVideoRef.current || !remoteVideoRef.current) return;
     setCallStatus('Joining');
     try {
       const newPc = await joinCall(callId, localVideoRef, remoteVideoRef);
@@ -156,13 +155,13 @@ export default function VideoCallPage() {
 
   const handleToggleMute = async () => {
     if (!pc) return;
-    const newMutedState = await toggleMute(callId, 'patient');
+    const newMutedState = await toggleMute(pc, callId, 'patient');
     setIsMuted(newMutedState);
   };
 
   const handleToggleCamera = async () => {
     if (!pc) return;
-    const newCameraState = await toggleCamera(callId, 'patient');
+    const newCameraState = await toggleCamera(pc, callId, 'patient');
     setIsCameraOff(newCameraState);
   };
 
