@@ -118,8 +118,14 @@ export function PharmacyFinder() {
           const data = await response.json();
           
           if (!data.elements || data.elements.length === 0) {
+            console.log("[PharmacyFinder] No elements found in Overpass response.");
             setPharmacies([]);
           } else {
+            console.log(`[PharmacyFinder] Found ${data.elements.length} elements. Processing...`);
+            data.elements.forEach((element: any, index: number) => {
+              console.log(`[PharmacyFinder] Element ${index + 1}:`, element);
+            });
+
             const locationsWithDistance = data.elements
               .map((p: any) => {
                 const location = p.type === 'node' ? { lat: p.lat, lon: p.lon } : { lat: p.center.lat, lon: p.center.lon };
