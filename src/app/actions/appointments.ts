@@ -110,6 +110,8 @@ export async function completeAppointment(appointmentId: string) {
         // 2. Delete the call document and its subcollections if it exists
         const callDoc = await callRef.get();
         if (callDoc.exists) {
+            // Firestore Admin SDK does not have a native recursive delete.
+            // We must manually delete subcollections.
             const offerCandidatesRef = callRef.collection('offerCandidates');
             const answerCandidatesRef = callRef.collection('answerCandidates');
 

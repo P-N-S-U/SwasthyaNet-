@@ -87,8 +87,14 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
               setCallStatus('Connected');
             }
         } else if (hasConnected) {
-            // Document deleted, call is over
+            // Document deleted, call is over for good.
             setCallStatus('Ended');
+            // This is a definitive end, so we can push the user out.
+            toast({
+                title: "Call Finished",
+                description: "The appointment has been completed.",
+            });
+            router.push('/doctor/dashboard');
         }
     });
 
@@ -100,7 +106,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
       }
       hangup();
     };
-  }, [callId, router, user, loading]);
+  }, [callId, router, user, loading, toast]);
 
   const handleToggleMute = () => {
     if (!user) return;
@@ -122,7 +128,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   };
 
   const handleCompleteAppointment = async () => {
-    hangup();
+    hangup(); // First, hangup locally
     toast({
         title: 'Completing Appointment...',
         description: 'Please wait while we finalize everything.',
@@ -134,13 +140,16 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
             description: result.error,
             variant: 'destructive'
         });
+        // If completion fails, still redirect to dashboard.
+        // The call is already hung up locally.
         router.push('/doctor/dashboard');
     } else {
+        // The useEffect's onSnapshot will handle the redirect
+        // once the call document is deleted.
         toast({
             title: 'Appointment Completed',
             description: 'The appointment has been successfully marked as complete.',
         });
-        router.push('/doctor/dashboard');
     }
   };
 
