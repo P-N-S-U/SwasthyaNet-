@@ -11,7 +11,6 @@ import {
   Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import {
@@ -41,7 +40,6 @@ type CallStatus = 'Joining' | 'Connected' | 'Ended' | 'Failed';
 
 export default function DoctorVideoCallPage({ params }: { params: { id: string } }) {
   const router = useRouter();
-  const { toast } = useToast();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   
@@ -57,7 +55,6 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const hasAnswered = useRef(false);
-  const localHangup = useRef(false);
 
   useEffect(() => {
     if (loading) return;
@@ -70,12 +67,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
     
 
     const handleCallEnded = () => {
-        if (localHangup.current) {
-            setCallStatus('Ended');
-        } else {
-            toast({ title: 'Call Ended', description: 'The patient has left the call.' });
-            setCallStatus('Ended');
-        }
+      setCallStatus('Ended');
     };
 
     registerEventHandlers(
@@ -106,11 +98,6 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
                         await answerCall(callId, pcRef.current);
                     } catch (error: any) {
                        console.error('Error answering call:', error);
-                        toast({
-                            variant: 'destructive',
-                            title: 'Join Failed',
-                            description: error.message || 'Could not answer the video call.',
-                        });
                         setCallStatus('Failed');
                     }
                 }
@@ -118,18 +105,13 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
                 if(callData) {
                     setRemoteMuted(callData.patientMuted);
                     setRemoteCameraOff(callData.patientCameraOff);
-                } else {
+                } else if (pcRef.current && pcRef.current.signalingState !== 'closed') {
                     handleCallEnded();
                 }
             });
 
         } catch (error: any) {
             console.error('Error setting up streams:', error);
-            toast({
-              variant: 'destructive',
-              title: 'Setup Failed',
-              description: error.message || 'Could not set up video/audio streams.',
-            });
             setCallStatus('Failed');
         }
     };
@@ -146,7 +128,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
         localStreamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, [callId, router, toast, user, loading]);
+  }, [callId, router, user, loading]);
 
   const handleToggleMute = () => {
     if (!user || !pcRef.current) return;
@@ -164,7 +146,6 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
   const endCall = () => {
     // Just hangup locally and go back to dashboard. Does not complete the appointment.
-    localHangup.current = true;
     hangup(pcRef.current);
     router.push('/doctor/dashboard');
   };
