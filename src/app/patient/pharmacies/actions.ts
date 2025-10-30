@@ -23,13 +23,7 @@ export async function findNearbyPharmacies(location: Location | null) {
   const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radius}&type=${type}&key=${apiKey}`;
 
   try {
-    console.log(`[Google Places API] Fetching URL: ${url.replace(apiKey, 'REDACTED')}`);
-    const response = await fetch(url, {
-        headers: {
-            'User-Agent': 'SwasthyaNet/1.0 (Web)',
-        }
-    });
-
+    const response = await fetch(url);
     const data = await response.json();
     
     if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
@@ -45,7 +39,7 @@ export async function findNearbyPharmacies(location: Location | null) {
         address: p.vicinity,
     }));
     
-    console.log(`[Google Places API] Found ${pharmacies.length} pharmacies.`);
+    console.log(`[Server Action] Found ${pharmacies.length} pharmacies.`);
     return { data: pharmacies };
 
   } catch (e: any) {

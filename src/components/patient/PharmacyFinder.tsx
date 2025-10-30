@@ -19,7 +19,7 @@ interface Pharmacy {
   id: string;
   name: string;
   lat: number;
-  lng: number; // Changed from lon to lng to match Google API
+  lng: number;
   address: string;
   distance?: number;
 }
@@ -45,7 +45,6 @@ export function PharmacyFinder() {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           };
-          console.log('[PharmacyFinder] User location found:', location);
           setUserLocation(location);
           setLoadingLocation(false);
         },
@@ -68,22 +67,20 @@ export function PharmacyFinder() {
         setIsFetchingPharmacies(true);
         setError(null);
         
-        console.log('[PharmacyFinder] Calling server action to find pharmacies.');
         const result = await findNearbyPharmacies(userLocation);
 
         if (result.error) {
-            console.error('[PharmacyFinder] Error from server action:', result.error);
             setError(result.error);
             setPharmacies([]);
         } else if (result.data) {
-            console.log('[PharmacyFinder] Received data from server action:', result.data);
             const locationsWithDistance = result.data
               .map(p => ({
                   ...p,
                   distance: haversineDistance(userLocation, { lat: p.lat, lng: p.lng }),
               }))
               .sort((a, b) => (a.distance || 0) - (b.distance || 0));
-            console.log('[PharmacyFinder] Processed and sorted pharmacies:', locationsWithDistance);
+            
+            console.log("[PharmacyFinder] Final processed data for rendering:", locationsWithDistance);
             setPharmacies(locationsWithDistance);
         }
         setIsFetchingPharmacies(false);
@@ -159,9 +156,9 @@ export function PharmacyFinder() {
                     <div className="max-w-[70%]">
                       <p
                         className="truncate font-semibold"
-                        title={pharmacy.name || 'Unnamed Location'}
+                        title={pharmacy.name}
                       >
-                        {pharmacy.name || 'Unnamed Pharmacy'}
+                        {pharmacy.name}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {pharmacy.distance?.toFixed(2)} km away

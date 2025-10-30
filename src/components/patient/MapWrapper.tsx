@@ -50,7 +50,6 @@ const UserMarker = ({ userLocation }: any) => {
 }
 
 export default function MapWrapper({ userLocation, pharmacies }: any) {
-  console.log('[MapWrapper] Rendering with received props:', { userLocation, pharmacies });
   return (
     <div id="map-container" className="h-full w-full rounded-md z-0">
       <MapContainer
@@ -64,7 +63,7 @@ export default function MapWrapper({ userLocation, pharmacies }: any) {
         {pharmacies?.map((p: any) => (
           <Marker key={p.id} position={[p.lat, p.lng]}>
             <Popup>
-              <b>{p.name || "Unnamed Pharmacy"}</b>
+              <b>{p.name}</b>
               <br />
               {p.address}
               <br/>
