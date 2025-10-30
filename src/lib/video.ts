@@ -1,3 +1,4 @@
+
 'use client';
 
 import { db } from './firebase/firebase';
@@ -13,6 +14,7 @@ import {
   writeBatch,
   getDocs,
   deleteField,
+  serverTimestamp,
 } from 'firebase/firestore';
 
 const servers = {
@@ -53,7 +55,7 @@ export const createOrJoinCall = async (
         localVideoRef.current.srcObject = localStream;
     }
     
-    // 2. Setup remote media - IMPORTANT: Create fresh MediaStream for this connection
+    // 2. Setup remote media - Create fresh MediaStream
     remoteStream = new MediaStream();
     if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = remoteStream;
@@ -66,6 +68,7 @@ export const createOrJoinCall = async (
 
     // 4. Pull tracks from remote stream, add to video stream
     pc.ontrack = event => {
+        console.log('Received remote track:', event.track.kind);
         event.streams[0].getTracks().forEach(track => {
             remoteStream?.addTrack(track);
         });
@@ -77,40 +80,60 @@ export const createOrJoinCall = async (
 
     const callDocSnap = await getDoc(callDocRef);
     const callDocExists = callDocSnap.exists();
-    const existingOffer = callDocExists && callDocSnap.data().offer;
+    const callData = callDocSnap.data();
+    const existingOffer = callDocExists && callData?.offer;
 
     if (!existingOffer) {
         // === This user is the CALLER (first to join) ===
+        console.log('Creating new offer as caller');
         
         // Clear old candidates
         await deleteSubcollection(offerCandidatesCollection);
         await deleteSubcollection(answerCandidatesCollection);
         
         pc.onicecandidate = event => {
-            event.candidate && addDoc(offerCandidatesCollection, event.candidate.toJSON());
+            if (event.candidate) {
+                console.log('Adding offer candidate');
+                addDoc(offerCandidatesCollection, event.candidate.toJSON());
+            }
         };
         
         const offerDescription = await pc.createOffer();
         await pc.setLocalDescription(offerDescription);
         
         const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
-        await setDoc(callDocRef, { offer }, { merge: true });
+        await setDoc(callDocRef, { 
+            offer,
+            offerTimestamp: serverTimestamp(),
+        }, { merge: true });
 
-        // Listen for answer
-        const answerUnsubscribe = onSnapshot(callDocRef, (snapshot) => {
+        // Listen for answer - INCLUDING UPDATES (for reconnections)
+        const answerUnsubscribe = onSnapshot(callDocRef, async (snapshot) => {
             const data = snapshot.data();
-            if (!pc.currentRemoteDescription && data?.answer) {
-                const answerDescription = new RTCSessionDescription(data.answer);
-                pc.setRemoteDescription(answerDescription);
+            if (data?.answer) {
+                const currentAnswerSdp = pc.currentRemoteDescription?.sdp;
+                const newAnswerSdp = data.answer.sdp;
+                
+                // Check if this is a NEW answer (reconnection scenario)
+                if (newAnswerSdp && newAnswerSdp !== currentAnswerSdp) {
+                    console.log('Received new/updated answer, setting remote description');
+                    const answerDescription = new RTCSessionDescription(data.answer);
+                    await pc.setRemoteDescription(answerDescription);
+                }
             }
         });
         
-        // Listen for answer candidates - KEEP THIS ACTIVE for reconnections
+        // Listen for answer candidates
         const answerCandidatesUnsubscribe = onSnapshot(answerCandidatesCollection, (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
+            snapshot.docChanges().forEach(async (change) => {
                 if (change.type === 'added') {
                     const candidate = new RTCIceCandidate(change.doc.data());
-                    pc.addIceCandidate(candidate);
+                    console.log('Adding answer ICE candidate');
+                    try {
+                        await pc.addIceCandidate(candidate);
+                    } catch (e) {
+                        console.error('Error adding answer candidate:', e);
+                    }
                 }
             });
         });
@@ -120,12 +143,16 @@ export const createOrJoinCall = async (
 
     } else {
         // === This user is the CALLEE (second to join / rejoining) ===
+        console.log('Joining existing call as callee');
         
-        // CRITICAL FIX: Clear old answer candidates when rejoining
+        // CRITICAL: Clear old answer and answer candidates for clean reconnect
         await deleteSubcollection(answerCandidatesCollection);
         
         pc.onicecandidate = event => {
-            event.candidate && addDoc(answerCandidatesCollection, event.candidate.toJSON());
+            if (event.candidate) {
+                console.log('Adding answer candidate');
+                addDoc(answerCandidatesCollection, event.candidate.toJSON());
+            }
         };
 
         const offerDescription = new RTCSessionDescription(existingOffer);
@@ -135,14 +162,23 @@ export const createOrJoinCall = async (
         await pc.setLocalDescription(answerDescription);
         
         const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
-        await updateDoc(callDocRef, { answer });
+        // Update answer with timestamp to trigger caller's listener
+        await updateDoc(callDocRef, { 
+            answer,
+            answerTimestamp: serverTimestamp(),
+        });
         
         // Listen for offer candidates
         const offerCandidatesUnsubscribe = onSnapshot(offerCandidatesCollection, (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
+            snapshot.docChanges().forEach(async (change) => {
                 if (change.type === 'added') {
                     const candidate = new RTCIceCandidate(change.doc.data());
-                    pc.addIceCandidate(candidate);
+                    console.log('Adding offer ICE candidate');
+                    try {
+                        await pc.addIceCandidate(candidate);
+                    } catch (e) {
+                        console.error('Error adding offer candidate:', e);
+                    }
                 }
             });
         });
@@ -151,10 +187,21 @@ export const createOrJoinCall = async (
         (pc as any)._unsubscribes = [offerCandidatesUnsubscribe];
     }
 
+    // Log connection state changes
+    pc.oniceconnectionstatechange = () => {
+        console.log('ICE connection state:', pc.iceConnectionState);
+    };
+    
+    pc.onconnectionstatechange = () => {
+        console.log('Connection state:', pc.connectionState);
+    };
+
     return pc;
 };
 
 export const hangup = async (currentPc: RTCPeerConnection | null, callId?: string) => {
+    console.log('Hanging up');
+    
     // Clean up listeners
     if (currentPc && (currentPc as any)._unsubscribes) {
         (currentPc as any)._unsubscribes.forEach((unsub: Unsubscribe) => unsub());
@@ -181,7 +228,7 @@ export const hangup = async (currentPc: RTCPeerConnection | null, callId?: strin
         if(callDocSnap.exists()) {
              await updateDoc(callDocRef, {
                 answer: deleteField(),
-                // Keep the offer so the next person can join
+                answerTimestamp: deleteField(),
              });
             // Clear answer candidates for clean reconnect
             await deleteSubcollection(collection(callDocRef, 'answerCandidates'));
