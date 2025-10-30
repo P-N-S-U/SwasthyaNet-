@@ -55,18 +55,15 @@ export default function VideoCallPage() {
   const callId = params.id as string;
   
   useEffect(() => {
-    if (loading || !callId) return;
-    if (!user) {
-      router.push('/auth');
-      return;
-    }
+    if (loading || !callId || !user) return;
 
     let isMounted = true;
     let callUnsubscribe: Unsubscribe | null = null;
     let pc: RTCPeerConnection | null = null;
 
     const startCall = async () => {
-      if(isMounted) setCallStatus('Initializing');
+      if(!isMounted || !user) return;
+      setCallStatus('Initializing');
       try {
         console.log(`Patient attempting to join call, attempt: ${reconnectAttempt}`);
         if (reconnectAttempt > 0 && remoteVideoRef.current) {
@@ -79,6 +76,7 @@ export default function VideoCallPage() {
 
         pc = await createOrJoinCall(
             callId, 
+            user.uid,
             localVideoRef, 
             remoteVideoRef
         );
@@ -97,7 +95,6 @@ export default function VideoCallPage() {
                         break;
                     case 'disconnected':
                     case 'failed':
-                        setCallStatus('Initializing');
                         if (isMounted) {
                             setTimeout(() => {
                                 if (isMounted) setReconnectAttempt(prev => prev + 1);
@@ -114,7 +111,6 @@ export default function VideoCallPage() {
       } catch (error: any) {
         console.error('Error starting patient call:', error);
         if(isMounted) {
-          setCallStatus('Failed');
            setTimeout(() => {
               if(isMounted) setReconnectAttempt(prev => prev + 1);
             }, 3000);

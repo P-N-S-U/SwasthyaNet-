@@ -15,6 +15,7 @@ import {
   getDocs,
   deleteField,
 } from 'firebase/firestore';
+import { getUserProfile } from './firestore';
 
 const servers = {
   iceServers: [
@@ -43,6 +44,7 @@ async function deleteSubcollection(collectionRef) {
 
 export const createOrJoinCall = async (
   callId: string,
+  userId: string,
   localVideoRef: React.RefObject<HTMLVideoElement>,
   remoteVideoRef: React.RefObject<HTMLVideoElement>
 ): Promise<RTCPeerConnection> => {
@@ -69,19 +71,19 @@ export const createOrJoinCall = async (
     const offerCandidatesCollection = collection(callDocRef, 'offerCandidates');
     const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
     
-    // Aggressively clean up previous session data for a clean start
-    await updateDoc(callDocRef, { answer: deleteField() });
-    await deleteSubcollection(answerCandidatesCollection);
-    await deleteSubcollection(offerCandidatesCollection);
-    
-    const callDocSnap = await getDoc(callDocRef);
-    const callData = callDocSnap.data();
+    const appointmentDoc = await getDoc(doc(db, 'appointments', callId));
+    const appointmentData = appointmentDoc.data();
+    const isDoctor = appointmentData?.doctorId === userId;
 
-    // Symmetrical logic: if no offer, I'm the caller. If there is an offer, I'm the callee.
-    if (!callData?.offer) {
-        // I am the CALLER
-        console.log("No offer found. Acting as CALLER.");
+    if (isDoctor) {
+        // DOCTOR is always the caller
+        console.log("User is a Doctor. Acting as CALLER.");
         
+        // Clean up previous call state before creating a new offer
+        await deleteSubcollection(answerCandidatesCollection);
+        await deleteSubcollection(offerCandidatesCollection);
+        await setDoc(callDocRef, { answer: deleteField() }, { merge: true });
+
         pc.onicecandidate = event => {
             event.candidate && addDoc(offerCandidatesCollection, event.candidate.toJSON());
         };
@@ -90,12 +92,12 @@ export const createOrJoinCall = async (
         await pc.setLocalDescription(offerDescription);
         
         const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
-        await setDoc(callDocRef, { offer, patientMuted: false, patientCameraOff: false, doctorMuted: false, doctorCameraOff: false }, { merge: true });
+        await setDoc(callDocRef, { offer, doctorMuted: false, doctorCameraOff: false, patientMuted: false, patientCameraOff: false }, { merge: true });
 
         const answerUnsubscribe = onSnapshot(callDocRef, (snapshot) => {
             const data = snapshot.data();
             if (!pc.currentRemoteDescription && data?.answer) {
-                console.log("Caller received answer.");
+                console.log("Doctor received answer.");
                 const answerDescription = new RTCSessionDescription(data.answer);
                 pc.setRemoteDescription(answerDescription);
             }
@@ -104,7 +106,7 @@ export const createOrJoinCall = async (
         const answerCandidatesUnsubscribe = onSnapshot(answerCandidatesCollection, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'added') {
-                    console.log("Caller adding answer candidate.");
+                    console.log("Doctor adding answer candidate.");
                     pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
                 }
             });
@@ -113,42 +115,42 @@ export const createOrJoinCall = async (
         (pc as any)._unsubscribes.push(answerUnsubscribe, answerCandidatesUnsubscribe);
 
     } else {
-        // I am the CALLEE
-        console.log("Offer exists. Acting as CALLEE.");
+        // PATIENT is always the callee
+        console.log("User is a Patient. Acting as CALLEE.");
         
-        pc.onicecandidate = event => {
-            event.candidate && addDoc(answerCandidatesCollection, event.candidate.toJSON());
-        };
+        const callDocSnap = await getDoc(callDocRef);
+        const callData = callDocSnap.data();
 
-        const offer = callData.offer;
-        await pc.setRemoteDescription(new RTCSessionDescription(offer));
-        
-        const answerDescription = await pc.createAnswer();
-        await pc.setLocalDescription(answerDescription);
-        
-        const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
-        await updateDoc(callDocRef, { answer });
-        
-        const offerCandidatesUnsubscribe = onSnapshot(offerCandidatesCollection, (snapshot) => {
-            snapshot.docChanges().forEach((change) => {
-                if (change.type === 'added') {
-                    console.log("Callee adding offer candidate.");
-                    pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
-                }
+        if (callData?.offer) {
+             pc.onicecandidate = event => {
+                event.candidate && addDoc(answerCandidatesCollection, event.candidate.toJSON());
+            };
+
+            await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
+            
+            const answerDescription = await pc.createAnswer();
+            await pc.setLocalDescription(answerDescription);
+            
+            const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
+            await updateDoc(callDocRef, { answer });
+            
+            const offerCandidatesUnsubscribe = onSnapshot(offerCandidatesCollection, (snapshot) => {
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === 'added') {
+                        console.log("Patient adding offer candidate.");
+                        pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+                    }
+                });
             });
-        });
-        
-        (pc as any)._unsubscribes.push(offerCandidatesUnsubscribe);
+            
+            (pc as any)._unsubscribes.push(offerCandidatesUnsubscribe);
+        } else {
+            console.log("No offer from doctor yet. Waiting...");
+            // The doctor will create the offer, and the patient's client
+            // will reconnect via the useEffect logic in the page component.
+        }
     }
     
-    // Set initial mute state based on what's in Firestore, if anything
-    const freshCallData = (await getDoc(callDocRef)).data();
-    const isDoctor = freshCallData?.doctorId === 'some-way-to-identify-doctor'; // This logic needs to be passed in
-    const initialMuteState = isDoctor ? freshCallData?.doctorMuted : freshCallData?.patientMuted;
-    localStream?.getAudioTracks().forEach(track => track.enabled = !(initialMuteState ?? false));
-    const initialCameraState = isDoctor ? freshCallData?.doctorCameraOff : freshCallData?.patientCameraOff;
-    localStream?.getVideoTracks().forEach(track => track.enabled = !(initialCameraState ?? false));
-
     return pc;
 };
 
@@ -161,17 +163,12 @@ export const hangup = async (currentPc: RTCPeerConnection | null, callId?: strin
         (currentPc as any)._unsubscribes.forEach((unsub: Unsubscribe) => unsub());
     }
 
-    // Stop all local media tracks
     localStream?.getTracks().forEach(track => track.stop());
     remoteStream?.getTracks().forEach(track => track.stop());
     localStream = null;
     remoteStream = null;
     
-    // Close the peer connection
     currentPc.close();
-
-    // No longer cleaning up Firestore state here to allow reconnections.
-    // Cleanup is handled at the start of the next createOrJoinCall.
 };
 
 export const toggleMute = async (callId: string, role: 'patient' | 'doctor'): Promise<boolean> => {

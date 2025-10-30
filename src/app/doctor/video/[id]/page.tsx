@@ -60,32 +60,29 @@ export default function DoctorVideoCallPage() {
   const callId = params.id as string;
 
   useEffect(() => {
-    if (loading || !callId) return;
-    if (!user) {
-      router.push('/auth');
-      return;
-    }
+    if (loading || !callId || !user) return;
 
     let isMounted = true;
     let callUnsubscribe: Unsubscribe | null = null;
     let pc: RTCPeerConnection | null = null;
 
     const initializeCall = async () => {
+        if (!isMounted || !user) return;
         setCallStatus('Joining');
         try {
-            console.log(`Attempting to start/join call, attempt: ${reconnectAttempt}`);
+            console.log(`Doctor attempting to start/join call, attempt: ${reconnectAttempt}`);
              if (reconnectAttempt > 0 && remoteVideoRef.current) {
                 console.log("Resetting remote video for reconnection attempt");
                 remoteVideoRef.current.srcObject = null;
             }
 
-            // Clean up old connection if exists
             if(pcRef.current) {
               await hangup(pcRef.current, callId);
             }
 
             pc = await createOrJoinCall(
                 callId, 
+                user.uid,
                 localVideoRef, 
                 remoteVideoRef
             );
@@ -103,9 +100,7 @@ export default function DoctorVideoCallPage() {
                             break;
                         case 'disconnected':
                         case 'failed':
-                            setCallStatus('Joining');
-                            // Simple retry mechanism
-                            if (isMounted) {
+                             if (isMounted) {
                                setTimeout(() => {
                                   if (isMounted) setReconnectAttempt(prev => prev + 1);
                                }, 2000 + Math.random() * 1000);
@@ -121,7 +116,6 @@ export default function DoctorVideoCallPage() {
         } catch (error: any) {
            console.error('Error initializing call for doctor:', error);
            if(isMounted) {
-                setCallStatus('Failed');
                 setTimeout(() => {
                     if (isMounted) setReconnectAttempt(prev => prev + 1);
                 }, 3000);
@@ -137,9 +131,7 @@ export default function DoctorVideoCallPage() {
             setRemoteMuted(callData.patientMuted ?? false);
             setRemoteCameraOff(callData.patientCameraOff ?? false);
         } else {
-            // Call document might be deleted upon completion
             if (isMounted) {
-              // Verify appointment completion before setting status to Ended
               const appointmentRef = doc(db, 'appointments', callId);
               getDoc(appointmentRef).then(snap => {
                 if (snap.exists() && snap.data().status === 'Completed') {
