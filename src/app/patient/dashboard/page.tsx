@@ -14,7 +14,7 @@ import {
   getDocs,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
-import { Loader2, Bot, Users, Activity } from 'lucide-react';
+import { Loader2, Bot, Users, Activity, Pill } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -71,8 +71,8 @@ export default function PatientDashboardPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-            <Card className="border-border/30 bg-background transition-all hover:border-primary/50">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-2">
+            <Card className="border-border/30 bg-background transition-all hover:border-primary/50 md:col-span-2">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
                   My Appointments
@@ -130,6 +130,23 @@ export default function PatientDashboardPage() {
                 </CardContent>
               </Card>
             </Link>
+
+            <Link href="/patient/pharmacies">
+              <Card className="h-full border-border/30 bg-background transition-all hover:border-accent/50 hover:bg-secondary/50 md:col-span-2">
+                <CardHeader>
+                  <div className="mb-4 inline-block rounded-lg bg-primary/10 p-3">
+                    <Pill className="h-8 w-8 text-primary" />
+                  </div>
+                  <CardTitle className="font-headline">Nearby Pharmacies</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-foreground/60">
+                    Find pharmacies near you on the map and see their distance.
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
+
           </div>
         </div>
       </main>
