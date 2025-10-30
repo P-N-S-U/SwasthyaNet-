@@ -79,10 +79,10 @@ export default function VideoCallPage() {
             setRemoteMuted(data.doctorMuted ?? false);
             setRemoteCameraOff(data.doctorCameraOff ?? false);
         } else {
-            // Doctor hasn't joined or has ended the call
+            // Doctor hasn't joined or has ended the call by deleting the doc
             setIsCallActiveByDoctor(false);
             if (pcRef.current) { // If we were in a call, it means it has ended.
-              hangup(pcRef.current, callId);
+              hangup(pcRef.current);
               pcRef.current = null;
               setCallStatus('Ended');
             }
@@ -133,11 +133,11 @@ export default function VideoCallPage() {
   useEffect(() => {
     return () => {
       if (pcRef.current) {
-        hangup(pcRef.current, callId);
+        hangup(pcRef.current);
         pcRef.current = null;
       }
     };
-  }, [callId]);
+  }, []);
 
   const handleToggleMute = () => {
     if (!pcRef.current) return;
@@ -155,11 +155,11 @@ export default function VideoCallPage() {
 
   const handleHangup = async () => {
     if (pcRef.current) {
-      await hangup(pcRef.current, callId);
+      await hangup(pcRef.current);
       pcRef.current = null;
     }
     // We don't set status to 'Ended' because the doctor might still be there.
-    // We just disconnect the patient.
+    // We just disconnect the patient and go back to waiting state.
     setCallStatus('Waiting'); 
     toast({ title: 'You left the call', description: 'You can rejoin as long as the consultation is active.' });
   };
