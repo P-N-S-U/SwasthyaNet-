@@ -20,7 +20,7 @@ import {
   toggleMute,
   toggleCamera,
   getCall,
-  setupStreams,
+  setupLocalStream,
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
 import {
@@ -34,7 +34,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-
+import { useToast } from '@/hooks/use-toast';
 
 type CallStatus = 'Joining' | 'Connected' | 'Ended' | 'Failed';
 
@@ -47,14 +47,13 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [remoteMuted, setRemoteMuted] = useState(false);
   const [remoteCameraOff, setRemoteCameraOff] = useState(false);
+  const localHangup = useRef(false);
 
   const [callStatus, setCallStatus] = useState<CallStatus>('Joining');
   const { user, loading } = useAuthState();
-  const { id: callId } = use(params);
-
-  const pcRef = useRef<RTCPeerConnection | null>(null);
-  const localStreamRef = useRef<MediaStream | null>(null);
+  const { id: callId } = params;
   const hasAnswered = useRef(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (loading) return;
@@ -65,37 +64,31 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
     
     let callUnsubscribe: (() => void) | null = null;
     
+    const handleCallConnected = () => {
+        setCallStatus('Connected');
+    }
 
     const handleCallEnded = () => {
-      setCallStatus('Ended');
+      if (!localHangup.current) {
+        setCallStatus('Ended');
+      }
     };
 
     registerEventHandlers(
-      localVideoRef,
-      remoteVideoRef,
-      () => {}, // Doctors don't create calls
-      () => setCallStatus('Connected'),
+      handleCallConnected,
       handleCallEnded
     );
 
     const initializeCall = async () => {
         try {
-            const { pc, localStream } = await setupStreams();
-            pcRef.current = pc;
-            localStreamRef.current = localStream;
-            
-            if (localVideoRef.current) {
-                localVideoRef.current.srcObject = localStream;
-            }
+            await setupLocalStream(localVideoRef);
 
             // Listen for the call document
             callUnsubscribe = getCall(callId, async (callData) => {
-                if (pcRef.current?.signalingState === 'closed') return;
-                
-                if (callData?.offer && pcRef.current && !hasAnswered.current) {
+                if (callData?.offer && !hasAnswered.current) {
                     hasAnswered.current = true;
                     try {
-                        await answerCall(callId, pcRef.current);
+                        await answerCall(callId, remoteVideoRef);
                     } catch (error: any) {
                        console.error('Error answering call:', error);
                         setCallStatus('Failed');
@@ -105,7 +98,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
                 if(callData) {
                     setRemoteMuted(callData.patientMuted);
                     setRemoteCameraOff(callData.patientCameraOff);
-                } else if (pcRef.current && pcRef.current.signalingState !== 'closed') {
+                } else if (hasAnswered.current && !localHangup.current) {
                     handleCallEnded();
                 }
             });
@@ -113,6 +106,11 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
         } catch (error: any) {
             console.error('Error setting up streams:', error);
             setCallStatus('Failed');
+             toast({
+              variant: 'destructive',
+              title: 'Call Failed',
+              description: error.message || "Could not start video call. Check permissions.",
+            });
         }
     };
     
@@ -123,30 +121,29 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      hangup(pcRef.current); 
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => track.stop());
+      if (localHangup.current) {
+        hangup();
       }
     };
-  }, [callId, router, user, loading]);
+  }, [callId, router, user, loading, toast]);
 
   const handleToggleMute = () => {
-    if (!user || !pcRef.current) return;
+    if (!user) return;
     const newMutedState = !isMuted;
     setIsMuted(newMutedState);
-    toggleMute(newMutedState, pcRef.current, 'doctor', callId);
+    toggleMute(newMutedState, 'doctor');
   };
 
   const handleToggleCamera = () => {
-    if (!user || !pcRef.current) return;
+    if (!user) return;
     const newCameraState = !isCameraOff;
     setIsCameraOff(newCameraState);
-    toggleCamera(newCameraState, pcRef.current, 'doctor', callId);
+    toggleCamera(newCameraState, 'doctor');
   };
 
   const endCall = () => {
-    // Just hangup locally and go back to dashboard. Does not complete the appointment.
-    hangup(pcRef.current);
+    localHangup.current = true;
+    hangup();
     router.push('/doctor/dashboard');
   };
 

@@ -20,7 +20,7 @@ import {
   toggleMute,
   toggleCamera,
   getCall,
-  setupStreams,
+  setupLocalStream,
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
 import {
@@ -34,6 +34,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { useToast } from '@/hooks/use-toast';
 
 type CallStatus = 'Initializing' | 'Waiting' | 'Connected' | 'Ended' | 'Failed';
 
@@ -41,6 +42,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const localHangup = useRef(false);
   
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -49,10 +51,10 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   
   const [callStatus, setCallStatus] = useState<CallStatus>('Initializing');
   const { user, loading } = useAuthState();
-  const { id: callId } = use(params);
+  const { id: callId } = params;
+  const { toast } = useToast();
   
-  const pcRef = useRef<RTCPeerConnection | null>(null);
-  const localStreamRef = useRef<MediaStream | null>(null);
+  const hasCreatedCall = useRef(false);
 
   useEffect(() => {
     if (loading) return;
@@ -62,46 +64,51 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
     }
 
     let callUnsubscribe: (() => void) | null = null;
+
+    const handleCallConnected = () => {
+        setCallStatus('Connected');
+    }
     
     const handleCallEnded = () => {
-      setCallStatus('Ended');
+      if (!localHangup.current) {
+        setCallStatus('Ended');
+      }
     };
 
     registerEventHandlers(
-      localVideoRef,
-      remoteVideoRef,
-      () => setCallStatus('Waiting'),
-      () => setCallStatus('Connected'),
-      handleCallEnded
+      handleCallConnected,
+      handleCallEnded,
     );
 
     const startCall = async () => {
       setCallStatus('Initializing');
       try {
-        const { pc, localStream } = await setupStreams();
-        pcRef.current = pc;
-        localStreamRef.current = localStream;
+        await setupLocalStream(localVideoRef);
 
-        if (localVideoRef.current) {
-            localVideoRef.current.srcObject = localStream;
+        if (!hasCreatedCall.current) {
+            hasCreatedCall.current = true;
+            await createCall(callId, remoteVideoRef);
+            setCallStatus('Waiting');
         }
-
-        await createCall(callId, pc);
 
       } catch (error: any) {
         console.error('Error starting call:', error);
         setCallStatus('Failed');
+        toast({
+          variant: 'destructive',
+          title: 'Call Failed',
+          description: error.message || "Could not start video call. Check permissions.",
+        });
       }
     };
 
     startCall();
     
     callUnsubscribe = getCall(callId, (callData) => {
-        if (pcRef.current?.signalingState === 'closed') return;
         if(callData) {
             setRemoteMuted(callData.doctorMuted);
             setRemoteCameraOff(callData.doctorCameraOff);
-        } else if (pcRef.current && pcRef.current.signalingState !== 'closed') {
+        } else if (hasCreatedCall.current && !localHangup.current) {
             handleCallEnded();
         }
     });
@@ -111,30 +118,29 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
       if(callUnsubscribe) {
           callUnsubscribe();
       }
-      hangup(pcRef.current);
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach(track => track.stop());
+      if (localHangup.current) {
+        hangup();
       }
     };
-  }, [callId, router, user, loading]);
+  }, [callId, router, user, loading, toast]);
 
   const handleToggleMute = () => {
-    if (!user || !pcRef.current) return;
+    if (!user) return;
     const newMutedState = !isMuted;
     setIsMuted(newMutedState);
-    toggleMute(newMutedState, pcRef.current, 'patient', callId);
+    toggleMute(newMutedState, 'patient');
   };
 
   const handleToggleCamera = () => {
-    if (!user || !pcRef.current) return;
+    if (!user) return;
     const newCameraState = !isCameraOff;
     setIsCameraOff(newCameraState);
-    toggleCamera(newCameraState, pcRef.current, 'patient', callId);
+    toggleCamera(newCameraState, 'patient');
   };
 
   const endCall = () => {
-    // Just hangup locally and go back to appointments. Does not complete the appointment.
-    hangup(pcRef.current);
+    localHangup.current = true;
+    hangup();
     router.push('/patient/appointments');
   };
 
