@@ -160,26 +160,32 @@ export const hangup = async (currentPc: RTCPeerConnection | null, callId?: strin
 };
 
 
-export const toggleMute = async (isMuted: boolean, callId: string, role: 'patient' | 'doctor') => {
+export const toggleMute = async (callId: string, role: 'patient' | 'doctor'): Promise<boolean> => {
+  let isMuted = false;
   localStream?.getAudioTracks().forEach(track => {
-    track.enabled = !isMuted;
+    track.enabled = !track.enabled;
+    isMuted = !track.enabled;
   });
   if (callId && role) {
     const callDoc = doc(db, 'calls', callId);
     const field = role === 'patient' ? 'patientMuted' : 'doctorMuted';
     await setDoc(callDoc, { [field]: isMuted }, { merge: true });
   }
+  return isMuted;
 };
 
-export const toggleCamera = async (isCameraOff: boolean, callId: string, role: 'patient' | 'doctor') => {
+export const toggleCamera = async (callId: string, role: 'patient' | 'doctor'): Promise<boolean> => {
+  let isCameraOff = false;
   localStream?.getVideoTracks().forEach(track => {
-    track.enabled = !isCameraOff;
+    track.enabled = !track.enabled;
+    isCameraOff = !track.enabled;
   });
   if (callId && role) {
     const callDoc = doc(db, 'calls', callId);
     const field = role === 'patient' ? 'patientCameraOff' : 'doctorCameraOff';
     await setDoc(callDoc, { [field]: isCameraOff }, { merge: true });
   }
+  return isCameraOff;
 };
 
 export const getCall = (id: string, callback: (data: any | null) => void): Unsubscribe => {

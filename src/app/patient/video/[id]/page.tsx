@@ -146,18 +146,16 @@ export default function VideoCallPage() {
     };
   }, [callId, router, user, loading, reconnectAttempt]);
 
-  const handleToggleMute = () => {
+  const handleToggleMute = async () => {
     if (!user) return;
-    const newMutedState = !isMuted;
+    const newMutedState = await toggleMute(callId, 'patient');
     setIsMuted(newMutedState);
-    toggleMute(newMutedState, callId, 'patient');
   };
 
-  const handleToggleCamera = () => {
+  const handleToggleCamera = async () => {
     if (!user) return;
-    const newCameraState = !isCameraOff;
+    const newCameraState = await toggleCamera(callId, 'patient');
     setIsCameraOff(newCameraState);
-    toggleCamera(newCameraState, callId, 'patient');
   };
 
   const endCall = async () => {
