@@ -99,6 +99,12 @@ export function PharmacyFinder() {
             node["shop"="chemist"](around:${radius},${userLocation.lat},${userLocation.lng});
             way["shop"="chemist"](around:${radius},${userLocation.lat},${userLocation.lng});
             relation["shop"="chemist"](around:${radius},${userLocation.lat},${userLocation.lng});
+            node["amenity"="doctors"](around:${radius},${userLocation.lat},${userLocation.lng});
+            way["amenity"="doctors"](around:${radius},${userLocation.lat},${userLocation.lng});
+            relation["amenity"="doctors"](around:${radius},${userLocation.lat},${userLocation.lng});
+            node["amenity"="clinic"](around:${radius},${userLocation.lat},${userLocation.lng});
+            way["amenity"="clinic"](around:${radius},${userLocation.lat},${userLocation.lng});
+            relation["amenity"="clinic"](around:${radius},${userLocation.lat},${userLocation.lng});
           );
           out center;
         `;
