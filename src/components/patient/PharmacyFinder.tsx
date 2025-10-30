@@ -91,42 +91,56 @@ export function PharmacyFinder() {
         console.log('[PharmacyFinder] Fetching pharmacies for location:', userLocation);
         const radius = 5000; // 5km
         const overpassQuery = `
-          [out:json];
+          [out:json][timeout:25];
           (
-            node(around:${radius},${userLocation.lat},${userLocation.lng})[amenity=pharmacy];
-            way(around:${radius},${userLocation.lat},${userLocation.lng})[amenity=pharmacy];
-            relation(around:${radius},${userLocation.lat},${userLocation.lng})[amenity=pharmacy];
-            node(around:${radius},${userLocation.lat},${userLocation.lng})[shop=chemist];
-            way(around:${radius},${userLocation.lat},${userLocation.lng})[shop=chemist];
-            relation(around:${radius},${userLocation.lat},${userLocation.lng})[shop=chemist];
+            node["amenity"="pharmacy"](around:${radius},${userLocation.lat},${userLocation.lng});
+            way["amenity"="pharmacy"](around:${radius},${userLocation.lat},${userLocation.lng});
+            relation["amenity"="pharmacy"](around:${radius},${userLocation.lat},${userLocation.lng});
+            node["shop"="chemist"](around:${radius},${userLocation.lat},${userLocation.lng});
+            way["shop"="chemist"](around:${radius},${userLocation.lat},${userLocation.lng});
+            relation["shop"="chemist"](around:${radius},${userLocation.lat},${userLocation.lng});
           );
           out center;
         `;
-        const overpassUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`;
+        const overpassUrl = `https://overpass-api.de/api/interpreter`;
 
         try {
-          const response = await fetch(overpassUrl);
+          const response = await fetch(overpassUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+              'User-Agent': 'SwasthyaNet/1.0 (Web; +https://example.com)',
+            },
+            body: `data=${encodeURIComponent(overpassQuery)}`,
+          });
+
           if (!response.ok) {
-            throw new Error(`Failed to fetch from Overpass API: ${response.statusText}`);
+            const errorText = await response.text();
+            throw new Error(`Failed to fetch from Overpass API: ${response.status} ${response.statusText} - ${errorText}`);
           }
           const data = await response.json();
           console.log('[PharmacyFinder] Raw data from Overpass API:', data);
           
-          const pharmaciesWithDistance = data.elements
-            .map((p: any) => {
-              const location = p.type === 'node' ? { lat: p.lat, lon: p.lon } : { lat: p.center.lat, lon: p.center.lon };
-              return {
-                ...p,
-                ...location,
-                distance: haversineDistance(userLocation, location),
-              }
-            })
-            .sort((a: Pharmacy, b: Pharmacy) => (a.distance || 0) - (b.distance || 0));
-            
-          console.log('[PharmacyFinder] Processed and sorted pharmacies:', pharmaciesWithDistance);
-          setPharmacies(pharmaciesWithDistance);
+          if (!data.elements || data.elements.length === 0) {
+            console.log('[PharmacyFinder] No elements found in Overpass response.');
+            setPharmacies([]);
+          } else {
+            const pharmaciesWithDistance = data.elements
+              .map((p: any) => {
+                const location = p.type === 'node' ? { lat: p.lat, lon: p.lon } : { lat: p.center.lat, lon: p.center.lon };
+                return {
+                  ...p,
+                  ...location,
+                  distance: haversineDistance(userLocation, location),
+                }
+              })
+              .sort((a: Pharmacy, b: Pharmacy) => (a.distance || 0) - (b.distance || 0));
+              
+            console.log('[PharmacyFinder] Processed and sorted pharmacies:', pharmaciesWithDistance);
+            setPharmacies(pharmaciesWithDistance);
+          }
         } catch (e: any) {
-          console.error("[PharmacyFinder] Error fetching pharmacies:", e);
+          console.error("[PharmacyFinder] Error fetching pharmacies:", e.message);
           setError('Could not fetch pharmacy data. The service might be temporarily unavailable.');
         } finally {
           setIsFetchingPharmacies(false);
