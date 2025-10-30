@@ -100,7 +100,7 @@ export function PharmacyFinder() {
             }))
             .sort((a: Pharmacy, b: Pharmacy) => (a.distance || 0) - (b.distance || 0));
           setPharmacies(pharmaciesWithDistance);
-        } catch (e: any) => {
+        } catch (e: any) {
           console.error("Error fetching pharmacies:", e);
           setError('Could not fetch pharmacy data. The service might be temporarily unavailable.');
         } finally {
