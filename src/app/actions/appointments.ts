@@ -87,6 +87,18 @@ export async function bookAppointment(prevState: any, formData: FormData) {
   }
 }
 
+async function deleteSubcollection(collectionRef) {
+    const snapshot = await collectionRef.get();
+    if (snapshot.empty) {
+        return;
+    }
+    const batch = adminDb.batch();
+    snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+    await batch.commit();
+}
+
 export async function completeAppointment(appointmentId: string) {
     const session = await getSession();
     if (!session) {
@@ -110,16 +122,11 @@ export async function completeAppointment(appointmentId: string) {
         // 2. Delete the call document and its subcollections if it exists
         const callDoc = await callRef.get();
         if (callDoc.exists) {
-            // Firestore Admin SDK does not have a native recursive delete.
-            // We must manually delete subcollections.
             const offerCandidatesRef = callRef.collection('offerCandidates');
             const answerCandidatesRef = callRef.collection('answerCandidates');
-
-            const offerCandidatesSnap = await offerCandidatesRef.get();
-            offerCandidatesSnap.forEach(doc => batch.delete(doc.ref));
-
-            const answerCandidatesSnap = await answerCandidatesRef.get();
-            answerCandidatesSnap.forEach(doc => batch.delete(doc.ref));
+            
+            await deleteSubcollection(offerCandidatesRef);
+            await deleteSubcollection(answerCandidatesRef);
             
             batch.delete(callRef);
         }

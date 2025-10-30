@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Unsubscribe } from 'firebase/firestore';
 
 type CallStatus = 'Initializing' | 'Waiting' | 'Connected' | 'Ended' | 'Failed';
 
@@ -59,15 +60,31 @@ export default function VideoCallPage() {
     }
 
     let isMounted = true;
-    let callUnsubscribe: (() => void) | null = null;
-    let hasConnected = false;
+    let callUnsubscribe: Unsubscribe | null = null;
 
     const startCall = async () => {
       if(isMounted) setCallStatus('Initializing');
       try {
-        await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'patient');
-        if(isMounted) setCallStatus('Waiting');
+        const pc = await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'patient');
+        if (isMounted) {
+          pcRef.current = pc;
+          setCallStatus('Waiting');
 
+          pc.onconnectionstatechange = () => {
+            if(isMounted) {
+                switch (pc.connectionState) {
+                    case 'connected':
+                        setCallStatus('Connected');
+                        break;
+                    case 'disconnected':
+                    case 'closed':
+                    case 'failed':
+                        setCallStatus('Ended');
+                        break;
+                }
+            }
+          }
+        }
       } catch (error: any) {
         console.error('Error starting call:', error);
         if(isMounted) setCallStatus('Failed');
@@ -82,22 +99,19 @@ export default function VideoCallPage() {
         if (callData) {
             setRemoteMuted(callData.doctorMuted);
             setRemoteCameraOff(callData.doctorCameraOff);
-            // The doctor's answer indicates connection.
-            if(callData.answer && !hasConnected) {
-              hasConnected = true;
-              setCallStatus('Connected');
-            }
+        } else {
+            // Document deleted, call is officially over.
+            if(isMounted) setCallStatus('Ended');
         }
     });
-
-    const currentPc = pcRef.current;
 
     return () => {
       isMounted = false;
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      hangup(currentPc, callId);
+      hangup(pcRef.current);
+      pcRef.current = null;
     };
   }, [callId, router, user, loading]);
 
@@ -105,18 +119,18 @@ export default function VideoCallPage() {
     if (!user) return;
     const newMutedState = !isMuted;
     setIsMuted(newMutedState);
-    toggleMute(newMutedState, 'patient');
+    toggleMute(newMutedState, callId, 'patient');
   };
 
   const handleToggleCamera = () => {
     if (!user) return;
     const newCameraState = !isCameraOff;
     setIsCameraOff(newCameraState);
-    toggleCamera(newCameraState, 'patient');
+    toggleCamera(newCameraState, callId, 'patient');
   };
 
   const endCall = async () => {
-    await hangup(pcRef.current, callId);
+    await hangup(pcRef.current);
     router.push('/patient/appointments');
   };
 

@@ -31,10 +31,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { completeAppointment } from '@/app/actions/appointments';
 import { useToast } from '@/hooks/use-toast';
+import { Unsubscribe } from 'firebase/firestore';
 
 type CallStatus = 'Joining' | 'Connected' | 'Ended' | 'Failed';
 
@@ -63,12 +63,30 @@ export default function DoctorVideoCallPage() {
     }
 
     let isMounted = true;
-    let callUnsubscribe: (() => void) | null = null;
-    let hasConnected = false;
+    let callUnsubscribe: Unsubscribe | null = null;
+    let connectionStateUnsubscribe: (() => void) | null = null;
 
     const initializeCall = async () => {
         try {
-            await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'doctor');
+            const pc = await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'doctor');
+            if (isMounted) {
+              pcRef.current = pc;
+              
+              pc.onconnectionstatechange = () => {
+                if (isMounted) {
+                    switch (pc.connectionState) {
+                        case 'connected':
+                            setCallStatus('Connected');
+                            break;
+                        case 'disconnected':
+                        case 'closed':
+                        case 'failed':
+                            setCallStatus('Ended');
+                            break;
+                    }
+                }
+              }
+            }
         } catch (error: any) {
            console.error('Error initializing call:', error);
            if(isMounted) setCallStatus('Failed');
@@ -83,23 +101,23 @@ export default function DoctorVideoCallPage() {
         if (callData) {
             setRemoteMuted(callData.patientMuted);
             setRemoteCameraOff(callData.patientCameraOff);
-            if (callData.answer && !hasConnected) {
-              hasConnected = true;
-              setCallStatus('Connected');
-            }
+        } else {
+          // Document was likely deleted by `completeAppointment`
+          if (isMounted) setCallStatus('Ended');
         }
     });
 
-    // A component-level reference to pc is needed for cleanup
-    // but the core logic is in video.ts
-    const currentPc = pcRef.current;
 
     return () => {
       isMounted = false;
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      hangup(currentPc, callId);
+      if (connectionStateUnsubscribe) {
+        connectionStateUnsubscribe();
+      }
+      hangup(pcRef.current);
+      pcRef.current = null;
     };
   }, [callId, router, user, loading]);
 
@@ -107,23 +125,24 @@ export default function DoctorVideoCallPage() {
     if (!user) return;
     const newMutedState = !isMuted;
     setIsMuted(newMutedState);
-    toggleMute(newMutedState, 'doctor');
+    toggleMute(newMutedState, callId, 'doctor');
   };
 
   const handleToggleCamera = () => {
     if (!user) return;
     const newCameraState = !isCameraOff;
     setIsCameraOff(newCameraState);
-    toggleCamera(newCameraState, 'doctor');
+    toggleCamera(newCameraState, callId, 'doctor');
   };
 
   const endCall = async () => {
-    await hangup(pcRef.current, callId);
+    await hangup(pcRef.current);
     router.push('/doctor/dashboard');
   };
 
   const handleCompleteAppointment = async () => {
-    await hangup(pcRef.current, callId);
+    await hangup(pcRef.current);
+    pcRef.current = null;
     toast({
         title: 'Completing Appointment...',
         description: 'Please wait while we finalize everything.',

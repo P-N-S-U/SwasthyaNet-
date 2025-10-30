@@ -13,7 +13,6 @@ import {
   Unsubscribe,
   writeBatch,
   getDocs,
-  deleteField,
 } from 'firebase/firestore';
 
 const servers = {
@@ -28,15 +27,8 @@ const servers = {
 let pc: RTCPeerConnection | null = null;
 let localStream: MediaStream | null = null;
 let remoteStream: MediaStream | null = null;
-let callId: string | null = null;
 
-let unsubscribes: Unsubscribe[] = [];
-
-// Helper to cleanup all listeners
-const cleanupListeners = () => {
-  unsubscribes.forEach(unsub => unsub());
-  unsubscribes = [];
-};
+let callUnsubscribe: Unsubscribe | null = null;
 
 async function deleteSubcollection(collectionRef) {
     const snapshot = await getDocs(collectionRef);
@@ -52,29 +44,28 @@ async function deleteSubcollection(collectionRef) {
 
 
 export const createOrJoinCall = async (
-  id: string,
+  callId: string,
   localVideoRef: React.RefObject<HTMLVideoElement>,
   remoteVideoRef: React.RefObject<HTMLVideoElement>,
   userType: 'doctor' | 'patient'
 ) => {
-    // This function will be called every time the component mounts.
-    // It's crucial to clean up any previous state.
+    // Ensure any previous connection is fully closed
     if (pc) {
-        hangup(pc, callId);
+      pc.close();
+      pc = null;
     }
-  
-    callId = id;
+
     const callDocRef = doc(db, 'calls', callId);
     const offerCandidatesCollection = collection(callDocRef, 'offerCandidates');
     const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
-  
-    // Setup local media
+
+    // 1. Setup local media
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     if (localVideoRef.current) {
         localVideoRef.current.srcObject = localStream;
     }
     
-    // Setup remote media
+    // 2. Setup remote media
     remoteStream = new MediaStream();
     if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = remoteStream;
@@ -82,13 +73,15 @@ export const createOrJoinCall = async (
 
     pc = new RTCPeerConnection(servers);
 
+    // 3. Push tracks from local stream to peer connection
     localStream.getTracks().forEach(track => {
         pc!.addTrack(track, localStream!);
     });
 
+    // 4. Pull tracks from remote stream, add to video stream
     pc.ontrack = event => {
         event.streams[0].getTracks().forEach(track => {
-        remoteStream?.addTrack(track);
+            remoteStream?.addTrack(track);
         });
     };
 
@@ -97,9 +90,9 @@ export const createOrJoinCall = async (
     const existingOffer = callDocExists && callDocSnap.data().offer;
 
     if (!existingOffer) {
-        // === This user is the CALLER (first to join or rejoining after hangup) ===
+        // === This user is the CALLER (first to join or rejoining an empty room) ===
         
-        // Clean up old candidates before creating a new offer
+        // Clean up any old candidates before creating a new offer.
         await Promise.all([
             deleteSubcollection(offerCandidatesCollection),
             deleteSubcollection(answerCandidatesCollection)
@@ -111,23 +104,21 @@ export const createOrJoinCall = async (
         
         const offerDescription = await pc.createOffer();
         await pc.setLocalDescription(offerDescription);
-        const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
         
-        // This will create the doc if it doesn't exist, or overwrite the old offer.
+        const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
         await setDoc(callDocRef, { offer }, { merge: true });
 
-        // Listen for answer from the other peer
-        const unsubCall = onSnapshot(callDocRef, (snapshot) => {
+        // Listen for the answer from the other peer
+        callUnsubscribe = onSnapshot(callDocRef, (snapshot) => {
             const data = snapshot.data();
             if (!pc?.currentRemoteDescription && data?.answer) {
                 const answerDescription = new RTCSessionDescription(data.answer);
                 pc?.setRemoteDescription(answerDescription);
             }
         });
-        unsubscribes.push(unsubCall);
         
-        // Listen for ICE candidates from the other peer
-        const unsubAnswerCandidates = onSnapshot(answerCandidatesCollection, (snapshot) => {
+        // Listen for ICE candidates from the callee
+        onSnapshot(answerCandidatesCollection, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'added') {
                     const candidate = new RTCIceCandidate(change.doc.data());
@@ -135,10 +126,13 @@ export const createOrJoinCall = async (
                 }
             });
         });
-        unsubscribes.push(unsubAnswerCandidates);
 
     } else {
         // === This user is the CALLEE (second to join) ===
+        
+        // If we are rejoining as the callee, ensure old answer candidates are gone
+        await deleteSubcollection(answerCandidatesCollection);
+        
         pc.onicecandidate = event => {
             event.candidate && addDoc(answerCandidatesCollection, event.candidate.toJSON());
         };
@@ -152,7 +146,8 @@ export const createOrJoinCall = async (
         const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
         await updateDoc(callDocRef, { answer });
         
-        const unsubOfferCandidates = onSnapshot(offerCandidatesCollection, (snapshot) => {
+        // Listen for ICE candidates from the caller
+        onSnapshot(offerCandidatesCollection, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'added') {
                     const candidate = new RTCIceCandidate(change.doc.data());
@@ -160,14 +155,20 @@ export const createOrJoinCall = async (
                 }
             });
         });
-        unsubscribes.push(unsubOfferCandidates);
     }
+
+    return pc;
 };
 
 
-export const hangup = async (currentPc: typeof pc, currentCallId: string | null) => {
-    cleanupListeners();
-    
+export const hangup = async (currentPc: typeof pc) => {
+    // This is a local operation only. It does not modify the Firestore document.
+    // This allows the other user to stay in the call and wait for reconnection.
+    if (callUnsubscribe) {
+        callUnsubscribe();
+        callUnsubscribe = null;
+    }
+  
     if (currentPc) {
         currentPc.getSenders().forEach(sender => {
             if (sender.track) {
@@ -175,32 +176,22 @@ export const hangup = async (currentPc: typeof pc, currentCallId: string | null)
             }
         });
         currentPc.close();
+        pc = null;
     }
   
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
     }
-  
-    if (currentCallId) {
-        const callDocRef = doc(db, 'calls', currentCallId);
-        const callDocSnap = await getDoc(callDocRef);
-        if (callDocSnap.exists()) {
-             // Reset the call document for reconnection by deleting offer and answer
-            await updateDoc(callDocRef, {
-                offer: deleteField(),
-                answer: deleteField(),
-            });
-        }
+
+    if(remoteStream) {
+        remoteStream.getTracks().forEach(track => track.stop());
+        remoteStream = null;
     }
-  
-    remoteStream = null;
-    pc = null;
-    callId = null;
 };
 
 
-export const toggleMute = async (isMuted: boolean, role: 'patient' | 'doctor') => {
+export const toggleMute = async (isMuted: boolean, callId: string, role: 'patient' | 'doctor') => {
   localStream?.getAudioTracks().forEach(track => {
     track.enabled = !isMuted;
   });
@@ -211,7 +202,7 @@ export const toggleMute = async (isMuted: boolean, role: 'patient' | 'doctor') =
   }
 };
 
-export const toggleCamera = async (isCameraOff: boolean, role: 'patient' | 'doctor') => {
+export const toggleCamera = async (isCameraOff: boolean, callId: string, role: 'patient' | 'doctor') => {
   localStream?.getVideoTracks().forEach(track => {
     track.enabled = !isCameraOff;
   });
@@ -222,12 +213,9 @@ export const toggleCamera = async (isCameraOff: boolean, role: 'patient' | 'doct
   }
 };
 
-// This can be used to listen for remote media state changes and call termination
-export const getCall = (id: string, callback: (data: any | null) => void) => {
+export const getCall = (id: string, callback: (data: any | null) => void): Unsubscribe => {
   const callDoc = doc(db, 'calls', id);
-  const unsub = onSnapshot(callDoc, snapshot => {
+  return onSnapshot(callDoc, snapshot => {
       callback(snapshot.data() ?? null);
   });
-  unsubscribes.push(unsub);
-  return unsub;
 };
