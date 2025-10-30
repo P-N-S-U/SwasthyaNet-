@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -50,6 +51,7 @@ export default function DoctorVideoCallPage() {
   
   const [pc, setPc] = useState<RTCPeerConnection | null>(null);
   const [callStatus, setCallStatus] = useState<CallStatus>('Idle');
+  const [hasCallEnded, setHasCallEnded] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [remoteMuted, setRemoteMuted] = useState(false);
@@ -59,6 +61,7 @@ export default function DoctorVideoCallPage() {
   // Force reset the state when navigating to a new call
   useEffect(() => {
     setCallStatus('Idle');
+    setHasCallEnded(false);
     setPc(null);
     setIsMuted(false);
     setIsCameraOff(false);
@@ -98,7 +101,7 @@ export default function DoctorVideoCallPage() {
   // Subscribe to call document updates
   useEffect(() => {
     let unsubscribe: Unsubscribe | null = null;
-    if (callId) {
+    if (callId && !hasCallEnded) {
       unsubscribe = onCallUpdate(callId, (data) => {
         if (data) {
           setRemoteMuted(data.patientMuted ?? false);
@@ -113,21 +116,17 @@ export default function DoctorVideoCallPage() {
           }
           setPatientJoined(patientIsPresent);
 
-          if (data.active === false && callStatus !== 'Ended') {
-            setCallStatus('Ended');
-          }
-        } else {
-           // If doc is null (e.g., deleted or after endCall clears it), treat as ended.
-           if (callStatus !== 'Ended') {
+          if (data.active === false) {
              setCallStatus('Ended');
-           }
+             setHasCallEnded(true);
+          }
         }
       });
     }
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [callId, patientJoined, toast, callStatus]);
+  }, [callId, patientJoined, toast, hasCallEnded]);
 
   // Cleanup on unmount or when callId changes
   useEffect(() => {
@@ -154,6 +153,7 @@ export default function DoctorVideoCallPage() {
     await endCall(callId);
     toast({ title: 'Call Ended', description: 'The consultation has been terminated for this session.' });
     setCallStatus('Ended');
+    setHasCallEnded(true);
   };
 
 
@@ -166,7 +166,7 @@ export default function DoctorVideoCallPage() {
     );
   }
 
-  if (callStatus === 'Ended') {
+  if (callStatus === 'Ended' || hasCallEnded) {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-black text-white">
         <CheckCircle className="h-16 w-16 text-green-500" />
