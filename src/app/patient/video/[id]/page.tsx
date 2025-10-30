@@ -66,7 +66,17 @@ export default function VideoCallPage() {
     const startCall = async () => {
       setCallStatus('Initializing');
       try {
-        await hangup(pcRef.current);
+        console.log(`Attempting to start/join call, attempt: ${reconnectAttempt}`);
+        
+        // Explicitly clear old video stream on reconnect
+        if (reconnectAttempt > 0 && remoteVideoRef.current) {
+          console.log("Resetting remote video for reconnection attempt");
+          remoteVideoRef.current.srcObject = null;
+        }
+
+        // Clean up previous connection before creating a new one
+        await hangup(pcRef.current, callId);
+        
         pc = await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'patient');
         if (!isMounted) return;
 
@@ -88,7 +98,7 @@ export default function VideoCallPage() {
                         if (isMounted) {
                             setReconnectAttempt(prev => prev + 1);
                         }
-                    }, 2000);
+                    }, 2000 + Math.random() * 1000); // Add jitter
                     break;
                 case 'closed':
                     setCallStatus('Ended');
@@ -107,16 +117,7 @@ export default function VideoCallPage() {
       }
     };
     
-    // This is the main effect execution
-    const run = async () => {
-       if (reconnectAttempt > 0 && remoteVideoRef.current) {
-          console.log("Resetting remote video for reconnection attempt");
-          remoteVideoRef.current.srcObject = null;
-       }
-       await startCall();
-    }
-
-    run();
+    startCall();
     
     callUnsubscribe = getCall(callId, (callData) => {
         if(!isMounted) return;
@@ -125,6 +126,7 @@ export default function VideoCallPage() {
             setRemoteMuted(callData.doctorMuted);
             setRemoteCameraOff(callData.doctorCameraOff);
         } else {
+             // If call document is deleted, treat as ended. This can happen if doctor completes appointment.
             if(isMounted) setCallStatus('Ended');
         }
     });
@@ -132,7 +134,7 @@ export default function VideoCallPage() {
     return () => {
       isMounted = false;
       if (callUnsubscribe) callUnsubscribe();
-      hangup(pcRef.current);
+      hangup(pcRef.current, callId);
       pcRef.current = null;
     };
   }, [callId, router, user, loading, reconnectAttempt]);
@@ -152,7 +154,7 @@ export default function VideoCallPage() {
   };
 
   const endCall = async () => {
-    await hangup(pcRef.current);
+    await hangup(pcRef.current, callId);
     router.push('/patient/appointments');
   };
 
@@ -168,7 +170,7 @@ export default function VideoCallPage() {
   const getStatusText = () => {
     switch (callStatus) {
         case 'Initializing': return 'Initializing call...';
-        case 'Waiting': return 'Waiting for doctor to join...';
+        case 'Waiting': return 'Waiting for other user to join...';
         case 'Reconnecting': return 'Reconnecting to call...';
         case 'Connected': return 'Connected';
         case 'Ended': return 'Call has ended.';

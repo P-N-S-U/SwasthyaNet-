@@ -44,6 +44,7 @@ export default function DoctorVideoCallPage() {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
   
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -54,7 +55,6 @@ export default function DoctorVideoCallPage() {
   const [callStatus, setCallStatus] = useState<CallStatus>('Joining');
   const { user, loading } = useAuthState();
   const callId = params.id as string;
-  const [reconnectAttempt, setReconnectAttempt] = useState(0);
 
   useEffect(() => {
     if (loading || !callId) return;
@@ -70,37 +70,52 @@ export default function DoctorVideoCallPage() {
     const initializeCall = async () => {
         setCallStatus('Joining');
         try {
-            await hangup(pcRef.current);
-            pc = await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'doctor');
-            if (!isMounted) return;
+            console.log(`Attempting to start/join call, attempt: ${reconnectAttempt}`);
+             if (reconnectAttempt > 0 && remoteVideoRef.current) {
+                console.log("Resetting remote video for reconnection attempt");
+                remoteVideoRef.current.srcObject = null;
+            }
 
-            pcRef.current = pc;
+            // Clean up old connection if exists
+            await hangup(pcRef.current, callId);
+
+            pc = await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'doctor');
             
-            pc.onconnectionstatechange = () => {
-              if (!isMounted) return;
-              console.log('Doctor Connection state changed:', pc?.connectionState);
-              switch (pc?.connectionState) {
-                  case 'connected':
-                      setCallStatus('Connected');
-                      break;
-                  case 'disconnected':
-                  case 'failed':
-                      setCallStatus('Reconnecting');
-                      // Automatically attempt to reconnect
-                      setTimeout(() => {
-                          if (isMounted) {
-                              setReconnectAttempt(prev => prev + 1);
-                          }
-                      }, 2000);
-                      break;
-                  case 'closed':
-                      setCallStatus('Ended');
-                      break;
+            if (isMounted) {
+              pcRef.current = pc;
+              
+              pc.onconnectionstatechange = () => {
+                if (isMounted) {
+                    console.log('Doctor Connection state changed:', pc?.connectionState);
+                    switch (pc?.connectionState) {
+                        case 'connected':
+                            setCallStatus('Connected');
+                            break;
+                        case 'disconnected':
+                        case 'failed':
+                            setCallStatus('Reconnecting');
+                            // Automatically attempt to reconnect
+                             setTimeout(() => {
+                                if (isMounted) {
+                                    setReconnectAttempt(prev => prev + 1);
+                                }
+                            }, 2000 + Math.random() * 1000); // Add jitter
+                            break;
+                        case 'closed':
+                            setCallStatus('Ended');
+                            break;
+                    }
+                }
               }
-            };
+            }
         } catch (error: any) {
            console.error('Error initializing call for doctor:', error);
-           if(isMounted) setCallStatus('Failed');
+           if(isMounted) {
+                setCallStatus('Failed');
+                setTimeout(() => {
+                    if (isMounted) setReconnectAttempt(prev => prev + 1);
+                }, 3000);
+           }
         }
     };
     
@@ -120,7 +135,7 @@ export default function DoctorVideoCallPage() {
     return () => {
       isMounted = false;
       if (callUnsubscribe) callUnsubscribe();
-      hangup(pcRef.current);
+      hangup(pcRef.current, callId);
       pcRef.current = null;
     };
   }, [callId, router, user, loading, reconnectAttempt]);
@@ -140,12 +155,12 @@ export default function DoctorVideoCallPage() {
   };
 
   const endCallAndLeave = async () => {
-    await hangup(pcRef.current);
+    await hangup(pcRef.current, callId);
     router.push('/doctor/dashboard');
   };
 
   const handleCompleteAppointment = async () => {
-    await hangup(pcRef.current);
+    await hangup(pcRef.current, callId);
     pcRef.current = null;
     toast({
         title: 'Completing Appointment...',
@@ -184,7 +199,7 @@ export default function DoctorVideoCallPage() {
       case 'Connected': return 'Connected';
       case 'Ended': return 'Call has ended.';
       case 'Failed': return 'Failed to connect. Retrying...';
-      default: return '...';
+      default: return 'Waiting for patient...';
     }
   }
 

@@ -12,7 +12,6 @@ import {
   Unsubscribe,
   writeBatch,
   getDocs,
-  deleteDoc,
   deleteField,
 } from 'firebase/firestore';
 
@@ -26,6 +25,7 @@ const servers = {
 };
 
 let localStream: MediaStream | null = null;
+let remoteStream: MediaStream | null = null;
 
 // Helper to delete all documents in a subcollection
 async function deleteSubcollection(collectionRef) {
@@ -49,23 +49,27 @@ export const createOrJoinCall = async (
 ) => {
     const pc = new RTCPeerConnection(servers);
     
-    // 1. Get local media stream
+    // 1. Setup local media
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     if (localVideoRef.current) {
         localVideoRef.current.srcObject = localStream;
     }
+    
+    // 2. Setup remote media - IMPORTANT: Create fresh MediaStream for this connection
+    remoteStream = new MediaStream();
+    if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = remoteStream;
+    }
+
+    // 3. Push tracks from local stream to peer connection
     localStream.getTracks().forEach(track => {
         pc.addTrack(track, localStream!);
     });
 
-    // 2. Setup remote media stream
-    const remoteStream = new MediaStream();
-    if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = remoteStream;
-    }
+    // 4. Pull tracks from remote stream, add to video stream
     pc.ontrack = event => {
         event.streams[0].getTracks().forEach(track => {
-            remoteStream.addTrack(track);
+            remoteStream?.addTrack(track);
         });
     };
 
@@ -73,17 +77,18 @@ export const createOrJoinCall = async (
     const offerCandidates = collection(callDocRef, 'offerCandidates');
     const answerCandidates = collection(callDocRef, 'answerCandidates');
 
-    // --- Role-based signaling logic ---
+    // Check if an offer already exists.
+    const callDocSnap = await getDoc(callDocRef);
+    const existingOffer = callDocSnap.exists() && callDocSnap.data().offer;
 
-    if (userType === 'doctor') {
-        // DOCTOR IS ALWAYS THE CALLER
-        console.log('Doctor is creating offer...');
+    if (!existingOffer) {
+        // === This user is the CALLER (first to join) ===
+        console.log('No offer exists. Acting as CALLER.');
 
         // Clean up previous call state for a fresh start
         await deleteSubcollection(offerCandidates);
         await deleteSubcollection(answerCandidates);
-        await setDoc(callDocRef, { offer: deleteField(), answer: deleteField() }, { merge: true });
-
+        
         pc.onicecandidate = event => {
             event.candidate && addDoc(offerCandidates, event.candidate.toJSON());
         };
@@ -92,23 +97,24 @@ export const createOrJoinCall = async (
         await pc.setLocalDescription(offerDescription);
 
         const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
+        // Create the document with the offer
         await setDoc(callDocRef, { offer });
 
-        // Listen for the patient's answer
+        // Listen for the other user's answer
         const unsubAnswer = onSnapshot(callDocRef, (snapshot) => {
             const data = snapshot.data();
             if (!pc.currentRemoteDescription && data?.answer) {
-                console.log('Doctor received answer.');
+                console.log('Caller received answer.');
                 const answerDescription = new RTCSessionDescription(data.answer);
                 pc.setRemoteDescription(answerDescription);
             }
         });
 
-        // Listen for ICE candidates from the patient
+        // Listen for ICE candidates from the other user
         const unsubAnswerCandidates = onSnapshot(answerCandidates, (snapshot) => {
             snapshot.docChanges().forEach(change => {
                 if (change.type === 'added') {
-                    console.log('Doctor adding answer candidate.');
+                    console.log('Caller adding answer candidate.');
                     pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
                 }
             });
@@ -116,21 +122,18 @@ export const createOrJoinCall = async (
         
         (pc as any)._unsubscribes = [unsubAnswer, unsubAnswerCandidates];
 
-    } else if (userType === 'patient') {
-        // PATIENT IS ALWAYS THE CALLEE
-        console.log('Patient is creating answer...');
-
-        const callDocSnap = await getDoc(callDocRef);
-        if (!callDocSnap.exists() || !callDocSnap.data().offer) {
-            throw new Error("Doctor has not started the call yet.");
-        }
+    } else {
+        // === This user is the CALLEE (second to join) ===
+        console.log('Offer exists. Acting as CALLEE.');
+        
+        // When joining, ensure old answer candidates are gone
+        await deleteSubcollection(answerCandidates);
 
         pc.onicecandidate = event => {
             event.candidate && addDoc(answerCandidates, event.candidate.toJSON());
         };
 
-        const offerDescription = callDocSnap.data().offer;
-        await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
+        await pc.setRemoteDescription(new RTCSessionDescription(existingOffer));
 
         const answerDescription = await pc.createAnswer();
         await pc.setLocalDescription(answerDescription);
@@ -138,11 +141,11 @@ export const createOrJoinCall = async (
         const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
         await updateDoc(callDocRef, { answer });
 
-        // Listen for ICE candidates from the doctor
+        // Listen for ICE candidates from the caller
         const unsubOfferCandidates = onSnapshot(offerCandidates, (snapshot) => {
             snapshot.docChanges().forEach(change => {
                 if (change.type === 'added') {
-                    console.log('Patient adding offer candidate.');
+                    console.log('Callee adding offer candidate.');
                     pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
                 }
             });
@@ -154,7 +157,7 @@ export const createOrJoinCall = async (
     return pc;
 };
 
-export const hangup = async (currentPc: RTCPeerConnection | null) => {
+export const hangup = async (currentPc: RTCPeerConnection | null, callId?: string) => {
     console.log('Hanging up call.');
     
     // Clean up Firestore listeners
@@ -167,25 +170,27 @@ export const hangup = async (currentPc: RTCPeerConnection | null) => {
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
     }
+    
+    if (remoteStream) {
+        remoteStream.getTracks().forEach(track => track.stop());
+        remoteStream = null;
+    }
 
     // Close the peer connection
     if (currentPc) {
         currentPc.close();
     }
-};
-
-// This function is intended to be called by a server action when the appointment is completed.
-export const terminateCall = async (callId: string) => {
-    const callDocRef = doc(db, 'calls', callId);
     
-    // Delete subcollections first
-    await deleteSubcollection(collection(callDocRef, 'offerCandidates'));
-    await deleteSubcollection(collection(callDocRef, 'answerCandidates'));
-
-    // Delete the main call document
-    await deleteDoc(callDocRef);
-}
-
+    // Reset the answer to allow reconnection
+    if (callId) {
+        const callDocRef = doc(db, 'calls', callId);
+        const callDoc = await getDoc(callDocRef);
+        if (callDoc.exists()) {
+             await updateDoc(callDocRef, { answer: deleteField() });
+             await deleteSubcollection(collection(callDocRef, 'answerCandidates'));
+        }
+    }
+};
 
 export const toggleMute = async (isMuted: boolean, callId: string, role: 'patient' | 'doctor') => {
   if (localStream) {
