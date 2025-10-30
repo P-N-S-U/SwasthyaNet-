@@ -85,7 +85,15 @@ export function PharmacyFinder() {
       const fetchPharmacies = async () => {
         setIsFetchingPharmacies(true);
         const radius = 5000; // 5km
-        const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];node(around:${radius},${userLocation.lat},${userLocation.lng})[amenity=pharmacy];out;`;
+        const overpassQuery = `
+          [out:json];
+          (
+            node(around:${radius},${userLocation.lat},${userLocation.lng})[amenity=pharmacy];
+            node(around:${radius},${userLocation.lat},${userLocation.lng})[shop=chemist];
+          );
+          out;
+        `;
+        const overpassUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`;
 
         try {
           const response = await fetch(overpassUrl);
