@@ -47,7 +47,6 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [remoteMuted, setRemoteMuted] = useState(false);
   const [remoteCameraOff, setRemoteCameraOff] = useState(false);
-  const localHangup = useRef(false);
   const { toast } = useToast();
 
   const [callStatus, setCallStatus] = useState<CallStatus>('Joining');
@@ -61,35 +60,39 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
       return;
     }
 
-    localHangup.current = false;
+    let isMounted = true;
+    let callUnsubscribe: (() => void) | null = null;
 
     const initializeCall = async () => {
         try {
             await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'doctor');
-            setCallStatus('Connected');
+            if(isMounted) setCallStatus('Connected');
         } catch (error: any) {
            console.error('Error initializing call:', error);
-            setCallStatus('Failed');
+           if(isMounted) setCallStatus('Failed');
         }
     };
     
     initializeCall();
 
-    const callUnsubscribe = getCall(callId, (callData) => {
-        if(callData) {
-            setRemoteMuted(callData.patientMuted);
-            setRemoteCameraOff(callData.patientCameraOff);
-        } else if (!localHangup.current) {
-            setCallStatus('Ended');
+    callUnsubscribe = getCall(callId, (callData) => {
+        if(isMounted) {
+            if(callData) {
+                setRemoteMuted(callData.patientMuted);
+                setRemoteCameraOff(callData.patientCameraOff);
+            } else {
+                setCallStatus('Ended');
+            }
         }
     });
 
     // Cleanup function
     return () => {
-      callUnsubscribe();
-      if (localHangup.current) {
-        hangup();
+      isMounted = false;
+      if (callUnsubscribe) {
+        callUnsubscribe();
       }
+      hangup();
     };
   }, [callId, router, user, loading]);
 
@@ -108,13 +111,11 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   };
 
   const endCall = () => {
-    localHangup.current = true;
     hangup();
     router.push('/doctor/dashboard');
   };
 
   const handleCompleteAppointment = async () => {
-    localHangup.current = true;
     hangup();
     toast({
         title: 'Completing Appointment...',
@@ -153,7 +154,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
       case 'Connected':
         return 'Connected';
       case 'Ended':
-        return 'Patient has disconnected.';
+        return 'Call has ended.';
       case 'Failed':
         return 'Failed to connect.';
       default:

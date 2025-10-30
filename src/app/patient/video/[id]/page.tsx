@@ -39,7 +39,6 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const localHangup = useRef(false);
   
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -57,38 +56,44 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
       return;
     }
 
+    let isMounted = true;
+    let callUnsubscribe: (() => void) | null = null;
+
     const startCall = async () => {
-      setCallStatus('Initializing');
+      if(isMounted) setCallStatus('Initializing');
       try {
         await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'patient');
-        setCallStatus('Waiting');
+        if(isMounted) setCallStatus('Waiting');
 
       } catch (error: any) {
         console.error('Error starting call:', error);
-        setCallStatus('Failed');
+        if(isMounted) setCallStatus('Failed');
       }
     };
 
     startCall();
     
-    const callUnsubscribe = getCall(callId, (callData) => {
-        if(callData) {
-            setRemoteMuted(callData.doctorMuted);
-            setRemoteCameraOff(callData.doctorCameraOff);
-            if(callData.answer) {
-              setCallStatus('Connected');
+    callUnsubscribe = getCall(callId, (callData) => {
+        if(isMounted) {
+            if(callData) {
+                setRemoteMuted(callData.doctorMuted);
+                setRemoteCameraOff(callData.doctorCameraOff);
+                if(callData.answer) {
+                  setCallStatus('Connected');
+                }
+            } else {
+                setCallStatus('Ended');
             }
-        } else if (!localHangup.current) {
-            setCallStatus('Ended');
         }
     });
 
     // Cleanup function
     return () => {
-      callUnsubscribe();
-      if (localHangup.current) {
-        hangup();
+      isMounted = false;
+      if (callUnsubscribe) {
+        callUnsubscribe();
       }
+      hangup();
     };
   }, [callId, router, user, loading]);
 
@@ -107,7 +112,6 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   };
 
   const endCall = () => {
-    localHangup.current = true;
     hangup();
     router.push('/patient/appointments');
   };
@@ -126,7 +130,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
         case 'Initializing': return 'Initializing call...';
         case 'Waiting': return 'Waiting for doctor to join...';
         case 'Connected': return 'Connected';
-        case 'Ended': return 'Doctor has disconnected.';
+        case 'Ended': return 'Call has ended.';
         case 'Failed': return 'Failed to connect.';
         default: return 'Connecting...';
     }

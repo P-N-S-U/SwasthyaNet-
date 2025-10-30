@@ -10,6 +10,7 @@ import {
   updateDoc,
   setDoc,
   getDoc,
+  deleteDoc,
   Unsubscribe,
 } from 'firebase/firestore';
 
@@ -26,29 +27,13 @@ let pc: RTCPeerConnection | null = null;
 let localStream: MediaStream | null = null;
 let remoteStream: MediaStream | null = null;
 let callId: string | null = null;
-let role: 'caller' | 'callee' | null = null;
-
-let onCallEndedCallback: (() => void) | null = null;
 
 let unsubscribes: Unsubscribe[] = [];
 
-export const setupLocalStream = async (localVideoRef: React.RefObject<HTMLVideoElement>) => {
-    try {
-        localStream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: true,
-        });
-
-        if (localVideoRef.current) {
-            localVideoRef.current.srcObject = localStream;
-        }
-        
-        remoteStream = new MediaStream();
-        
-    } catch (error) {
-        console.error("Error accessing media devices.", error);
-        throw new Error("Camera and microphone permissions are required. Please enable them and refresh the page.");
-    }
+// Helper to cleanup all listeners
+const cleanupListeners = () => {
+  unsubscribes.forEach(unsub => unsub());
+  unsubscribes = [];
 };
 
 export const createOrJoinCall = async (
@@ -58,104 +43,136 @@ export const createOrJoinCall = async (
   userType: 'doctor' | 'patient'
 ) => {
   callId = id;
-  await setupLocalStream(localVideoRef);
-
-  pc = new RTCPeerConnection(servers);
-  const queuedCandidates: RTCIceCandidate[] = [];
-
-  pc.onicecandidate = event => {
-    if (event.candidate) {
-        const candidatesCollection = role === 'caller' ? collection(db, 'calls', callId!, 'offerCandidates') : collection(db, 'calls', callId!, 'answerCandidates');
-        addDoc(candidatesCollection, event.candidate.toJSON());
-    }
-  };
-
-  localStream?.getTracks().forEach(track => {
-    pc!.addTrack(track, localStream!);
-  });
-
-  pc.ontrack = event => {
-    event.streams[0].getTracks().forEach(track => {
-      remoteStream?.addTrack(track);
-    });
-    if (remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = remoteStream;
-    }
-  };
-
   const callDocRef = doc(db, 'calls', callId);
+
+  // Setup local media
+  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+  if (localVideoRef.current) {
+    localVideoRef.current.srcObject = localStream;
+  }
+  
+  // Setup remote media
+  remoteStream = new MediaStream();
+  if (remoteVideoRef.current) {
+    remoteVideoRef.current.srcObject = remoteStream;
+  }
+  
+  const initializePeerConnection = () => {
+    if (pc) {
+      pc.close();
+    }
+    pc = new RTCPeerConnection(servers);
+
+    localStream?.getTracks().forEach(track => {
+      pc!.addTrack(track, localStream!);
+    });
+
+    pc.ontrack = event => {
+      event.streams[0].getTracks().forEach(track => {
+        remoteStream?.addTrack(track);
+      });
+    };
+  };
+
   const callDocSnap = await getDoc(callDocRef);
 
-  const offerCandidatesCol = collection(callDocRef, 'offerCandidates');
-  const answerCandidatesCol = collection(callDocRef, 'answerCandidates');
-
   if (!callDocSnap.exists()) {
-    // This user is the first to join, they become the "caller"
-    role = 'caller';
-
-    // Create the call document and the offer
-    const offerDescription = await pc.createOffer();
-    await pc.setLocalDescription(offerDescription);
+    // === This is the first user to join (caller) ===
+    initializePeerConnection();
+    
+    // Create offer
+    const offerDescription = await pc!.createOffer();
+    await pc!.setLocalDescription(offerDescription);
     const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
+    
+    // Create call document in Firestore
     await setDoc(callDocRef, { offer, id, patientMuted: false, patientCameraOff: false, doctorMuted: false, doctorCameraOff: false });
 
-    // Listen for the answer
+    // Listen for answer from the other peer
     const unsubCall = onSnapshot(callDocRef, (snapshot) => {
       const data = snapshot.data();
       if (!pc?.currentRemoteDescription && data?.answer) {
         const answerDescription = new RTCSessionDescription(data.answer);
-        pc?.setRemoteDescription(answerDescription).then(() => {
-          queuedCandidates.forEach(candidate => pc?.addIceCandidate(candidate));
+        pc?.setRemoteDescription(answerDescription);
+      }
+      
+      // Renegotiation logic for when the other user reconnects
+      if (data?.reconnecting) {
+        console.log("Other user is reconnecting, creating a new offer...");
+        initializePeerConnection();
+        pc?.createOffer().then(offerDesc => {
+          pc?.setLocalDescription(offerDesc);
+          updateDoc(callDocRef, { offer: { sdp: offerDesc.sdp, type: offerDesc.type }, reconnecting: false, answer: null });
         });
       }
     });
-
-    // Listen for ICE candidates from the callee
-    const unsubAnswerCandidates = onSnapshot(answerCandidatesCol, (snapshot) => {
+    unsubscribes.push(unsubCall);
+    
+    // Listen for ICE candidates from the other peer
+    const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
+    const unsubAnswerCandidates = onSnapshot(answerCandidatesCollection, (snapshot) => {
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
-            const candidate = new RTCIceCandidate(change.doc.data());
-            if (pc?.currentRemoteDescription) {
-                pc.addIceCandidate(candidate);
-            } else {
-                queuedCandidates.push(candidate);
-            }
+          const candidate = new RTCIceCandidate(change.doc.data());
+          pc?.addIceCandidate(candidate);
         }
       });
     });
+    unsubscribes.push(unsubAnswerCandidates);
 
-    unsubscribes.push(unsubCall, unsubAnswerCandidates);
-    
+    // Send my ICE candidates
+    const offerCandidatesCollection = collection(callDocRef, 'offerCandidates');
+    pc!.onicecandidate = event => {
+      event.candidate && addDoc(offerCandidatesCollection, event.candidate.toJSON());
+    };
+
   } else {
-    // The other user is already here, we are the "callee"
-    role = 'callee';
+    // === This user is joining an existing call (callee/rejoiner) ===
+    initializePeerConnection();
+    
+    // Signal that we are joining/reconnecting
+    await updateDoc(callDocRef, { reconnecting: true });
 
-    const callData = callDocSnap.data();
-    if (callData.offer) {
-        await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
-        const answerDescription = await pc.createAnswer();
-        await pc.setLocalDescription(answerDescription);
+    // Listen for the new offer created by the other peer
+    const unsubCall = onSnapshot(callDocRef, async (snapshot) => {
+      const data = snapshot.data();
+      if (data?.offer && !pc?.currentRemoteDescription) {
+        console.log("Got offer, creating answer...");
+        const offerDescription = new RTCSessionDescription(data.offer);
+        await pc!.setRemoteDescription(offerDescription);
+        
+        const answerDescription = await pc!.createAnswer();
+        await pc!.setLocalDescription(answerDescription);
+        
         const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
         await updateDoc(callDocRef, { answer });
-    }
+      }
+    });
+    unsubscribes.push(unsubCall);
 
-    // Listen for ICE candidates from the caller
-    const unsubOfferCandidates = onSnapshot(offerCandidatesCol, (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added') {
-                const candidate = new RTCIceCandidate(change.doc.data());
-                pc?.addIceCandidate(candidate);
-            }
-        });
+    // Listen for ICE candidates from the other peer
+    const offerCandidatesCollection = collection(callDocRef, 'offerCandidates');
+    const unsubOfferCandidates = onSnapshot(offerCandidatesCollection, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          const candidate = new RTCIceCandidate(change.doc.data());
+          pc?.addIceCandidate(candidate);
+        }
+      });
     });
     unsubscribes.push(unsubOfferCandidates);
+    
+    // Send my ICE candidates
+    const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
+    pc!.onicecandidate = event => {
+      event.candidate && addDoc(answerCandidatesCollection, event.candidate.toJSON());
+    };
   }
 };
 
 
 export const hangup = async () => {
-  unsubscribes.forEach(unsub => unsub());
-  unsubscribes = [];
+  cleanupListeners();
 
   if (pc) {
     pc.getSenders().forEach(sender => sender.track?.stop());
@@ -169,9 +186,10 @@ export const hangup = async () => {
   }
   
   remoteStream = null;
-  callId = null;
-  role = null;
+  // Do NOT delete the call document, to allow for reconnection.
+  // callId = null; 
 };
+
 
 export const toggleMute = async (isMuted: boolean, role: 'patient' | 'doctor') => {
   localStream?.getAudioTracks().forEach(track => {
