@@ -131,8 +131,20 @@ export function PharmacyFinder() {
             console.log('[PharmacyFinder DEBUG] No elements found in Overpass response.');
             setPharmacies([]);
           } else {
+            // *** DETAILED LOGGING BLOCK ***
+            let pharmacyCount = 0;
+            let chemistCount = 0;
+            let doctorsCount = 0;
+            let clinicCount = 0;
+            
             const pharmaciesWithDistance = data.elements
               .map((p: any) => {
+                // Count items based on tags
+                if (p.tags?.amenity === 'pharmacy') pharmacyCount++;
+                if (p.tags?.shop === 'chemist') chemistCount++;
+                if (p.tags?.amenity === 'doctors') doctorsCount++;
+                if (p.tags?.amenity === 'clinic') clinicCount++;
+
                 const location = p.type === 'node' ? { lat: p.lat, lon: p.lon } : { lat: p.center.lat, lon: p.center.lon };
                 return {
                   ...p,
@@ -141,12 +153,13 @@ export function PharmacyFinder() {
                 }
               })
               .sort((a: Pharmacy, b: Pharmacy) => (a.distance || 0) - (b.distance || 0));
-              
+            
+            console.log(`[PharmacyFinder DEBUG] Found: ${pharmacyCount} pharmacies, ${chemistCount} chemists, ${doctorsCount} doctors, ${clinicCount} clinics.`);
             console.log('[PharmacyFinder DEBUG] Processed and sorted locations:', pharmaciesWithDistance);
             setPharmacies(pharmaciesWithDistance);
           }
         } catch (e: any) {
-          console.error("[PharmacyFinder] Error fetching pharmacies:", e.message);
+          console.error("[PharmacyFinder] Error fetching pharmacies:", e.message, e);
           setError('Could not fetch pharmacy data. The service might be temporarily unavailable.');
         } finally {
           setIsFetchingPharmacies(false);
