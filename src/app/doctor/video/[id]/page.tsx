@@ -82,8 +82,6 @@ export default function DoctorVideoCallPage() {
                         case 'disconnected':
                         case 'closed':
                         case 'failed':
-                            // Handle potential brief disconnects gracefully if needed
-                            // For now, we consider them as the call ending
                             setCallStatus('Ended');
                             break;
                     }
@@ -105,7 +103,6 @@ export default function DoctorVideoCallPage() {
             setRemoteMuted(callData.patientMuted);
             setRemoteCameraOff(callData.patientCameraOff);
         } else {
-          // Document was likely deleted by `completeAppointment`
           if (isMounted) setCallStatus('Ended');
         }
     });
@@ -116,7 +113,6 @@ export default function DoctorVideoCallPage() {
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      // Pass callId to endCall to reset Firestore state for reconnection
       endCall(pcRef.current, callId);
       pcRef.current = null;
     };
@@ -189,39 +185,41 @@ export default function DoctorVideoCallPage() {
     }
   }
 
+  const isConnected = callStatus === 'Connected';
+
   return (
     <div className="flex h-screen flex-col items-center justify-center bg-black text-white p-4">
-      <div className="relative grid w-full max-w-5xl grid-cols-1 gap-4 md:grid-cols-2">
-        {/* Remote Video */}
-        <div className="relative aspect-video w-full rounded-md bg-secondary">
+      <div className="relative h-full w-full max-w-6xl">
+        {/* Remote Video (Patient) - Main View */}
+        <div className="relative h-full w-full rounded-lg bg-secondary overflow-hidden">
           <video
             ref={remoteVideoRef}
-            className="h-full w-full rounded-md object-cover"
+            className="h-full w-full object-cover"
             autoPlay
             playsInline
           />
-           {(remoteMuted || remoteCameraOff) && (
+           {(remoteMuted || remoteCameraOff) && isConnected && (
               <div className="absolute inset-0 flex items-center justify-center gap-4 rounded-md bg-black/50">
-                  {remoteMuted && <MicOff className="h-6 w-6 text-white" />}
-                  {remoteCameraOff && <VideoOff className="h-6 w-6 text-white" />}
+                  {remoteMuted && <MicOff className="h-8 w-8 text-white" />}
+                  {remoteCameraOff && <VideoOff className="h-8 w-8 text-white" />}
               </div>
             )}
-          <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-sm">
+          <div className="absolute bottom-4 left-4 rounded-md bg-black/50 px-3 py-1 text-sm font-semibold">
             Patient
           </div>
-           {callStatus !== 'Connected' && (
+           {!isConnected && (
              <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-background/80">
                <Loader2 className="h-8 w-8 animate-spin" />
-               <p className="mt-2 text-center text-sm">{getStatusText()}</p>
+               <p className="mt-4 text-lg text-center">{getStatusText()}</p>
              </div>
           )}
         </div>
 
-        {/* Local Video */}
-        <div className="absolute bottom-20 right-4 h-32 w-24 md:relative md:bottom-auto md:right-auto md:h-auto md:w-full rounded-md bg-secondary aspect-video">
+        {/* Local Video (Doctor) - Picture-in-Picture */}
+        <div className="absolute top-4 right-4 h-48 w-80 rounded-lg bg-secondary overflow-hidden shadow-2xl z-10">
           <video
             ref={localVideoRef}
-            className="h-full w-full rounded-md object-cover [-webkit-transform:scaleX(-1)] [transform:scaleX(-1)]"
+            className="h-full w-full object-cover [-webkit-transform:scaleX(-1)] [transform:scaleX(-1)]"
             autoPlay
             playsInline
             muted
@@ -232,18 +230,18 @@ export default function DoctorVideoCallPage() {
                   {isCameraOff && <VideoOff className="h-6 w-6 text-white" />}
               </div>
             )}
-          <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-xs">
+          <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-xs font-semibold">
             You (Doctor)
           </div>
         </div>
       </div>
-      <div className="absolute bottom-4 left-0 right-0 flex justify-center">
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20">
         <Card className="bg-background/50 p-2 backdrop-blur-sm md:p-4">
-          <div className="flex items-center justify-center gap-2 md:gap-4">
+          <div className="flex items-center justify-center gap-4 md:gap-6">
             <Button
               variant={isMuted ? 'destructive' : 'outline'}
               size="icon"
-              className="rounded-full h-12 w-12 md:h-16 md:w-16"
+              className="rounded-full h-14 w-14 md:h-16 md:w-16"
               onClick={handleToggleMute}
             >
               {isMuted ? <MicOff /> : <Mic />}
@@ -251,7 +249,7 @@ export default function DoctorVideoCallPage() {
             <Button
               variant={isCameraOff ? 'destructive' : 'outline'}
               size="icon"
-              className="rounded-full h-12 w-12 md:h-16 md:w-16"
+              className="rounded-full h-14 w-14 md:h-16 md:w-16"
               onClick={handleToggleCamera}
             >
               {isCameraOff ? <VideoOff /> : <Video />}
@@ -261,7 +259,7 @@ export default function DoctorVideoCallPage() {
                 <Button
                     variant="destructive"
                     size="icon"
-                    className="rounded-full h-12 w-12 md:h-16 md:w-16"
+                    className="rounded-full h-14 w-14 md:h-16 md:w-16"
                 >
                     <PhoneOff />
                 </Button>
