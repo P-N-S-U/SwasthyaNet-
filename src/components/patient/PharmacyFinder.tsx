@@ -88,7 +88,7 @@ export function PharmacyFinder() {
     if (userLocation) {
       const fetchPharmacies = async () => {
         setIsFetchingPharmacies(true);
-        console.log('[PharmacyFinder] Fetching pharmacies for location:', userLocation);
+        console.log('[PharmacyFinder] Fetching locations for:', userLocation);
         const radius = 5000; // 5km
         const overpassQuery = `
           [out:json][timeout:25];
@@ -125,10 +125,10 @@ export function PharmacyFinder() {
             throw new Error(`Failed to fetch from Overpass API: ${response.status} ${response.statusText} - ${errorText}`);
           }
           const data = await response.json();
-          console.log('[PharmacyFinder] Raw data from Overpass API:', data);
+          console.log('[PharmacyFinder DEBUG] Raw data from Overpass API:', data);
           
           if (!data.elements || data.elements.length === 0) {
-            console.log('[PharmacyFinder] No elements found in Overpass response.');
+            console.log('[PharmacyFinder DEBUG] No elements found in Overpass response.');
             setPharmacies([]);
           } else {
             const pharmaciesWithDistance = data.elements
@@ -142,7 +142,7 @@ export function PharmacyFinder() {
               })
               .sort((a: Pharmacy, b: Pharmacy) => (a.distance || 0) - (b.distance || 0));
               
-            console.log('[PharmacyFinder] Processed and sorted pharmacies:', pharmaciesWithDistance);
+            console.log('[PharmacyFinder DEBUG] Processed and sorted locations:', pharmaciesWithDistance);
             setPharmacies(pharmaciesWithDistance);
           }
         } catch (e: any) {
@@ -225,7 +225,7 @@ export function PharmacyFinder() {
                         className="truncate font-semibold"
                         title={pharmacy.tags.name || 'Unnamed Pharmacy'}
                       >
-                        {pharmacy.tags.name || 'Unnamed Pharmacy'}
+                        {pharmacy.tags.name || 'Unnamed Location'}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {pharmacy.distance?.toFixed(2)} km away
@@ -244,7 +244,7 @@ export function PharmacyFinder() {
               </ul>
             ) : (
                 <p className="pt-10 text-center text-sm text-muted-foreground">
-                    {!userLocation && !loadingLocation ? "Cannot search for pharmacies without your location." : "No pharmacies found within 5km."}
+                    {!userLocation && !loadingLocation ? "Cannot search for locations without your location." : "No locations found within 5km."}
                 </p>
             )}
           </CardContent>
