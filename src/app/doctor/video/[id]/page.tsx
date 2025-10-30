@@ -34,7 +34,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { useToast } from '@/hooks/use-toast';
 
 type CallStatus = 'Joining' | 'Connected' | 'Ended' | 'Failed';
 
@@ -51,9 +50,8 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
   const [callStatus, setCallStatus] = useState<CallStatus>('Joining');
   const { user, loading } = useAuthState();
-  const { id: callId } = params;
+  const { id: callId } = use(params);
   const hasAnswered = useRef(false);
-  const { toast } = useToast();
 
   useEffect(() => {
     if (loading) return;
@@ -106,11 +104,6 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
         } catch (error: any) {
             console.error('Error setting up streams:', error);
             setCallStatus('Failed');
-             toast({
-              variant: 'destructive',
-              title: 'Call Failed',
-              description: error.message || "Could not start video call. Check permissions.",
-            });
         }
     };
     
@@ -125,7 +118,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
         hangup();
       }
     };
-  }, [callId, router, user, loading, toast]);
+  }, [callId, router, user, loading]);
 
   const handleToggleMute = () => {
     if (!user) return;
