@@ -25,8 +25,24 @@ const UserMarker = ({ userLocation }: any) => {
 
     if (!userLocation) return null;
 
+    const userIcon = new L.Icon({
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41],
+        className: 'user-marker'
+    });
+    
+    // Quick style to make user marker stand out.
+    const style = document.createElement('style');
+    style.innerHTML = `.user-marker { filter: hue-rotate(120deg); }`;
+    document.head.appendChild(style);
+
     return (
-        <Marker position={[userLocation.lat, userLocation.lng]}>
+        <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon}>
           <Popup>Your Location</Popup>
         </Marker>
     )
@@ -36,7 +52,7 @@ export default function MapWrapper({ userLocation, pharmacies }: any) {
   return (
     <div id="map-container" className="h-full w-full rounded-md z-0">
       <MapContainer
-        key={`${userLocation?.lat}-${userLocation?.lng}`} // force reset only when location changes
+        key={`${userLocation?.lat}-${userLocation?.lng}`} // force re-render only when location changes
         center={[userLocation?.lat || 20.5937, userLocation?.lng || 78.9629]}
         zoom={userLocation ? 14 : 5}
         scrollWheelZoom={true}

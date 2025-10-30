@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -218,7 +219,7 @@ export function PharmacyFinder() {
               </ul>
             ) : (
                 <p className="pt-10 text-center text-sm text-muted-foreground">
-                    {!error ? "No pharmacies found within 5km." : "Cannot search for pharmacies without location."}
+                    {!userLocation && !loadingLocation ? "Cannot search for pharmacies without your location." : "No pharmacies found within 5km."}
                 </p>
             )}
           </CardContent>
