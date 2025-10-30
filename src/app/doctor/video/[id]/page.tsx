@@ -57,10 +57,13 @@ export default function DoctorVideoCallPage() {
   const [remoteCameraOff, setRemoteCameraOff] = useState(false);
   const [patientJoined, setPatientJoined] = useState(false);
 
-  // When callId changes, reset the component state for the new call.
+  // When callId changes, forcefully reset the component state for the new call.
   useEffect(() => {
     setCallStatus('Idle');
     setHasCallEnded(false);
+    if (pc) {
+      pc.close();
+    }
     setPc(null);
     setIsMuted(false);
     setIsCameraOff(false);
@@ -80,7 +83,7 @@ export default function DoctorVideoCallPage() {
 
   // Main effect to auto-start the call for the doctor when the component mounts.
   useEffect(() => {
-    if (!user || !callId || pc || !localVideoRef.current) return;
+    if (!user || !callId || pc || !localVideoRef.current || hasCallEnded || callStatus !== 'Idle') return;
 
     const initCall = async () => {
       setCallStatus('Starting');
@@ -112,7 +115,7 @@ export default function DoctorVideoCallPage() {
 
     initCall();
     
-  }, [user, callId, pc, toast]);
+  }, [user, callId, pc, toast, hasCallEnded, callStatus]);
 
   // Subscribe to call document updates to monitor patient presence and state.
   useEffect(() => {
@@ -136,7 +139,7 @@ export default function DoctorVideoCallPage() {
              setHasCallEnded(true);
           }
         } else {
-            // Document deleted, call is definitively over.
+            // Document deleted means the call is definitively over.
             setHasCallEnded(true);
         }
       });
@@ -150,7 +153,7 @@ export default function DoctorVideoCallPage() {
   useEffect(() => {
     return () => {
       if (pc) {
-        hangup(pc);
+        hangup(callId, 'doctor', pc);
       }
     };
   }, [pc, callId]);
@@ -168,7 +171,7 @@ export default function DoctorVideoCallPage() {
   };
 
   const handleEndCall = async () => {
-    if(callId) await endCall(callId, pc);
+    if(callId && pc) await endCall(callId, pc);
     setHasCallEnded(true);
   };
 
