@@ -105,6 +105,10 @@ export const startCall = async (
         active: true,
         startedBy: 'doctor',
         participants: { doctor: true, patient: false },
+        doctorMuted: false,
+        patientMuted: false,
+        doctorCameraOff: false,
+        patientCameraOff: false,
         answer: deleteField(), // Ensure any old answer is gone
     }, { merge: true });
 
@@ -220,7 +224,7 @@ export const hangup = async (callId: string, role: 'doctor' | 'patient') => {
 };
 
 /**
- * DOCTOR-ONLY: Ends the consultation for all participants.
+ * DOCTOR-ONLY: Ends the consultation for all participants by deleting the call document.
  * @param callId The ID of the consultation.
  */
 export const endCall = async (callId: string) => {
@@ -229,17 +233,14 @@ export const endCall = async (callId: string) => {
 
     const callDocRef = doc(db, 'calls', callId);
     if ((await getDoc(callDocRef)).exists()) {
-       // Mark the call as inactive and clear signaling data
-       await updateDoc(callDocRef, {
-           active: false,
-           offer: deleteField(),
-           answer: deleteField(),
-       });
-       // Clean up candidates
+       // Clean up subcollections first
        await deleteSubcollection(collection(callDocRef, 'offerCandidates'));
        await deleteSubcollection(collection(callDocRef, 'answerCandidates'));
+       // Then delete the main call document
+       await deleteDoc(callDocRef);
     }
 };
+
 
 /**
  * Toggles the mute state for the local audio track and updates Firestore.
