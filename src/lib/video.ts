@@ -204,6 +204,7 @@ export const hangup = async (pc: RTCPeerConnection, callId: string, role: 'docto
  */
 export const endCall = async (callId: string) => {
     const callDocRef = doc(db, 'calls', callId);
+    if (!(await getDoc(callDocRef)).exists()) return;
     
     // Clean up subcollections first
     const offerCandidates = collection(callDocRef, 'offerCandidates');

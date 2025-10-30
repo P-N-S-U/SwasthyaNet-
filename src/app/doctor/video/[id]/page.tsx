@@ -88,8 +88,7 @@ export default function DoctorVideoCallPage() {
               setIsConnecting(true); // Show waiting/reconnecting UI
               break;
             case 'closed':
-              toast({ title: "Call Ended", description: "The session has been terminated." });
-              router.push('/doctor/dashboard');
+              // This is triggered by hangup or endCall
               break;
           }
         };
@@ -139,18 +138,15 @@ export default function DoctorVideoCallPage() {
 
         } else {
            // Document deleted, call has been ended definitively
-           if (pc && pc.connectionState !== 'closed') {
-             pc.close(); // This will trigger the 'closed' connection state and redirect
-           } else if (!pc) {
-             router.push('/doctor/dashboard');
-           }
+           toast({ title: "Call Ended", description: "The session has been terminated." });
+           router.push('/doctor/dashboard');
         }
       });
     }
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [callId, patientJoined, toast, pc, router]);
+  }, [callId, patientJoined, toast, router]);
 
   const handleToggleMute = async () => {
     if (!pc) return;

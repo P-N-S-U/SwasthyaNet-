@@ -96,7 +96,8 @@ export default function VideoCallPage() {
             setDoctorJoined(doctorIsPresent);
         } else {
             // Document was deleted, which means the doctor ended the call.
-            if (callStatus !== 'Ended') {
+            // We check doctorJoined to prevent this from firing on initial load before the doc is created
+            if (doctorJoined || callStatus === 'Connected') {
               setCallStatus('Ended');
             }
         }
