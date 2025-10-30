@@ -34,7 +34,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { completeAppointment } from '@/app/actions/appointments';
 import { useToast } from '@/hooks/use-toast';
-import { Unsubscribe } from 'firebase/firestore';
+import { Unsubscribe, doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase/firebase';
+
 
 type CallStatus = 'Joining' | 'Connected' | 'Ended' | 'Failed';
 
@@ -95,6 +97,7 @@ export default function DoctorVideoCallPage() {
                         case 'disconnected':
                         case 'failed':
                             setCallStatus('Joining');
+                            // Simple retry mechanism
                             setTimeout(() => {
                                 if (isMounted) setReconnectAttempt(prev => prev + 1);
                             }, 2000 + Math.random() * 1000);
@@ -125,8 +128,16 @@ export default function DoctorVideoCallPage() {
             setRemoteMuted(callData.patientMuted);
             setRemoteCameraOff(callData.patientCameraOff);
         } else {
-            // If call document is deleted, it means the appointment was completed.
-            if (isMounted) setCallStatus('Ended');
+            // Call document might be deleted upon completion
+            if (isMounted) {
+              // Verify appointment completion before setting status to Ended
+              const appointmentRef = doc(db, 'appointments', callId);
+              getDoc(appointmentRef).then(snap => {
+                if (snap.exists() && snap.data().status === 'Completed') {
+                  setCallStatus('Ended');
+                }
+              });
+            }
         }
     });
 
@@ -158,8 +169,11 @@ export default function DoctorVideoCallPage() {
   };
 
   const handleCompleteAppointment = async () => {
-    await hangup(pcRef.current, callId);
+    // When completing, we don't need to preserve the offer.
+    // The main `completeAppointment` action will delete the call doc anyway.
+    await hangup(pcRef.current, callId); 
     pcRef.current = null;
+
     toast({
         title: 'Completing Appointment...',
         description: 'Please wait while we finalize everything.',

@@ -31,7 +31,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Unsubscribe } from 'firebase/firestore';
+import { Unsubscribe, getDoc, doc } from 'firebase/firestore';
+import { db } from '@/lib/firebase/firebase';
 
 type CallStatus = 'Initializing' | 'Waiting' | 'Connected' | 'Ended' | 'Failed';
 
@@ -72,7 +73,6 @@ export default function VideoCallPage() {
           remoteVideoRef.current.srcObject = null;
         }
         
-        // Clean up old connection if exists
         await hangup(pcRef.current, callId);
 
         pc = await createOrJoinCall(
@@ -111,9 +111,9 @@ export default function VideoCallPage() {
         console.error('Error starting patient call:', error);
         if(isMounted) {
           setCallStatus('Failed');
-          setTimeout(() => {
-            if(isMounted) setReconnectAttempt(prev => prev + 1);
-          }, 3000);
+           setTimeout(() => {
+              if(isMounted) setReconnectAttempt(prev => prev + 1);
+            }, 3000);
         }
       }
     };
@@ -127,7 +127,14 @@ export default function VideoCallPage() {
             setRemoteMuted(callData.doctorMuted);
             setRemoteCameraOff(callData.doctorCameraOff);
         } else {
-            if(isMounted) setCallStatus('Ended');
+            if(isMounted) {
+              const appointmentRef = doc(db, 'appointments', callId);
+              getDoc(appointmentRef).then(snap => {
+                if (snap.exists() && snap.data().status === 'Completed') {
+                  setCallStatus('Ended');
+                }
+              });
+            }
         }
     });
 
