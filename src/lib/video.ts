@@ -10,10 +10,7 @@ import {
   updateDoc,
   setDoc,
   getDoc,
-  deleteDoc,
   Unsubscribe,
-  getDocs,
-  writeBatch,
 } from 'firebase/firestore';
 
 const servers = {
@@ -145,7 +142,7 @@ export const createOrJoinCall = async (
 };
 
 
-export const hangup = async () => {
+export const hangup = () => {
   cleanupListeners();
 
   if (pc) {
@@ -170,12 +167,8 @@ export const toggleMute = async (isMuted: boolean, role: 'patient' | 'doctor') =
   });
   if (callId && role) {
     const callDoc = doc(db, 'calls', callId);
-    // Check if doc exists before updating
-    const docSnap = await getDoc(callDoc);
-    if (docSnap.exists()) {
-      const field = role === 'patient' ? 'patientMuted' : 'doctorMuted';
-      await updateDoc(callDoc, { [field]: isMuted });
-    }
+    const field = role === 'patient' ? 'patientMuted' : 'doctorMuted';
+    await updateDoc(callDoc, { [field]: isMuted });
   }
 };
 
@@ -185,11 +178,8 @@ export const toggleCamera = async (isCameraOff: boolean, role: 'patient' | 'doct
   });
   if (callId && role) {
     const callDoc = doc(db, 'calls', callId);
-    const docSnap = await getDoc(callDoc);
-    if (docSnap.exists()) {
-      const field = role === 'patient' ? 'patientCameraOff' : 'doctorCameraOff';
-      await updateDoc(callDoc, { [field]: isCameraOff });
-    }
+    const field = role === 'patient' ? 'patientCameraOff' : 'doctorCameraOff';
+    await updateDoc(callDoc, { [field]: isCameraOff });
   }
 };
 

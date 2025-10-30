@@ -39,7 +39,6 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const localHangup = useRef(false);
   
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -98,10 +97,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      // Only hangup if this user initiated it, to allow reconnection
-      if(localHangup.current) {
-        hangup();
-      }
+      hangup();
     };
   }, [callId, router, user, loading]);
 
@@ -120,7 +116,6 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   };
 
   const endCall = () => {
-    localHangup.current = true;
     hangup();
     router.push('/patient/appointments');
   };

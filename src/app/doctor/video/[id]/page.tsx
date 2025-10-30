@@ -42,7 +42,6 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   const router = useRouter();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
-  const localHangup = useRef(false);
   
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -99,9 +98,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      if (localHangup.current) {
-        hangup();
-      }
+      hangup();
     };
   }, [callId, router, user, loading]);
 
@@ -120,13 +117,11 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   };
 
   const endCall = () => {
-    localHangup.current = true;
     hangup();
     router.push('/doctor/dashboard');
   };
 
   const handleCompleteAppointment = async () => {
-    localHangup.current = true;
     hangup();
     toast({
         title: 'Completing Appointment...',
