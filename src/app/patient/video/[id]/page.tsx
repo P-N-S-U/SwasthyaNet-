@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Unsubscribe } from 'firebase/firestore';
 
-type CallStatus = 'Initializing' | 'Waiting' | 'Connected' | 'Ended' | 'Failed' | 'Reconnecting';
+type CallStatus = 'Initializing' | 'Waiting' | 'Connected' | 'Ended' | 'Failed';
 
 export default function VideoCallPage() {
   const router = useRouter();
@@ -41,6 +41,7 @@ export default function VideoCallPage() {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
   
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -50,8 +51,7 @@ export default function VideoCallPage() {
   const [callStatus, setCallStatus] = useState<CallStatus>('Initializing');
   const { user, loading } = useAuthState();
   const callId = params.id as string;
-  const [reconnectAttempt, setReconnectAttempt] = useState(0);
-
+  
   useEffect(() => {
     if (loading || !callId) return;
     if (!user) {
@@ -64,59 +64,60 @@ export default function VideoCallPage() {
     let pc: RTCPeerConnection | null = null;
 
     const startCall = async () => {
-      setCallStatus('Initializing');
+      if(isMounted) setCallStatus('Initializing');
       try {
         console.log(`Attempting to start/join call, attempt: ${reconnectAttempt}`);
-        
-        // Explicitly clear old video stream on reconnect
+
         if (reconnectAttempt > 0 && remoteVideoRef.current) {
-          console.log("Resetting remote video for reconnection attempt");
           remoteVideoRef.current.srcObject = null;
         }
-
-        // Clean up previous connection before creating a new one
-        await hangup(pcRef.current, callId);
         
-        pc = await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'patient');
-        if (!isMounted) return;
+        // Clean up old connection if exists
+        await hangup(pcRef.current, callId);
 
-        pcRef.current = pc;
-        setCallStatus('Waiting');
+        pc = await createOrJoinCall(
+            callId, 
+            localVideoRef, 
+            remoteVideoRef
+        );
+        
+        if (isMounted) {
+          pcRef.current = pc;
+          setCallStatus('Waiting');
 
-        pc.onconnectionstatechange = () => {
-            if(!isMounted) return;
-            console.log('Patient Connection state changed:', pc?.connectionState);
-            switch (pc?.connectionState) {
-                case 'connected':
-                    setCallStatus('Connected');
-                    break;
-                case 'disconnected':
-                case 'failed':
-                    setCallStatus('Reconnecting');
-                    // Automatically attempt to reconnect
-                    setTimeout(() => {
-                        if (isMounted) {
-                            setReconnectAttempt(prev => prev + 1);
-                        }
-                    }, 2000 + Math.random() * 1000); // Add jitter
-                    break;
-                case 'closed':
-                    setCallStatus('Ended');
-                    break;
+          pc.onconnectionstatechange = () => {
+            if(isMounted) {
+                console.log('Patient Connection state changed:', pc?.connectionState);
+                switch (pc?.connectionState) {
+                    case 'connected':
+                        setCallStatus('Connected');
+                        setReconnectAttempt(0);
+                        break;
+                    case 'disconnected':
+                    case 'failed':
+                        setCallStatus('Initializing');
+                        setTimeout(() => {
+                            if (isMounted) setReconnectAttempt(prev => prev + 1);
+                        }, 2000 + Math.random() * 1000);
+                        break;
+                    case 'closed':
+                        setCallStatus('Ended');
+                        break;
+                }
             }
+          }
         }
       } catch (error: any) {
-        console.error('Error starting patient call:', error.message);
+        console.error('Error starting patient call:', error);
         if(isMounted) {
-            setCallStatus('Failed');
-            // Retry on failure
-            setTimeout(() => {
-                if(isMounted) setReconnectAttempt(prev => prev + 1);
-            }, 3000);
+          setCallStatus('Failed');
+          setTimeout(() => {
+            if(isMounted) setReconnectAttempt(prev => prev + 1);
+          }, 3000);
         }
       }
     };
-    
+
     startCall();
     
     callUnsubscribe = getCall(callId, (callData) => {
@@ -126,7 +127,6 @@ export default function VideoCallPage() {
             setRemoteMuted(callData.doctorMuted);
             setRemoteCameraOff(callData.doctorCameraOff);
         } else {
-             // If call document is deleted, treat as ended. This can happen if doctor completes appointment.
             if(isMounted) setCallStatus('Ended');
         }
     });
@@ -170,8 +170,7 @@ export default function VideoCallPage() {
   const getStatusText = () => {
     switch (callStatus) {
         case 'Initializing': return 'Initializing call...';
-        case 'Waiting': return 'Waiting for other user to join...';
-        case 'Reconnecting': return 'Reconnecting to call...';
+        case 'Waiting': return 'Waiting for doctor to join...';
         case 'Connected': return 'Connected';
         case 'Ended': return 'Call has ended.';
         case 'Failed': return 'Failed to connect. Retrying...';

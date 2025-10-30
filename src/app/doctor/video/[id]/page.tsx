@@ -36,7 +36,7 @@ import { completeAppointment } from '@/app/actions/appointments';
 import { useToast } from '@/hooks/use-toast';
 import { Unsubscribe } from 'firebase/firestore';
 
-type CallStatus = 'Joining' | 'Connected' | 'Ended' | 'Failed' | 'Reconnecting';
+type CallStatus = 'Joining' | 'Connected' | 'Ended' | 'Failed';
 
 export default function DoctorVideoCallPage() {
   const router = useRouter();
@@ -79,7 +79,7 @@ export default function DoctorVideoCallPage() {
             // Clean up old connection if exists
             await hangup(pcRef.current, callId);
 
-            pc = await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'doctor');
+            pc = await createOrJoinCall(callId, localVideoRef, remoteVideoRef);
             
             if (isMounted) {
               pcRef.current = pc;
@@ -90,16 +90,14 @@ export default function DoctorVideoCallPage() {
                     switch (pc?.connectionState) {
                         case 'connected':
                             setCallStatus('Connected');
+                            setReconnectAttempt(0); // Reset attempts on success
                             break;
                         case 'disconnected':
                         case 'failed':
-                            setCallStatus('Reconnecting');
-                            // Automatically attempt to reconnect
-                             setTimeout(() => {
-                                if (isMounted) {
-                                    setReconnectAttempt(prev => prev + 1);
-                                }
-                            }, 2000 + Math.random() * 1000); // Add jitter
+                            setCallStatus('Joining');
+                            setTimeout(() => {
+                                if (isMounted) setReconnectAttempt(prev => prev + 1);
+                            }, 2000 + Math.random() * 1000);
                             break;
                         case 'closed':
                             setCallStatus('Ended');
@@ -195,7 +193,6 @@ export default function DoctorVideoCallPage() {
   const getStatusText = () => {
     switch (callStatus) {
       case 'Joining': return 'Connecting to call...';
-      case 'Reconnecting': return 'Reconnecting...';
       case 'Connected': return 'Connected';
       case 'Ended': return 'Call has ended.';
       case 'Failed': return 'Failed to connect. Retrying...';
