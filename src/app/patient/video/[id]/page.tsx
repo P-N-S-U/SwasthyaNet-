@@ -67,7 +67,6 @@ export default function VideoCallPage() {
       setCallStatus('Initializing');
       try {
         await hangup(pcRef.current);
-
         pc = await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'patient');
         if (!isMounted) return;
 
@@ -107,8 +106,17 @@ export default function VideoCallPage() {
         }
       }
     };
+    
+    // This is the main effect execution
+    const run = async () => {
+       if (reconnectAttempt > 0 && remoteVideoRef.current) {
+          console.log("Resetting remote video for reconnection attempt");
+          remoteVideoRef.current.srcObject = null;
+       }
+       await startCall();
+    }
 
-    startCall();
+    run();
     
     callUnsubscribe = getCall(callId, (callData) => {
         if(!isMounted) return;
@@ -116,11 +124,6 @@ export default function VideoCallPage() {
         if (callData) {
             setRemoteMuted(callData.doctorMuted);
             setRemoteCameraOff(callData.doctorCameraOff);
-            if (!callData.offer) {
-                console.log('Offer disappeared, doctor may have left. Preparing to reconnect.');
-                setCallStatus('Reconnecting');
-                if(isMounted) setReconnectAttempt(prev => prev + 1);
-            }
         } else {
             if(isMounted) setCallStatus('Ended');
         }
