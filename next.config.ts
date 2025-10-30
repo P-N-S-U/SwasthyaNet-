@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 import type {NextConfig} from 'next';
 
@@ -29,6 +30,12 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+       {
+        protocol: 'https',
+        hostname: 'unpkg.com',
+        port: '',
+        pathname: '/**',
+      }
     ],
   },
   webpack: (config, { isServer }) => {
