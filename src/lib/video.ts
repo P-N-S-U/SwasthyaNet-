@@ -62,7 +62,6 @@ export const createOrJoinCall = async (
   }
   callId = id;
   const callDocRef = doc(db, 'calls', callId);
-
   const offerCandidatesCollection = collection(callDocRef, 'offerCandidates');
   const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
 
