@@ -68,7 +68,9 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
     let callUnsubscribe: (() => void) | null = null;
     
     const handleCallEnded = () => {
-        if (!localHangup.current) {
+        if (localHangup.current) {
+            setCallStatus('Ended');
+        } else {
             toast({ title: 'Call Ended', description: 'The doctor has left the call.' });
             setCallStatus('Ended');
         }
@@ -113,14 +115,13 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
         if(callData) {
             setRemoteMuted(callData.doctorMuted);
             setRemoteCameraOff(callData.doctorCameraOff);
-        } else if (hasCreated.current && !localHangup.current) {
+        } else {
             handleCallEnded();
         }
     });
 
     // Cleanup function
     return () => {
-      localHangup.current = true;
       if(callUnsubscribe) {
           callUnsubscribe();
       }

@@ -70,10 +70,11 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
     
 
     const handleCallEnded = () => {
-        if (!localHangup.current) {
+        if (localHangup.current) {
+            setCallStatus('Ended');
+        } else {
             toast({ title: 'Call Ended', description: 'The patient has left the call.' });
             setCallStatus('Ended');
-            // The doctor can stay on the page until they choose to leave
         }
     };
 
@@ -117,7 +118,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
                 if(callData) {
                     setRemoteMuted(callData.patientMuted);
                     setRemoteCameraOff(callData.patientCameraOff);
-                } else if (!localHangup.current) {
+                } else {
                     handleCallEnded();
                 }
             });
@@ -137,7 +138,6 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
     // Cleanup function
     return () => {
-      localHangup.current = true; // Mark as local hangup on unmount
       if (callUnsubscribe) {
         callUnsubscribe();
       }
