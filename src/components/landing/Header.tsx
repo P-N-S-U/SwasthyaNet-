@@ -14,8 +14,11 @@ import {
 import {
   Sheet,
   SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
   SheetTrigger,
-  SheetClose
+  SheetClose,
 } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Stethoscope, LogOut, UserCircle, LayoutDashboard, Menu } from 'lucide-react';
@@ -122,6 +125,17 @@ export const Header = () => {
                  </Button>
                </SheetTrigger>
                <SheetContent side="right">
+                 <SheetHeader>
+                    <SheetTitle>
+                       <Link href="/" className="mr-6 flex items-center gap-2">
+                          <Stethoscope className="h-6 w-6 text-primary" />
+                          <span className="text-lg font-bold font-headline">SwasthyaNet</span>
+                        </Link>
+                    </SheetTitle>
+                    <SheetDescription>
+                        Navigate through the application features.
+                    </SheetDescription>
+                 </SheetHeader>
                  <div className="flex flex-col gap-4 py-6">
                  {(!user || role === 'patient') && (
                   <>
