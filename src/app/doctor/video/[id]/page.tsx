@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button';
 import { useRouter, useParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import {
-  hangup,
+  endCall,
   toggleMute,
   toggleCamera,
   getCall,
@@ -116,8 +116,8 @@ export default function DoctorVideoCallPage() {
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      // Pass callId to hangup to reset Firestore state for reconnection
-      hangup(pcRef.current, callId);
+      // Pass callId to endCall to reset Firestore state for reconnection
+      endCall(pcRef.current, callId);
       pcRef.current = null;
     };
   }, [callId, router, user, loading]);
@@ -136,13 +136,13 @@ export default function DoctorVideoCallPage() {
     toggleCamera(newCameraState, callId, 'doctor');
   };
 
-  const endCall = async () => {
-    await hangup(pcRef.current, callId);
+  const handleEndCall = async () => {
+    await endCall(pcRef.current, callId);
     router.push('/doctor/dashboard');
   };
 
   const handleCompleteAppointment = async () => {
-    await hangup(pcRef.current, callId);
+    await endCall(pcRef.current, callId);
     pcRef.current = null;
     toast({
         title: 'Completing Appointment...',
@@ -275,7 +275,7 @@ export default function DoctorVideoCallPage() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                   <AlertDialogAction variant="outline" onClick={endCall}>Leave Call</AlertDialogAction>
+                   <AlertDialogAction variant="outline" onClick={handleEndCall}>Leave Call</AlertDialogAction>
                   <AlertDialogAction onClick={handleCompleteAppointment}>
                     <CheckCircle className="mr-2 h-4 w-4" />
                     Complete Appointment
