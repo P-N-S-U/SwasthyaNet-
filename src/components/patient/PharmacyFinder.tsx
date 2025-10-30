@@ -11,7 +11,7 @@ import { Skeleton } from '../ui/skeleton';
 
 const MapWrapper = dynamic(() => import('./MapWrapper'), {
   ssr: false,
-  loading: () => <Skeleton className="h-full w-full" />,
+  loading: () => <Skeleton className="h-[500px] w-full" />,
 });
 
 interface Pharmacy {
@@ -160,13 +160,9 @@ export function PharmacyFinder() {
     </div>
   );
 
-  console.log('[PharmacyFinder] Rendering with props for MapWrapper:', { userLocation, pharmacies });
-
   return (
     <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-      <div className="md:col-span-2">
-        <Card className="h-[500px] border-border/30 bg-background relative">
-          
+      <div className="md:col-span-2 h-[500px] rounded-lg border border-border/30 bg-background relative overflow-hidden">
           <MapWrapper userLocation={userLocation} pharmacies={pharmacies} />
           
           {loadingLocation && (
@@ -184,8 +180,6 @@ export function PharmacyFinder() {
                 </Alert>
             </div>
           )}
-
-        </Card>
       </div>
 
       <div className="md:col-span-1">
