@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Unsubscribe } from 'firebase/firestore';
 
-type CallStatus = 'Initializing' | 'Waiting' | 'Connected' | 'Ended' | 'Failed';
+type CallStatus = 'Initializing' | 'Waiting' | 'Connected' | 'Ended' | 'Failed' | 'Reconnecting';
 
 export default function VideoCallPage() {
   const router = useRouter();
@@ -41,7 +41,6 @@ export default function VideoCallPage() {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
-  const reconnectTriggerRef = useRef(0);
   
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -51,7 +50,8 @@ export default function VideoCallPage() {
   const [callStatus, setCallStatus] = useState<CallStatus>('Initializing');
   const { user, loading } = useAuthState();
   const callId = params.id as string;
-  
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
+
   useEffect(() => {
     if (loading || !callId) return;
     if (!user) {
@@ -64,62 +64,47 @@ export default function VideoCallPage() {
     let pc: RTCPeerConnection | null = null;
 
     const startCall = async () => {
-      if(isMounted) setCallStatus('Initializing');
+      setCallStatus('Initializing');
       try {
-        console.log('Starting call...');
-        
-        // Clean up old connection if exists
-        if (pcRef.current) {
-            await hangup(pcRef.current, callId);
-            pcRef.current = null;
-        }
+        await hangup(pcRef.current);
 
-        pc = await createOrJoinCall(
-            callId, 
-            localVideoRef, 
-            remoteVideoRef, 
-            'patient',
-            () => {
-                // Reconnection callback
-                console.log('Reconnection needed, triggering...');
-                if (isMounted) {
-                    reconnectTriggerRef.current++;
-                }
-            }
-        );
-        
-        if (isMounted) {
-          pcRef.current = pc;
-          setCallStatus('Waiting');
+        pc = await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'patient');
+        if (!isMounted) return;
 
-          pc.onconnectionstatechange = () => {
-            if(isMounted) {
-                console.log('Connection state changed:', pc?.connectionState);
-                switch (pc?.connectionState) {
-                    case 'connected':
-                        setCallStatus('Connected');
-                        break;
-                    case 'disconnected':
-                    case 'failed':
-                        console.log('Connection lost, may need reconnection');
-                        setCallStatus('Initializing');
-                        // Trigger reconnection after brief delay
-                        setTimeout(() => {
-                            if (isMounted) {
-                                reconnectTriggerRef.current++;
-                            }
-                        }, 2000);
-                        break;
-                    case 'closed':
-                        setCallStatus('Ended');
-                        break;
-                }
+        pcRef.current = pc;
+        setCallStatus('Waiting');
+
+        pc.onconnectionstatechange = () => {
+            if(!isMounted) return;
+            console.log('Patient Connection state changed:', pc?.connectionState);
+            switch (pc?.connectionState) {
+                case 'connected':
+                    setCallStatus('Connected');
+                    break;
+                case 'disconnected':
+                case 'failed':
+                    setCallStatus('Reconnecting');
+                    // Automatically attempt to reconnect
+                    setTimeout(() => {
+                        if (isMounted) {
+                            setReconnectAttempt(prev => prev + 1);
+                        }
+                    }, 2000);
+                    break;
+                case 'closed':
+                    setCallStatus('Ended');
+                    break;
             }
-          }
         }
       } catch (error: any) {
-        console.error('Error starting call:', error);
-        if(isMounted) setCallStatus('Failed');
+        console.error('Error starting patient call:', error.message);
+        if(isMounted) {
+            setCallStatus('Failed');
+            // Retry on failure
+            setTimeout(() => {
+                if(isMounted) setReconnectAttempt(prev => prev + 1);
+            }, 3000);
+        }
       }
     };
 
@@ -131,6 +116,11 @@ export default function VideoCallPage() {
         if (callData) {
             setRemoteMuted(callData.doctorMuted);
             setRemoteCameraOff(callData.doctorCameraOff);
+            if (!callData.offer) {
+                console.log('Offer disappeared, doctor may have left. Preparing to reconnect.');
+                setCallStatus('Reconnecting');
+                if(isMounted) setReconnectAttempt(prev => prev + 1);
+            }
         } else {
             if(isMounted) setCallStatus('Ended');
         }
@@ -138,13 +128,11 @@ export default function VideoCallPage() {
 
     return () => {
       isMounted = false;
-      if (callUnsubscribe) {
-        callUnsubscribe();
-      }
-      hangup(pcRef.current, callId);
+      if (callUnsubscribe) callUnsubscribe();
+      hangup(pcRef.current);
       pcRef.current = null;
     };
-  }, [callId, router, user, loading, reconnectTriggerRef.current]);
+  }, [callId, router, user, loading, reconnectAttempt]);
 
   const handleToggleMute = () => {
     if (!user) return;
@@ -161,7 +149,7 @@ export default function VideoCallPage() {
   };
 
   const endCall = async () => {
-    await hangup(pcRef.current, callId);
+    await hangup(pcRef.current);
     router.push('/patient/appointments');
   };
 
@@ -178,9 +166,10 @@ export default function VideoCallPage() {
     switch (callStatus) {
         case 'Initializing': return 'Initializing call...';
         case 'Waiting': return 'Waiting for doctor to join...';
+        case 'Reconnecting': return 'Reconnecting to call...';
         case 'Connected': return 'Connected';
         case 'Ended': return 'Call has ended.';
-        case 'Failed': return 'Failed to connect.';
+        case 'Failed': return 'Failed to connect. Retrying...';
         default: return 'Connecting...';
     }
   }

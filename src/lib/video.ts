@@ -12,8 +12,8 @@ import {
   Unsubscribe,
   writeBatch,
   getDocs,
+  deleteDoc,
   deleteField,
-  serverTimestamp,
 } from 'firebase/firestore';
 
 const servers = {
@@ -26,8 +26,8 @@ const servers = {
 };
 
 let localStream: MediaStream | null = null;
-let remoteStream: MediaStream | null = null;
 
+// Helper to delete all documents in a subcollection
 async function deleteSubcollection(collectionRef) {
     const snapshot = await getDocs(collectionRef);
     if (snapshot.empty) {
@@ -40,234 +40,159 @@ async function deleteSubcollection(collectionRef) {
     await batch.commit();
 }
 
-// Generate a unique session ID for this connection attempt
-function generateSessionId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-}
 
 export const createOrJoinCall = async (
   callId: string,
   localVideoRef: React.RefObject<HTMLVideoElement>,
   remoteVideoRef: React.RefObject<HTMLVideoElement>,
-  userType: 'doctor' | 'patient',
-  onNeedReconnect?: () => void
+  userType: 'doctor' | 'patient'
 ) => {
     const pc = new RTCPeerConnection(servers);
-    const mySessionId = generateSessionId();
-    console.log('My session ID:', mySessionId, 'Role:', userType);
     
-    // 1. Setup local media
+    // 1. Get local media stream
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     if (localVideoRef.current) {
         localVideoRef.current.srcObject = localStream;
     }
-    
-    // 2. Setup remote media
-    remoteStream = new MediaStream();
-    if (remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = remoteStream;
-    }
-
-    // 3. Push tracks from local stream to peer connection
     localStream.getTracks().forEach(track => {
         pc.addTrack(track, localStream!);
     });
 
-    // 4. Pull tracks from remote stream
+    // 2. Setup remote media stream
+    const remoteStream = new MediaStream();
+    if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = remoteStream;
+    }
     pc.ontrack = event => {
-        console.log('Received remote track:', event.track.kind);
         event.streams[0].getTracks().forEach(track => {
-            remoteStream?.addTrack(track);
+            remoteStream.addTrack(track);
         });
     };
 
     const callDocRef = doc(db, 'calls', callId);
-    const offerCandidatesCollection = collection(callDocRef, 'offerCandidates');
-    const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
+    const offerCandidates = collection(callDocRef, 'offerCandidates');
+    const answerCandidates = collection(callDocRef, 'answerCandidates');
 
-    const callDocSnap = await getDoc(callDocRef);
-    const callDocExists = callDocSnap.exists();
-    const callData = callDocSnap.data();
-    const existingOffer = callDocExists && callData?.offer;
-    const existingSessionId = callData?.sessionId;
+    // --- Role-based signaling logic ---
 
-    // Determine if we should be caller or callee
-    const shouldBeCallee = existingOffer && existingSessionId;
+    if (userType === 'doctor') {
+        // DOCTOR IS ALWAYS THE CALLER
+        console.log('Doctor is creating offer...');
 
-    if (!shouldBeCallee) {
-        // === CALLER: Create fresh offer ===
-        console.log('Acting as CALLER - creating new offer');
-        
-        // Clear everything for fresh start
-        await deleteSubcollection(offerCandidatesCollection);
-        await deleteSubcollection(answerCandidatesCollection);
-        
+        // Clean up previous call state for a fresh start
+        await deleteSubcollection(offerCandidates);
+        await deleteSubcollection(answerCandidates);
+        await setDoc(callDocRef, { offer: deleteField(), answer: deleteField() }, { merge: true });
+
         pc.onicecandidate = event => {
-            if (event.candidate) {
-                addDoc(offerCandidatesCollection, event.candidate.toJSON());
-            }
+            event.candidate && addDoc(offerCandidates, event.candidate.toJSON());
         };
-        
+
         const offerDescription = await pc.createOffer();
         await pc.setLocalDescription(offerDescription);
-        
+
         const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
-        await setDoc(callDocRef, { 
-            offer,
-            sessionId: mySessionId,
-            answer: deleteField(), // Clear any old answer
-        }, { merge: true });
+        await setDoc(callDocRef, { offer });
 
-        // Monitor for session changes (someone reconnecting triggers new session)
-        const sessionUnsubscribe = onSnapshot(callDocRef, async (snapshot) => {
+        // Listen for the patient's answer
+        const unsubAnswer = onSnapshot(callDocRef, (snapshot) => {
             const data = snapshot.data();
-            if (!data) return;
-
-            // If session ID changes, it means the other peer reconnected
-            // We need to reconnect too
-            if (data.sessionId && data.sessionId !== mySessionId && data.sessionId !== existingSessionId) {
-                console.log('Session changed - other peer reconnected, triggering our reconnect');
-                if (onNeedReconnect) {
-                    onNeedReconnect();
-                }
-                return;
-            }
-
-            // Normal answer handling
-            if (data?.answer && !pc.currentRemoteDescription) {
-                console.log('Received answer, setting remote description');
+            if (!pc.currentRemoteDescription && data?.answer) {
+                console.log('Doctor received answer.');
                 const answerDescription = new RTCSessionDescription(data.answer);
-                await pc.setRemoteDescription(answerDescription);
+                pc.setRemoteDescription(answerDescription);
             }
         });
-        
-        // Listen for answer candidates
-        const answerCandidatesUnsubscribe = onSnapshot(answerCandidatesCollection, (snapshot) => {
-            snapshot.docChanges().forEach(async (change) => {
+
+        // Listen for ICE candidates from the patient
+        const unsubAnswerCandidates = onSnapshot(answerCandidates, (snapshot) => {
+            snapshot.docChanges().forEach(change => {
                 if (change.type === 'added') {
-                    const candidate = new RTCIceCandidate(change.doc.data());
-                    try {
-                        await pc.addIceCandidate(candidate);
-                    } catch (e) {
-                        console.error('Error adding answer candidate:', e);
-                    }
+                    console.log('Doctor adding answer candidate.');
+                    pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
                 }
             });
         });
-
-        (pc as any)._unsubscribes = [sessionUnsubscribe, answerCandidatesUnsubscribe];
-
-    } else {
-        // === CALLEE: Join existing call ===
-        console.log('Acting as CALLEE - joining existing call');
         
-        // Check if the offer is from an old session - if so, we need to wait/trigger refresh
-        // For now, clear answer candidates and proceed
-        await deleteSubcollection(answerCandidatesCollection);
-        
+        (pc as any)._unsubscribes = [unsubAnswer, unsubAnswerCandidates];
+
+    } else if (userType === 'patient') {
+        // PATIENT IS ALWAYS THE CALLEE
+        console.log('Patient is creating answer...');
+
+        const callDocSnap = await getDoc(callDocRef);
+        if (!callDocSnap.exists() || !callDocSnap.data().offer) {
+            throw new Error("Doctor has not started the call yet.");
+        }
+
         pc.onicecandidate = event => {
-            if (event.candidate) {
-                addDoc(answerCandidatesCollection, event.candidate.toJSON());
-            }
+            event.candidate && addDoc(answerCandidates, event.candidate.toJSON());
         };
 
-        const offerDescription = new RTCSessionDescription(existingOffer);
-        await pc.setRemoteDescription(offerDescription);
-        
+        const offerDescription = callDocSnap.data().offer;
+        await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
+
         const answerDescription = await pc.createAnswer();
         await pc.setLocalDescription(answerDescription);
-        
+
         const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
         await updateDoc(callDocRef, { answer });
-        
-        // Listen for offer candidates
-        const offerCandidatesUnsubscribe = onSnapshot(offerCandidatesCollection, (snapshot) => {
-            snapshot.docChanges().forEach(async (change) => {
+
+        // Listen for ICE candidates from the doctor
+        const unsubOfferCandidates = onSnapshot(offerCandidates, (snapshot) => {
+            snapshot.docChanges().forEach(change => {
                 if (change.type === 'added') {
-                    const candidate = new RTCIceCandidate(change.doc.data());
-                    try {
-                        await pc.addIceCandidate(candidate);
-                    } catch (e) {
-                        console.error('Error adding offer candidate:', e);
-                    }
+                    console.log('Patient adding offer candidate.');
+                    pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
                 }
             });
         });
 
-        // Monitor session changes
-        const sessionUnsubscribe = onSnapshot(callDocRef, (snapshot) => {
-            const data = snapshot.data();
-            if (!data) return;
-
-            // If session changed, caller reconnected, we should too
-            if (data.sessionId && data.sessionId !== existingSessionId) {
-                console.log('Session changed - caller reconnected, triggering our reconnect');
-                if (onNeedReconnect) {
-                    onNeedReconnect();
-                }
-            }
-        });
-
-        (pc as any)._unsubscribes = [offerCandidatesUnsubscribe, sessionUnsubscribe];
+        (pc as any)._unsubscribes = [unsubOfferCandidates];
     }
-
-    // Connection monitoring
-    pc.oniceconnectionstatechange = () => {
-        console.log('ICE connection state:', pc.iceConnectionState);
-        if (pc.iceConnectionState === 'failed') {
-            console.error('ICE connection failed');
-        }
-    };
     
-    pc.onconnectionstatechange = () => {
-        console.log('Connection state:', pc.connectionState);
-    };
-
-    // Store session ID on the peer connection
-    (pc as any)._sessionId = mySessionId;
-
     return pc;
 };
 
-export const hangup = async (currentPc: RTCPeerConnection | null, callId?: string, preserveOffer: boolean = true) => {
-    console.log('Hanging up, preserve offer:', preserveOffer);
+export const hangup = async (currentPc: RTCPeerConnection | null) => {
+    console.log('Hanging up call.');
     
-    // Clean up listeners
+    // Clean up Firestore listeners
     if (currentPc && (currentPc as any)._unsubscribes) {
         (currentPc as any)._unsubscribes.forEach((unsub: Unsubscribe) => unsub());
     }
 
+    // Stop local media tracks
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
     }
 
-    if (remoteStream) {
-        remoteStream.getTracks().forEach(track => track.stop());
-        remoteStream = null;
-    }
-
+    // Close the peer connection
     if (currentPc) {
         currentPc.close();
     }
-  
-    // Clear answer to allow reconnection
-    if (callId && preserveOffer) {
-        const callDocRef = doc(db, 'calls', callId);
-        const callDocSnap = await getDoc(callDocRef);
-        if(callDocSnap.exists()) {
-             await updateDoc(callDocRef, {
-                answer: deleteField(),
-             });
-            await deleteSubcollection(collection(callDocRef, 'answerCandidates'));
-        }
-    }
 };
 
+// This function is intended to be called by a server action when the appointment is completed.
+export const terminateCall = async (callId: string) => {
+    const callDocRef = doc(db, 'calls', callId);
+    
+    // Delete subcollections first
+    await deleteSubcollection(collection(callDocRef, 'offerCandidates'));
+    await deleteSubcollection(collection(callDocRef, 'answerCandidates'));
+
+    // Delete the main call document
+    await deleteDoc(callDocRef);
+}
+
+
 export const toggleMute = async (isMuted: boolean, callId: string, role: 'patient' | 'doctor') => {
-  localStream?.getAudioTracks().forEach(track => {
-    track.enabled = !isMuted;
-  });
+  if (localStream) {
+    localStream.getAudioTracks().forEach(track => {
+      track.enabled = !isMuted;
+    });
+  }
   if (callId && role) {
     const callDoc = doc(db, 'calls', callId);
     const field = role === 'patient' ? 'patientMuted' : 'doctorMuted';
@@ -276,9 +201,11 @@ export const toggleMute = async (isMuted: boolean, callId: string, role: 'patien
 };
 
 export const toggleCamera = async (isCameraOff: boolean, callId: string, role: 'patient' | 'doctor') => {
-  localStream?.getVideoTracks().forEach(track => {
-    track.enabled = !isCameraOff;
-  });
+  if (localStream) {
+    localStream.getVideoTracks().forEach(track => {
+      track.enabled = !isCameraOff;
+    });
+  }
   if (callId && role) {
     const callDoc = doc(db, 'calls', callId);
     const field = role === 'patient' ? 'patientCameraOff' : 'doctorCameraOff';
