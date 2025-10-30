@@ -1,4 +1,3 @@
-
 'use client';
 
 import { db } from './firebase/firebase';
@@ -40,7 +39,6 @@ async function deleteSubcollection(collectionRef) {
     await batch.commit();
 }
 
-
 export const createOrJoinCall = async (
   callId: string,
   localVideoRef: React.RefObject<HTMLVideoElement>,
@@ -55,7 +53,7 @@ export const createOrJoinCall = async (
         localVideoRef.current.srcObject = localStream;
     }
     
-    // 2. Setup remote media
+    // 2. Setup remote media - IMPORTANT: Create fresh MediaStream for this connection
     remoteStream = new MediaStream();
     if (remoteVideoRef.current) {
         remoteVideoRef.current.srcObject = remoteStream;
@@ -84,6 +82,7 @@ export const createOrJoinCall = async (
     if (!existingOffer) {
         // === This user is the CALLER (first to join) ===
         
+        // Clear old candidates
         await deleteSubcollection(offerCandidatesCollection);
         await deleteSubcollection(answerCandidatesCollection);
         
@@ -97,7 +96,8 @@ export const createOrJoinCall = async (
         const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
         await setDoc(callDocRef, { offer }, { merge: true });
 
-        onSnapshot(callDocRef, (snapshot) => {
+        // Listen for answer
+        const answerUnsubscribe = onSnapshot(callDocRef, (snapshot) => {
             const data = snapshot.data();
             if (!pc.currentRemoteDescription && data?.answer) {
                 const answerDescription = new RTCSessionDescription(data.answer);
@@ -105,7 +105,8 @@ export const createOrJoinCall = async (
             }
         });
         
-        onSnapshot(answerCandidatesCollection, (snapshot) => {
+        // Listen for answer candidates - KEEP THIS ACTIVE for reconnections
+        const answerCandidatesUnsubscribe = onSnapshot(answerCandidatesCollection, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'added') {
                     const candidate = new RTCIceCandidate(change.doc.data());
@@ -114,8 +115,14 @@ export const createOrJoinCall = async (
             });
         });
 
+        // Store unsubscribe functions on pc for cleanup
+        (pc as any)._unsubscribes = [answerUnsubscribe, answerCandidatesUnsubscribe];
+
     } else {
         // === This user is the CALLEE (second to join / rejoining) ===
+        
+        // CRITICAL FIX: Clear old answer candidates when rejoining
+        await deleteSubcollection(answerCandidatesCollection);
         
         pc.onicecandidate = event => {
             event.candidate && addDoc(answerCandidatesCollection, event.candidate.toJSON());
@@ -130,7 +137,8 @@ export const createOrJoinCall = async (
         const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
         await updateDoc(callDocRef, { answer });
         
-        onSnapshot(offerCandidatesCollection, (snapshot) => {
+        // Listen for offer candidates
+        const offerCandidatesUnsubscribe = onSnapshot(offerCandidatesCollection, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'added') {
                     const candidate = new RTCIceCandidate(change.doc.data());
@@ -138,13 +146,20 @@ export const createOrJoinCall = async (
                 }
             });
         });
+
+        // Store unsubscribe function on pc for cleanup
+        (pc as any)._unsubscribes = [offerCandidatesUnsubscribe];
     }
 
     return pc;
 };
 
-
 export const hangup = async (currentPc: RTCPeerConnection | null, callId?: string) => {
+    // Clean up listeners
+    if (currentPc && (currentPc as any)._unsubscribes) {
+        (currentPc as any)._unsubscribes.forEach((unsub: Unsubscribe) => unsub());
+    }
+
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
@@ -168,12 +183,11 @@ export const hangup = async (currentPc: RTCPeerConnection | null, callId?: strin
                 answer: deleteField(),
                 // Keep the offer so the next person can join
              });
-            // Also clear the candidates for a clean slate on reconnect
+            // Clear answer candidates for clean reconnect
             await deleteSubcollection(collection(callDocRef, 'answerCandidates'));
         }
     }
 };
-
 
 export const toggleMute = async (isMuted: boolean, callId: string, role: 'patient' | 'doctor') => {
   localStream?.getAudioTracks().forEach(track => {
