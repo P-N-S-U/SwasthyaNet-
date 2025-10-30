@@ -57,16 +57,20 @@ export const createOrJoinCall = async (
   remoteVideoRef: React.RefObject<HTMLVideoElement>,
   userType: 'doctor' | 'patient'
 ) => {
-  hangup(pc, callId); // Clean up any previous call state
+  if (pc) {
+    hangup(pc, callId);
+  }
   callId = id;
   const callDocRef = doc(db, 'calls', callId);
 
-  // Clean up old candidates before starting
   const offerCandidatesCollection = collection(callDocRef, 'offerCandidates');
   const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
-  await deleteSubcollection(offerCandidatesCollection);
-  await deleteSubcollection(answerCandidatesCollection);
 
+  // Clean up old candidates before starting
+  await Promise.all([
+      deleteSubcollection(offerCandidatesCollection),
+      deleteSubcollection(answerCandidatesCollection)
+  ]);
 
   // Setup local media
   localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -158,14 +162,14 @@ export const createOrJoinCall = async (
 };
 
 
-export const hangup = async (currentPc: typeof pc, currentCallId: typeof callId) => {
+export const hangup = async (currentPc: typeof pc, currentCallId: string | null) => {
   cleanupListeners();
 
   if (currentPc) {
     currentPc.getSenders().forEach(sender => sender.track?.stop());
     currentPc.close();
   }
-
+  
   if (localStream) {
     localStream.getTracks().forEach(track => track.stop());
     localStream = null;
@@ -183,7 +187,6 @@ export const hangup = async (currentPc: typeof pc, currentCallId: typeof callId)
             offer: deleteField(),
             answer: deleteField(),
         });
-        // Subcollections are cleared on the next createOrJoinCall
     }
   }
 

@@ -99,7 +99,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
       }
       hangup(pcRef.current, callId);
     };
-  }, [callId, router, user, loading, toast]);
+  }, [callId, router, user, loading]);
 
   const handleToggleMute = () => {
     if (!user) return;
