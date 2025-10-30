@@ -12,6 +12,8 @@ import {
   getDoc,
   deleteDoc,
   Unsubscribe,
+  getDocs,
+  writeBatch,
 } from 'firebase/firestore';
 
 const servers = {
@@ -42,6 +44,7 @@ export const createOrJoinCall = async (
   remoteVideoRef: React.RefObject<HTMLVideoElement>,
   userType: 'doctor' | 'patient'
 ) => {
+  hangup(); // Clean up any previous call state
   callId = id;
   const callDocRef = doc(db, 'calls', callId);
 
@@ -56,33 +59,33 @@ export const createOrJoinCall = async (
   if (remoteVideoRef.current) {
     remoteVideoRef.current.srcObject = remoteStream;
   }
-  
-  const initializePeerConnection = () => {
-    if (pc) {
-      pc.close();
-    }
-    pc = new RTCPeerConnection(servers);
 
-    localStream?.getTracks().forEach(track => {
-      pc!.addTrack(track, localStream!);
+  pc = new RTCPeerConnection(servers);
+
+  localStream.getTracks().forEach(track => {
+    pc!.addTrack(track, localStream!);
+  });
+
+  pc.ontrack = event => {
+    event.streams[0].getTracks().forEach(track => {
+      remoteStream?.addTrack(track);
     });
-
-    pc.ontrack = event => {
-      event.streams[0].getTracks().forEach(track => {
-        remoteStream?.addTrack(track);
-      });
-    };
   };
 
   const callDocSnap = await getDoc(callDocRef);
 
   if (!callDocSnap.exists()) {
-    // === This is the first user to join (caller) ===
-    initializePeerConnection();
+    // === This user is the CALLER (first to join) ===
+    const offerCandidatesCollection = collection(callDocRef, 'offerCandidates');
+    const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
+
+    pc.onicecandidate = event => {
+      event.candidate && addDoc(offerCandidatesCollection, event.candidate.toJSON());
+    };
     
     // Create offer
-    const offerDescription = await pc!.createOffer();
-    await pc!.setLocalDescription(offerDescription);
+    const offerDescription = await pc.createOffer();
+    await pc.setLocalDescription(offerDescription);
     const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
     
     // Create call document in Firestore
@@ -95,21 +98,10 @@ export const createOrJoinCall = async (
         const answerDescription = new RTCSessionDescription(data.answer);
         pc?.setRemoteDescription(answerDescription);
       }
-      
-      // Renegotiation logic for when the other user reconnects
-      if (data?.reconnecting) {
-        console.log("Other user is reconnecting, creating a new offer...");
-        initializePeerConnection();
-        pc?.createOffer().then(offerDesc => {
-          pc?.setLocalDescription(offerDesc);
-          updateDoc(callDocRef, { offer: { sdp: offerDesc.sdp, type: offerDesc.type }, reconnecting: false, answer: null });
-        });
-      }
     });
     unsubscribes.push(unsubCall);
     
     // Listen for ICE candidates from the other peer
-    const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
     const unsubAnswerCandidates = onSnapshot(answerCandidatesCollection, (snapshot) => {
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
@@ -120,38 +112,26 @@ export const createOrJoinCall = async (
     });
     unsubscribes.push(unsubAnswerCandidates);
 
-    // Send my ICE candidates
+  } else {
+    // === This user is the CALLEE (second to join) ===
     const offerCandidatesCollection = collection(callDocRef, 'offerCandidates');
-    pc!.onicecandidate = event => {
-      event.candidate && addDoc(offerCandidatesCollection, event.candidate.toJSON());
+    const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
+    
+    pc.onicecandidate = event => {
+      event.candidate && addDoc(answerCandidatesCollection, event.candidate.toJSON());
     };
 
-  } else {
-    // === This user is joining an existing call (callee/rejoiner) ===
-    initializePeerConnection();
+    const callData = callDocSnap.data();
+    const offerDescription = new RTCSessionDescription(callData.offer);
+    await pc.setRemoteDescription(offerDescription);
     
-    // Signal that we are joining/reconnecting
-    await updateDoc(callDocRef, { reconnecting: true });
-
-    // Listen for the new offer created by the other peer
-    const unsubCall = onSnapshot(callDocRef, async (snapshot) => {
-      const data = snapshot.data();
-      if (data?.offer && !pc?.currentRemoteDescription) {
-        console.log("Got offer, creating answer...");
-        const offerDescription = new RTCSessionDescription(data.offer);
-        await pc!.setRemoteDescription(offerDescription);
-        
-        const answerDescription = await pc!.createAnswer();
-        await pc!.setLocalDescription(answerDescription);
-        
-        const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
-        await updateDoc(callDocRef, { answer });
-      }
-    });
-    unsubscribes.push(unsubCall);
-
+    const answerDescription = await pc.createAnswer();
+    await pc.setLocalDescription(answerDescription);
+    
+    const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
+    await updateDoc(callDocRef, { answer });
+    
     // Listen for ICE candidates from the other peer
-    const offerCandidatesCollection = collection(callDocRef, 'offerCandidates');
     const unsubOfferCandidates = onSnapshot(offerCandidatesCollection, (snapshot) => {
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
@@ -161,12 +141,6 @@ export const createOrJoinCall = async (
       });
     });
     unsubscribes.push(unsubOfferCandidates);
-    
-    // Send my ICE candidates
-    const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
-    pc!.onicecandidate = event => {
-      event.candidate && addDoc(answerCandidatesCollection, event.candidate.toJSON());
-    };
   }
 };
 
@@ -187,7 +161,6 @@ export const hangup = async () => {
   
   remoteStream = null;
   // Do NOT delete the call document, to allow for reconnection.
-  // callId = null; 
 };
 
 
@@ -197,8 +170,12 @@ export const toggleMute = async (isMuted: boolean, role: 'patient' | 'doctor') =
   });
   if (callId && role) {
     const callDoc = doc(db, 'calls', callId);
-    const field = role === 'patient' ? 'patientMuted' : 'doctorMuted';
-    await updateDoc(callDoc, { [field]: isMuted });
+    // Check if doc exists before updating
+    const docSnap = await getDoc(callDoc);
+    if (docSnap.exists()) {
+      const field = role === 'patient' ? 'patientMuted' : 'doctorMuted';
+      await updateDoc(callDoc, { [field]: isMuted });
+    }
   }
 };
 
@@ -208,12 +185,15 @@ export const toggleCamera = async (isCameraOff: boolean, role: 'patient' | 'doct
   });
   if (callId && role) {
     const callDoc = doc(db, 'calls', callId);
-    const field = role === 'patient' ? 'patientCameraOff' : 'doctorCameraOff';
-    await updateDoc(callDoc, { [field]: isCameraOff });
+    const docSnap = await getDoc(callDoc);
+    if (docSnap.exists()) {
+      const field = role === 'patient' ? 'patientCameraOff' : 'doctorCameraOff';
+      await updateDoc(callDoc, { [field]: isCameraOff });
+    }
   }
 };
 
-// This can be used to listen for remote media state changes
+// This can be used to listen for remote media state changes and call termination
 export const getCall = (id: string, callback: (data: any | null) => void) => {
   const callDoc = doc(db, 'calls', id);
   const unsub = onSnapshot(callDoc, snapshot => {

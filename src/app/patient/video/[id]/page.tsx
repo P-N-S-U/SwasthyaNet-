@@ -39,6 +39,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const localHangup = useRef(false);
   
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -58,6 +59,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
 
     let isMounted = true;
     let callUnsubscribe: (() => void) | null = null;
+    let hasConnected = false;
 
     const startCall = async () => {
       if(isMounted) setCallStatus('Initializing');
@@ -74,16 +76,19 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
     startCall();
     
     callUnsubscribe = getCall(callId, (callData) => {
-        if(isMounted) {
-            if(callData) {
-                setRemoteMuted(callData.doctorMuted);
-                setRemoteCameraOff(callData.doctorCameraOff);
-                if(callData.answer) {
-                  setCallStatus('Connected');
-                }
-            } else {
-                setCallStatus('Ended');
+        if(!isMounted) return;
+
+        if (callData) {
+            setRemoteMuted(callData.doctorMuted);
+            setRemoteCameraOff(callData.doctorCameraOff);
+            // The doctor's answer indicates connection.
+            if(callData.answer && !hasConnected) {
+              hasConnected = true;
+              setCallStatus('Connected');
             }
+        } else if (hasConnected) {
+             // Call document was deleted, so it's over.
+            setCallStatus('Ended');
         }
     });
 
@@ -93,7 +98,10 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      hangup();
+      // Only hangup if this user initiated it, to allow reconnection
+      if(localHangup.current) {
+        hangup();
+      }
     };
   }, [callId, router, user, loading]);
 
@@ -112,6 +120,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   };
 
   const endCall = () => {
+    localHangup.current = true;
     hangup();
     router.push('/patient/appointments');
   };
