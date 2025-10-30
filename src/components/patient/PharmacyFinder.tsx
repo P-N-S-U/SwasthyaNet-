@@ -2,16 +2,22 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
+import L from 'leaflet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, List, Navigation } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 
-const DynamicMap = dynamic(() => import('./MapWrapper'), {
-  ssr: false,
-  loading: () => <Skeleton className="h-full w-full" />,
+// Fix for default icon issue with Webpack
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl:
+    'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
 interface Pharmacy {
@@ -48,6 +54,16 @@ const haversineDistance = (
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c; // in km
+};
+
+const MapUpdater = ({ userLocation }: { userLocation: Location | null }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (userLocation) {
+      map.flyTo([userLocation.lat, userLocation.lng], 14);
+    }
+  }, [userLocation, map]);
+  return null;
 };
 
 export function PharmacyFinder() {
@@ -134,12 +150,40 @@ export function PharmacyFinder() {
       ))}
     </div>
   );
+  
+  // Defensive cleanup for React StrictMode / HMR
+  if (typeof window !== 'undefined' && (L.DomUtil.get('map') as any)?._leaflet_id) {
+    (L.DomUtil.get('map') as any)._leaflet_id = null;
+  }
 
   return (
     <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
       <div className="md:col-span-2">
         <Card className="h-[500px] border-border/30 bg-background relative">
-          <DynamicMap userLocation={userLocation} pharmacies={pharmacies} />
+          <MapContainer
+            id="map"
+            center={[userLocation?.lat || 20.5937, userLocation?.lng || 78.9629]}
+            zoom={userLocation ? 14 : 5}
+            className="h-full w-full rounded-md z-0"
+            scrollWheelZoom={true}
+          >
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <MapUpdater userLocation={userLocation} />
+            {userLocation && (
+                <Marker position={[userLocation.lat, userLocation.lng]}>
+                    <Popup>Your Location</Popup>
+                </Marker>
+            )}
+            {pharmacies?.map((p: any) => (
+              <Marker key={p.id} position={[p.lat, p.lon]}>
+                <Popup>
+                  <b>{p.tags.name || "Unnamed Pharmacy"}</b>
+                  <br />
+                  {p.distance?.toFixed(2)} km away
+                </Popup>
+              </Marker>
+            ))}
+          </MapContainer>
           
           {loadingLocation && (
              <div className="absolute inset-0 z-10 flex h-full items-center justify-center bg-background/70 backdrop-blur-sm">
