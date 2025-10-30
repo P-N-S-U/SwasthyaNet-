@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, List, Navigation } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
+import { findNearbyPharmacies } from '@/app/patient/pharmacies/actions';
+import { haversineDistance } from '@/lib/utils';
 
 const MapWrapper = dynamic(() => import('./MapWrapper'), {
   ssr: false,
@@ -15,13 +17,11 @@ const MapWrapper = dynamic(() => import('./MapWrapper'), {
 });
 
 interface Pharmacy {
-  id: number;
+  id: string;
+  name: string;
   lat: number;
   lon: number;
-  tags: {
-    name?: string;
-    [key: string]: string | undefined;
-  };
+  address: string;
   distance?: number;
 }
 
@@ -30,25 +30,6 @@ interface Location {
   lng: number;
 }
 
-const haversineDistance = (
-  coords1: Location,
-  coords2: { lat: number; lon: number }
-): number => {
-  const toRad = (x: number) => (x * Math.PI) / 180;
-
-  const R = 6371; // Earth's radius in km
-  const dLat = toRad(coords2.lat - coords1.lat);
-  const dLon = toRad(coords2.lon - coords1.lng);
-  const lat1 = toRad(coords1.lat);
-  const lat2 = toRad(coords2.lat);
-
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c; // in km
-};
 
 export function PharmacyFinder() {
   const [userLocation, setUserLocation] = useState<Location | null>(null);
@@ -83,60 +64,27 @@ export function PharmacyFinder() {
 
   useEffect(() => {
     if (userLocation) {
-      const fetchPharmacies = async () => {
+      const fetchAndSetPharmacies = async () => {
         setIsFetchingPharmacies(true);
-        const radius = 5000; // 5km
+        setError(null);
         
-        const overpassQuery = `
-          [out:json][timeout:25];
-          (
-            nwr["amenity"="pharmacy"](around:${radius},${userLocation.lat},${userLocation.lng});
-            nwr["shop"="chemist"](around:${radius},${userLocation.lat},${userLocation.lng});
-          );
-          out center;
-        `;
-        
-        const overpassUrl = `https://overpass-api.de/api/interpreter`;
+        const result = await findNearbyPharmacies(userLocation);
 
-        try {
-          const response = await fetch(overpassUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-              'User-Agent': 'SwasthyaNet/1.0 (Web; +https://example.com)',
-            },
-            body: `data=${encodeURIComponent(overpassQuery)}`,
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Failed to fetch from Overpass API: ${response.status} ${response.statusText} - ${errorText}`);
-          }
-          const data = await response.json();
-          
-          if (!data.elements || data.elements.length === 0) {
+        if (result.error) {
+            setError(result.error);
             setPharmacies([]);
-          } else {
-            const locationsWithDistance = data.elements
-              .map((p: any) => {
-                const location = p.type === 'node' ? { lat: p.lat, lon: p.lon } : { lat: p.center.lat, lon: p.center.lon };
-                return {
+        } else if (result.data) {
+            const locationsWithDistance = result.data
+              .map(p => ({
                   ...p,
-                  ...location,
-                  distance: haversineDistance(userLocation, location),
-                }
-              })
-              .sort((a: Pharmacy, b: Pharmacy) => (a.distance || 0) - (b.distance || 0));
-            
+                  distance: haversineDistance(userLocation, { lat: p.lat, lon: p.lon }),
+              }))
+              .sort((a, b) => (a.distance || 0) - (b.distance || 0));
             setPharmacies(locationsWithDistance);
-          }
-        } catch (e: any) {
-          setError('Could not fetch location data. The service might be temporarily unavailable.');
-        } finally {
-          setIsFetchingPharmacies(false);
         }
+        setIsFetchingPharmacies(false);
       };
-      fetchPharmacies();
+      fetchAndSetPharmacies();
     }
   }, [userLocation]);
 
@@ -207,9 +155,9 @@ export function PharmacyFinder() {
                     <div className="max-w-[70%]">
                       <p
                         className="truncate font-semibold"
-                        title={pharmacy.tags.name || 'Unnamed Location'}
+                        title={pharmacy.name || 'Unnamed Location'}
                       >
-                        {pharmacy.tags.name || 'Unnamed Pharmacy'}
+                        {pharmacy.name || 'Unnamed Pharmacy'}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {pharmacy.distance?.toFixed(2)} km away
@@ -228,7 +176,7 @@ export function PharmacyFinder() {
               </ul>
             ) : (
                 <p className="pt-10 text-center text-sm text-muted-foreground">
-                    {!userLocation && !loadingLocation ? "Cannot search for pharmacies without your location." : "No pharmacies or chemists found within 5km."}
+                    {error ? error : !userLocation && !loadingLocation ? "Cannot search for pharmacies without your location." : "No pharmacies found nearby."}
                 </p>
             )}
           </CardContent>
