@@ -9,6 +9,7 @@ import {
   Video,
   VideoOff,
   Loader2,
+  CheckCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
@@ -32,6 +33,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { completeAppointment } from '@/app/actions/appointments';
+import { useToast } from '@/hooks/use-toast';
 
 type CallStatus = 'Joining' | 'Connected' | 'Ended' | 'Failed';
 
@@ -45,6 +48,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   const [remoteMuted, setRemoteMuted] = useState(false);
   const [remoteCameraOff, setRemoteCameraOff] = useState(false);
   const localHangup = useRef(false);
+  const { toast } = useToast();
 
   const [callStatus, setCallStatus] = useState<CallStatus>('Joining');
   const { user, loading } = useAuthState();
@@ -56,6 +60,8 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
       router.push('/auth');
       return;
     }
+
+    localHangup.current = false;
 
     const initializeCall = async () => {
         try {
@@ -81,8 +87,6 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
     // Cleanup function
     return () => {
       callUnsubscribe();
-      // Only hangup if the user is intentionally leaving the page
-      // This check is important to prevent premature hangups during re-renders
       if (localHangup.current) {
         hangup();
       }
@@ -107,6 +111,30 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
     localHangup.current = true;
     hangup();
     router.push('/doctor/dashboard');
+  };
+
+  const handleCompleteAppointment = async () => {
+    localHangup.current = true;
+    hangup();
+    toast({
+        title: 'Completing Appointment...',
+        description: 'Please wait while we finalize everything.',
+    });
+    const result = await completeAppointment(callId);
+    if(result.error) {
+        toast({
+            title: 'Error',
+            description: result.error,
+            variant: 'destructive'
+        });
+        router.push('/doctor/dashboard');
+    } else {
+        toast({
+            title: 'Appointment Completed',
+            description: 'The appointment has been successfully marked as complete.',
+        });
+        router.push('/doctor/dashboard');
+    }
   };
 
   if (loading || !user) {
@@ -212,14 +240,18 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Leave Call?</AlertDialogTitle>
+                  <AlertDialogTitle>End Call?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Are you sure you want to leave the video call? You can rejoin anytime as long as the appointment is active.
+                    Do you want to leave the call or complete the appointment? Leaving allows you to rejoin. Completing will end the session for both you and the patient.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={endCall}>Leave Call</AlertDialogAction>
+                   <AlertDialogAction variant="outline" onClick={endCall}>Leave Call</AlertDialogAction>
+                  <AlertDialogAction onClick={handleCompleteAppointment}>
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Complete Appointment
+                  </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>

@@ -11,9 +11,6 @@ import {
   setDoc,
   getDoc,
   Unsubscribe,
-  deleteDoc,
-  getDocs,
-  writeBatch,
 } from 'firebase/firestore';
 
 const servers = {
@@ -31,7 +28,6 @@ let remoteStream: MediaStream | null = null;
 let callId: string | null = null;
 let role: 'caller' | 'callee' | null = null;
 
-let onCallConnectedCallback: (() => void) | null = null;
 let onCallEndedCallback: (() => void) | null = null;
 
 let unsubscribes: Unsubscribe[] = [];
@@ -85,7 +81,6 @@ export const createOrJoinCall = async (
     if (remoteVideoRef.current) {
       remoteVideoRef.current.srcObject = remoteStream;
     }
-    // onCallConnectedCallback?.();
   };
 
   const callDocRef = doc(db, 'calls', callId);
@@ -159,43 +154,23 @@ export const createOrJoinCall = async (
 
 
 export const hangup = async () => {
-    unsubscribes.forEach(unsub => unsub());
-    unsubscribes = [];
+  unsubscribes.forEach(unsub => unsub());
+  unsubscribes = [];
 
-    if (pc) {
-        pc.getSenders().forEach(sender => sender.track?.stop());
-        pc.close();
-        pc = null;
-    }
+  if (pc) {
+    pc.getSenders().forEach(sender => sender.track?.stop());
+    pc.close();
+    pc = null;
+  }
 
-    if(localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-    }
-    
-    remoteStream = null;
-
-    if (callId) {
-        const callDocRef = doc(db, 'calls', callId);
-        
-        // Use a batch to delete the main doc and subcollections efficiently
-        const callDocSnap = await getDoc(callDocRef);
-        if (callDocSnap.exists()) {
-            const batch = writeBatch(db);
-        
-            const offerCandidates = await getDocs(collection(callDocRef, 'offerCandidates'));
-            offerCandidates.forEach(candidate => batch.delete(candidate.ref));
-
-            const answerCandidates = await getDocs(collection(callDocRef, 'answerCandidates'));
-            answerCandidates.forEach(candidate => batch.delete(candidate.ref));
-            
-            batch.delete(callDocRef);
-            await batch.commit();
-        }
-    }
-    
-    callId = null;
-    role = null;
+  if (localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+    localStream = null;
+  }
+  
+  remoteStream = null;
+  callId = null;
+  role = null;
 };
 
 export const toggleMute = async (isMuted: boolean, role: 'patient' | 'doctor') => {

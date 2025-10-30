@@ -107,17 +107,20 @@ export async function completeAppointment(appointmentId: string) {
         // 1. Update appointment status
         batch.update(appointmentRef, { status: 'Completed' });
 
-        // 2. Delete the call document and its subcollections
-        const offerCandidatesRef = callRef.collection('offerCandidates');
-        const answerCandidatesRef = callRef.collection('answerCandidates');
+        // 2. Delete the call document and its subcollections if it exists
+        const callDoc = await callRef.get();
+        if (callDoc.exists) {
+            const offerCandidatesRef = callRef.collection('offerCandidates');
+            const answerCandidatesRef = callRef.collection('answerCandidates');
 
-        const offerCandidatesSnap = await offerCandidatesRef.get();
-        offerCandidatesSnap.forEach(doc => batch.delete(doc.ref));
+            const offerCandidatesSnap = await offerCandidatesRef.get();
+            offerCandidatesSnap.forEach(doc => batch.delete(doc.ref));
 
-        const answerCandidatesSnap = await answerCandidatesRef.get();
-        answerCandidatesSnap.forEach(doc => batch.delete(doc.ref));
-        
-        batch.delete(callRef);
+            const answerCandidatesSnap = await answerCandidatesRef.get();
+            answerCandidatesSnap.forEach(doc => batch.delete(doc.ref));
+            
+            batch.delete(callRef);
+        }
 
         await batch.commit();
 
