@@ -13,6 +13,7 @@ import {
   Unsubscribe,
   writeBatch,
   getDocs,
+  deleteField,
 } from 'firebase/firestore';
 
 const servers = {
@@ -24,11 +25,8 @@ const servers = {
   iceCandidatePoolSize: 10,
 };
 
-let pc: RTCPeerConnection | null = null;
 let localStream: MediaStream | null = null;
 let remoteStream: MediaStream | null = null;
-
-let callUnsubscribe: Unsubscribe | null = null;
 
 async function deleteSubcollection(collectionRef) {
     const snapshot = await getDocs(collectionRef);
@@ -49,16 +47,8 @@ export const createOrJoinCall = async (
   remoteVideoRef: React.RefObject<HTMLVideoElement>,
   userType: 'doctor' | 'patient'
 ) => {
-    // Ensure any previous connection is fully closed
-    if (pc) {
-      pc.close();
-      pc = null;
-    }
-
-    const callDocRef = doc(db, 'calls', callId);
-    const offerCandidatesCollection = collection(callDocRef, 'offerCandidates');
-    const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
-
+    const pc = new RTCPeerConnection(servers);
+    
     // 1. Setup local media
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     if (localVideoRef.current) {
@@ -71,11 +61,9 @@ export const createOrJoinCall = async (
         remoteVideoRef.current.srcObject = remoteStream;
     }
 
-    pc = new RTCPeerConnection(servers);
-
     // 3. Push tracks from local stream to peer connection
     localStream.getTracks().forEach(track => {
-        pc!.addTrack(track, localStream!);
+        pc.addTrack(track, localStream!);
     });
 
     // 4. Pull tracks from remote stream, add to video stream
@@ -85,18 +73,19 @@ export const createOrJoinCall = async (
         });
     };
 
+    const callDocRef = doc(db, 'calls', callId);
+    const offerCandidatesCollection = collection(callDocRef, 'offerCandidates');
+    const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
+
     const callDocSnap = await getDoc(callDocRef);
     const callDocExists = callDocSnap.exists();
     const existingOffer = callDocExists && callDocSnap.data().offer;
 
     if (!existingOffer) {
-        // === This user is the CALLER (first to join or rejoining an empty room) ===
+        // === This user is the CALLER (first to join) ===
         
-        // Clean up any old candidates before creating a new offer.
-        await Promise.all([
-            deleteSubcollection(offerCandidatesCollection),
-            deleteSubcollection(answerCandidatesCollection)
-        ]);
+        await deleteSubcollection(offerCandidatesCollection);
+        await deleteSubcollection(answerCandidatesCollection);
         
         pc.onicecandidate = event => {
             event.candidate && addDoc(offerCandidatesCollection, event.candidate.toJSON());
@@ -108,30 +97,25 @@ export const createOrJoinCall = async (
         const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
         await setDoc(callDocRef, { offer }, { merge: true });
 
-        // Listen for the answer from the other peer
-        callUnsubscribe = onSnapshot(callDocRef, (snapshot) => {
+        onSnapshot(callDocRef, (snapshot) => {
             const data = snapshot.data();
-            if (!pc?.currentRemoteDescription && data?.answer) {
+            if (!pc.currentRemoteDescription && data?.answer) {
                 const answerDescription = new RTCSessionDescription(data.answer);
-                pc?.setRemoteDescription(answerDescription);
+                pc.setRemoteDescription(answerDescription);
             }
         });
         
-        // Listen for ICE candidates from the callee
         onSnapshot(answerCandidatesCollection, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'added') {
                     const candidate = new RTCIceCandidate(change.doc.data());
-                    pc?.addIceCandidate(candidate);
+                    pc.addIceCandidate(candidate);
                 }
             });
         });
 
     } else {
-        // === This user is the CALLEE (second to join) ===
-        
-        // If we are rejoining as the callee, ensure old answer candidates are gone
-        await deleteSubcollection(answerCandidatesCollection);
+        // === This user is the CALLEE (second to join / rejoining) ===
         
         pc.onicecandidate = event => {
             event.candidate && addDoc(answerCandidatesCollection, event.candidate.toJSON());
@@ -146,12 +130,11 @@ export const createOrJoinCall = async (
         const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
         await updateDoc(callDocRef, { answer });
         
-        // Listen for ICE candidates from the caller
         onSnapshot(offerCandidatesCollection, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'added') {
                     const candidate = new RTCIceCandidate(change.doc.data());
-                    pc?.addIceCandidate(candidate);
+                    pc.addIceCandidate(candidate);
                 }
             });
         });
@@ -161,32 +144,33 @@ export const createOrJoinCall = async (
 };
 
 
-export const hangup = async (currentPc: typeof pc) => {
-    // This is a local operation only. It does not modify the Firestore document.
-    // This allows the other user to stay in the call and wait for reconnection.
-    if (callUnsubscribe) {
-        callUnsubscribe();
-        callUnsubscribe = null;
-    }
-  
-    if (currentPc) {
-        currentPc.getSenders().forEach(sender => {
-            if (sender.track) {
-                sender.track.stop();
-            }
-        });
-        currentPc.close();
-        pc = null;
-    }
-  
+export const hangup = async (currentPc: RTCPeerConnection | null, callId?: string) => {
     if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
     }
 
-    if(remoteStream) {
+    if (remoteStream) {
         remoteStream.getTracks().forEach(track => track.stop());
         remoteStream = null;
+    }
+
+    if (currentPc) {
+        currentPc.close();
+    }
+  
+    // Reset the call document for reconnection, but don't delete it
+    if (callId) {
+        const callDocRef = doc(db, 'calls', callId);
+        const callDocSnap = await getDoc(callDocRef);
+        if(callDocSnap.exists()) {
+             await updateDoc(callDocRef, {
+                answer: deleteField(),
+                // Keep the offer so the next person can join
+             });
+            // Also clear the candidates for a clean slate on reconnect
+            await deleteSubcollection(collection(callDocRef, 'answerCandidates'));
+        }
     }
 };
 

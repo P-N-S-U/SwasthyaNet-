@@ -65,23 +65,25 @@ export default function DoctorVideoCallPage() {
 
     let isMounted = true;
     let callUnsubscribe: Unsubscribe | null = null;
-    let connectionStateUnsubscribe: (() => void) | null = null;
+    let pc: RTCPeerConnection | null = null;
 
     const initializeCall = async () => {
         try {
-            const pc = await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'doctor');
+            pc = await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'doctor');
             if (isMounted) {
               pcRef.current = pc;
               
               pc.onconnectionstatechange = () => {
                 if (isMounted) {
-                    switch (pc.connectionState) {
+                    switch (pc?.connectionState) {
                         case 'connected':
                             setCallStatus('Connected');
                             break;
                         case 'disconnected':
                         case 'closed':
                         case 'failed':
+                            // Handle potential brief disconnects gracefully if needed
+                            // For now, we consider them as the call ending
                             setCallStatus('Ended');
                             break;
                     }
@@ -114,10 +116,8 @@ export default function DoctorVideoCallPage() {
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      if (connectionStateUnsubscribe) {
-        connectionStateUnsubscribe();
-      }
-      hangup(pcRef.current);
+      // Pass callId to hangup to reset Firestore state for reconnection
+      hangup(pcRef.current, callId);
       pcRef.current = null;
     };
   }, [callId, router, user, loading]);
@@ -137,12 +137,12 @@ export default function DoctorVideoCallPage() {
   };
 
   const endCall = async () => {
-    await hangup(pcRef.current);
+    await hangup(pcRef.current, callId);
     router.push('/doctor/dashboard');
   };
 
   const handleCompleteAppointment = async () => {
-    await hangup(pcRef.current);
+    await hangup(pcRef.current, callId);
     pcRef.current = null;
     toast({
         title: 'Completing Appointment...',

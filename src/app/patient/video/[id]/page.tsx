@@ -61,18 +61,19 @@ export default function VideoCallPage() {
 
     let isMounted = true;
     let callUnsubscribe: Unsubscribe | null = null;
+    let pc: RTCPeerConnection | null = null;
 
     const startCall = async () => {
       if(isMounted) setCallStatus('Initializing');
       try {
-        const pc = await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'patient');
+        pc = await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'patient');
         if (isMounted) {
           pcRef.current = pc;
           setCallStatus('Waiting');
 
           pc.onconnectionstatechange = () => {
             if(isMounted) {
-                switch (pc.connectionState) {
+                switch (pc?.connectionState) {
                     case 'connected':
                         setCallStatus('Connected');
                         break;
@@ -110,7 +111,8 @@ export default function VideoCallPage() {
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      hangup(pcRef.current);
+      // Pass callId to hangup to reset Firestore state for reconnection
+      hangup(pcRef.current, callId);
       pcRef.current = null;
     };
   }, [callId, router, user, loading]);
@@ -130,7 +132,7 @@ export default function VideoCallPage() {
   };
 
   const endCall = async () => {
-    await hangup(pcRef.current);
+    await hangup(pcRef.current, callId);
     router.push('/patient/appointments');
   };
 
