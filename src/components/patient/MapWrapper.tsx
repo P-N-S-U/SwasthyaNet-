@@ -1,4 +1,3 @@
-
 "use client";
 
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
@@ -16,7 +15,7 @@ L.Icon.Default.mergeOptions({
 });
 
 
-const UserMarker = ({ userLocation }) => {
+const UserMarker = ({ userLocation }: any) => {
     const map = useMap();
     useEffect(() => {
         if (userLocation) {
@@ -35,23 +34,26 @@ const UserMarker = ({ userLocation }) => {
 
 export default function MapWrapper({ userLocation, pharmacies }: any) {
   return (
-    <MapContainer
-      center={[userLocation?.lat || 20.5937, userLocation?.lng || 78.9629]}
-      zoom={userLocation ? 14 : 5}
-      className="h-full w-full rounded-md z-0"
-      scrollWheelZoom={true}
-    >
-      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-      <UserMarker userLocation={userLocation} />
-      {pharmacies?.map((p: any) => (
-        <Marker key={p.id} position={[p.lat, p.lon]}>
-          <Popup>
-            <b>{p.tags.name || "Unnamed Pharmacy"}</b>
-            <br />
-            {p.distance?.toFixed(2)} km away
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
+    <div id="map-container" className="h-full w-full rounded-md z-0">
+      <MapContainer
+        key={`${userLocation?.lat}-${userLocation?.lng}`} // force reset only when location changes
+        center={[userLocation?.lat || 20.5937, userLocation?.lng || 78.9629]}
+        zoom={userLocation ? 14 : 5}
+        scrollWheelZoom={true}
+        className="h-full w-full rounded-md"
+      >
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <UserMarker userLocation={userLocation} />
+        {pharmacies?.map((p: any) => (
+          <Marker key={p.id} position={[p.lat, p.lon]}>
+            <Popup>
+              <b>{p.tags.name || "Unnamed Pharmacy"}</b>
+              <br />
+              {p.distance?.toFixed(2)} km away
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+    </div>
   );
 }
