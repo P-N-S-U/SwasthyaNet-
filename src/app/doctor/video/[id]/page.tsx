@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Mic,
   MicOff,
@@ -49,7 +49,6 @@ export default function DoctorVideoCallPage() {
   
   const [pc, setPc] = useState<RTCPeerConnection | null>(null);
   const [callStatus, setCallStatus] = useState<CallStatus>('Idle');
-  const [hasCallEnded, setHasCallEnded] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [remoteMuted, setRemoteMuted] = useState(false);
@@ -59,7 +58,6 @@ export default function DoctorVideoCallPage() {
   // When callId changes, forcefully reset the component state for the new call.
   useEffect(() => {
     setCallStatus('Idle');
-    setHasCallEnded(false);
     if (pc) {
       pc.close();
     }
@@ -73,18 +71,18 @@ export default function DoctorVideoCallPage() {
   
   // When call ends, redirect back to the dashboard.
   useEffect(() => {
-    if (hasCallEnded) {
+    if (callStatus === 'Ended') {
       toast({
         title: 'Consultation Ended',
         description: 'The video session has been terminated.',
       });
       router.push('/doctor/dashboard');
     }
-  }, [hasCallEnded, router, toast]);
+  }, [callStatus, router, toast]);
 
   // Main effect to auto-start the call for the doctor when the component mounts.
   useEffect(() => {
-    if (!user || !callId || pc || !localVideoRef.current || hasCallEnded || callStatus !== 'Idle') return;
+    if (!user || !callId || !localVideoRef.current || pc || callStatus === 'Connected') return;
 
     const initCall = async () => {
       setCallStatus('Starting');
@@ -103,25 +101,25 @@ export default function DoctorVideoCallPage() {
               setCallStatus('Reconnecting');
               break;
             case 'closed':
-              setHasCallEnded(true); // Treat closed connection as the end.
+              setCallStatus('Ended'); 
               break;
           }
         };
       } catch (error) {
         console.error('Error starting call:', error);
-        setCallStatus('Idle');
         toast({ title: 'Error Starting Call', description: (error as Error).message, variant: 'destructive' });
+        setCallStatus('Idle');
       }
     };
 
     initCall();
     
-  }, [user, callId, pc, toast, hasCallEnded, callStatus]);
+  }, [user, callId, pc, toast, callStatus]);
 
   // Subscribe to call document updates to monitor patient presence and state.
   useEffect(() => {
     let unsubscribe: Unsubscribe | null = null;
-    if (callId && !hasCallEnded) {
+    if (callId && callStatus !== 'Ended') {
       unsubscribe = onCallUpdate(callId, (data) => {
         if (data) {
           setRemoteMuted(data.patientMuted ?? false);
@@ -136,14 +134,14 @@ export default function DoctorVideoCallPage() {
           }
           setPatientJoined(patientIsPresent);
 
-          if (data.active === false) {
-             setHasCallEnded(true);
+          if (data.active === false && callStatus !== 'Ended') {
+             setCallStatus('Ended');
           }
         } else {
             // A call can't have ended if the patient never joined.
             // This prevents a race condition on new calls.
-            if (patientJoined) {
-                setHasCallEnded(true);
+            if (patientJoined && callStatus !== 'Ended') {
+                setCallStatus('Ended');
             }
         }
       });
@@ -151,7 +149,7 @@ export default function DoctorVideoCallPage() {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [callId, patientJoined, toast, hasCallEnded]);
+  }, [callId, patientJoined, toast, callStatus]);
 
   const handleToggleMute = async () => {
     if (!pc) return;
@@ -166,8 +164,8 @@ export default function DoctorVideoCallPage() {
   };
 
   const handleEndCall = async () => {
-    if(callId && pc) await endCall(callId, pc);
-    setHasCallEnded(true);
+    if(callId && pc) await endCall(callId);
+    setCallStatus('Ended');
   };
 
 
@@ -277,5 +275,3 @@ export default function DoctorVideoCallPage() {
     </div>
   );
 }
-
-    
