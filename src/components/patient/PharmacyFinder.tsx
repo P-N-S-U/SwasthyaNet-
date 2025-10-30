@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -89,9 +88,13 @@ export function PharmacyFinder() {
           [out:json];
           (
             node(around:${radius},${userLocation.lat},${userLocation.lng})[amenity=pharmacy];
+            way(around:${radius},${userLocation.lat},${userLocation.lng})[amenity=pharmacy];
+            relation(around:${radius},${userLocation.lat},${userLocation.lng})[amenity=pharmacy];
             node(around:${radius},${userLocation.lat},${userLocation.lng})[shop=chemist];
+            way(around:${radius},${userLocation.lat},${userLocation.lng})[shop=chemist];
+            relation(around:${radius},${userLocation.lat},${userLocation.lng})[shop=chemist];
           );
-          out;
+          out center;
         `;
         const overpassUrl = `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(overpassQuery)}`;
 
@@ -102,10 +105,14 @@ export function PharmacyFinder() {
           }
           const data = await response.json();
           const pharmaciesWithDistance = data.elements
-            .map((p: Pharmacy) => ({
-              ...p,
-              distance: haversineDistance(userLocation, p),
-            }))
+            .map((p: any) => {
+              const location = p.type === 'node' ? { lat: p.lat, lon: p.lon } : { lat: p.center.lat, lon: p.center.lon };
+              return {
+                ...p,
+                ...location,
+                distance: haversineDistance(userLocation, location),
+              }
+            })
             .sort((a: Pharmacy, b: Pharmacy) => (a.distance || 0) - (b.distance || 0));
           setPharmacies(pharmaciesWithDistance);
         } catch (e: any) {
