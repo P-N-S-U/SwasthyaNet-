@@ -80,7 +80,7 @@ export default function DoctorVideoCallPage() {
 
   // Main effect to auto-start the call for the doctor when the component mounts.
   useEffect(() => {
-    if (!user || !callId || pc) return;
+    if (!user || !callId || pc || !localVideoRef.current) return;
 
     const initCall = async () => {
       setCallStatus('Starting');
@@ -279,5 +279,3 @@ export default function DoctorVideoCallPage() {
     </div>
   );
 }
-
-    
