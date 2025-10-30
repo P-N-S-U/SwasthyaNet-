@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
@@ -42,6 +41,7 @@ export default function VideoCallPage() {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
+  const reconnectTriggerRef = useRef(0);
   
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -66,20 +66,51 @@ export default function VideoCallPage() {
     const startCall = async () => {
       if(isMounted) setCallStatus('Initializing');
       try {
-        pc = await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'patient');
+        console.log('Starting call...');
+        
+        // Clean up old connection if exists
+        if (pcRef.current) {
+            await hangup(pcRef.current, callId);
+            pcRef.current = null;
+        }
+
+        pc = await createOrJoinCall(
+            callId, 
+            localVideoRef, 
+            remoteVideoRef, 
+            'patient',
+            () => {
+                // Reconnection callback
+                console.log('Reconnection needed, triggering...');
+                if (isMounted) {
+                    reconnectTriggerRef.current++;
+                }
+            }
+        );
+        
         if (isMounted) {
           pcRef.current = pc;
           setCallStatus('Waiting');
 
           pc.onconnectionstatechange = () => {
             if(isMounted) {
+                console.log('Connection state changed:', pc?.connectionState);
                 switch (pc?.connectionState) {
                     case 'connected':
                         setCallStatus('Connected');
                         break;
                     case 'disconnected':
-                    case 'closed':
                     case 'failed':
+                        console.log('Connection lost, may need reconnection');
+                        setCallStatus('Initializing');
+                        // Trigger reconnection after brief delay
+                        setTimeout(() => {
+                            if (isMounted) {
+                                reconnectTriggerRef.current++;
+                            }
+                        }, 2000);
+                        break;
+                    case 'closed':
                         setCallStatus('Ended');
                         break;
                 }
@@ -101,7 +132,6 @@ export default function VideoCallPage() {
             setRemoteMuted(callData.doctorMuted);
             setRemoteCameraOff(callData.doctorCameraOff);
         } else {
-            // Document deleted, call is officially over.
             if(isMounted) setCallStatus('Ended');
         }
     });
@@ -111,11 +141,10 @@ export default function VideoCallPage() {
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      // Pass callId to hangup to reset Firestore state for reconnection
       hangup(pcRef.current, callId);
       pcRef.current = null;
     };
-  }, [callId, router, user, loading]);
+  }, [callId, router, user, loading, reconnectTriggerRef.current]);
 
   const handleToggleMute = () => {
     if (!user) return;
