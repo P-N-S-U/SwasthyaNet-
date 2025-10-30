@@ -88,26 +88,17 @@ export function PharmacyFinder() {
     if (userLocation) {
       const fetchPharmacies = async () => {
         setIsFetchingPharmacies(true);
-        console.log('[PharmacyFinder] Fetching locations for:', userLocation);
         const radius = 5000; // 5km
+        
         const overpassQuery = `
           [out:json][timeout:25];
           (
-            node["amenity"="pharmacy"](around:${radius},${userLocation.lat},${userLocation.lng});
-            way["amenity"="pharmacy"](around:${radius},${userLocation.lat},${userLocation.lng});
-            relation["amenity"="pharmacy"](around:${radius},${userLocation.lat},${userLocation.lng});
-            node["shop"="chemist"](around:${radius},${userLocation.lat},${userLocation.lng});
-            way["shop"="chemist"](around:${radius},${userLocation.lat},${userLocation.lng});
-            relation["shop"="chemist"](around:${radius},${userLocation.lat},${userLocation.lng});
-            node["amenity"="doctors"](around:${radius},${userLocation.lat},${userLocation.lng});
-            way["amenity"="doctors"](around:${radius},${userLocation.lat},${userLocation.lng});
-            relation["amenity"="doctors"](around:${radius},${userLocation.lat},${userLocation.lng});
-            node["amenity"="clinic"](around:${radius},${userLocation.lat},${userLocation.lng});
-            way["amenity"="clinic"](around:${radius},${userLocation.lat},${userLocation.lng});
-            relation["amenity"="clinic"](around:${radius},${userLocation.lat},${userLocation.lng});
+            nwr["amenity"="restaurant"](around:${radius},${userLocation.lat},${userLocation.lng});
+            nwr["amenity"="school"](around:${radius},${userLocation.lat},${userLocation.lng});
           );
           out center;
         `;
+        
         const overpassUrl = `https://overpass-api.de/api/interpreter`;
 
         try {
@@ -125,26 +116,12 @@ export function PharmacyFinder() {
             throw new Error(`Failed to fetch from Overpass API: ${response.status} ${response.statusText} - ${errorText}`);
           }
           const data = await response.json();
-          console.log('[PharmacyFinder DEBUG] Raw data from Overpass API:', data);
           
           if (!data.elements || data.elements.length === 0) {
-            console.log('[PharmacyFinder DEBUG] No elements found in Overpass response.');
             setPharmacies([]);
           } else {
-            // *** DETAILED LOGGING BLOCK ***
-            let pharmacyCount = 0;
-            let chemistCount = 0;
-            let doctorsCount = 0;
-            let clinicCount = 0;
-            
-            const pharmaciesWithDistance = data.elements
+            const locationsWithDistance = data.elements
               .map((p: any) => {
-                // Count items based on tags
-                if (p.tags?.amenity === 'pharmacy') pharmacyCount++;
-                if (p.tags?.shop === 'chemist') chemistCount++;
-                if (p.tags?.amenity === 'doctors') doctorsCount++;
-                if (p.tags?.amenity === 'clinic') clinicCount++;
-
                 const location = p.type === 'node' ? { lat: p.lat, lon: p.lon } : { lat: p.center.lat, lon: p.center.lon };
                 return {
                   ...p,
@@ -154,13 +131,11 @@ export function PharmacyFinder() {
               })
               .sort((a: Pharmacy, b: Pharmacy) => (a.distance || 0) - (b.distance || 0));
             
-            console.log(`[PharmacyFinder DEBUG] Found: ${pharmacyCount} pharmacies, ${chemistCount} chemists, ${doctorsCount} doctors, ${clinicCount} clinics.`);
-            console.log('[PharmacyFinder DEBUG] Processed and sorted locations:', pharmaciesWithDistance);
-            setPharmacies(pharmaciesWithDistance);
+            setPharmacies(locationsWithDistance);
           }
         } catch (e: any) {
-          console.error("[PharmacyFinder] Error fetching pharmacies:", e.message, e);
-          setError('Could not fetch pharmacy data. The service might be temporarily unavailable.');
+          console.error("[PharmacyFinder] Error fetching locations:", e.message, e);
+          setError('Could not fetch location data. The service might be temporarily unavailable.');
         } finally {
           setIsFetchingPharmacies(false);
         }
@@ -195,7 +170,7 @@ export function PharmacyFinder() {
 
   return (
     <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-      <div className="md:col-span-2 h-[500px] rounded-lg border border-border/30 bg-background relative overflow-hidden">
+      <div className="relative h-[500px] overflow-hidden rounded-lg border border-border/30 bg-background md:col-span-2">
           <MapWrapper userLocation={userLocation} pharmacies={pharmacies} />
           
           {loadingLocation && (
@@ -236,7 +211,7 @@ export function PharmacyFinder() {
                     <div className="max-w-[70%]">
                       <p
                         className="truncate font-semibold"
-                        title={pharmacy.tags.name || 'Unnamed Pharmacy'}
+                        title={pharmacy.tags.name || 'Unnamed Location'}
                       >
                         {pharmacy.tags.name || 'Unnamed Location'}
                       </p>

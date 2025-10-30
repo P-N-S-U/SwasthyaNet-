@@ -38,10 +38,10 @@ export default function PharmaciesPage() {
               <MapPin className="h-12 w-12 text-primary" />
             </div>
             <h1 className="text-4xl font-bold font-headline">
-              Find a Pharmacy Near You
+              Find a Location Near You
             </h1>
             <p className="mt-2 text-lg text-foreground/70">
-              Discover local pharmacies, check their distance, and get directions.
+              Discover local schools and restaurants, check their distance, and get directions.
             </p>
           </div>
           <PharmacyFinder />
