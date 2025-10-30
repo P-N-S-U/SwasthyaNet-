@@ -117,6 +117,8 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
                 if(callData) {
                     setRemoteMuted(callData.patientMuted);
                     setRemoteCameraOff(callData.patientCameraOff);
+                } else if (!localHangup.current) {
+                    handleCallEnded();
                 }
             });
 
@@ -135,6 +137,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
     // Cleanup function
     return () => {
+      localHangup.current = true; // Mark as local hangup on unmount
       if (callUnsubscribe) {
         callUnsubscribe();
       }

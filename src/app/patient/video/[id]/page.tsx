@@ -56,6 +56,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const localHangup = useRef(false);
+  const hasCreated = useRef(false);
 
   useEffect(() => {
     if (loading) return;
@@ -65,8 +66,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
     }
 
     let callUnsubscribe: (() => void) | null = null;
-    let hasCreated = false;
-
+    
     const handleCallEnded = () => {
         if (!localHangup.current) {
             toast({ title: 'Call Ended', description: 'The doctor has left the call.' });
@@ -94,7 +94,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
         }
 
         await createCall(callId, pc);
-        hasCreated = true;
+        hasCreated.current = true;
       } catch (error: any) {
         console.error('Error starting call:', error);
         toast({
@@ -113,14 +113,14 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
         if(callData) {
             setRemoteMuted(callData.doctorMuted);
             setRemoteCameraOff(callData.doctorCameraOff);
-        } else if (hasCreated) {
-            // If we created the call and the doc disappears, the other user hung up (or it failed)
+        } else if (hasCreated.current && !localHangup.current) {
             handleCallEnded();
         }
     });
 
     // Cleanup function
     return () => {
+      localHangup.current = true;
       if(callUnsubscribe) {
           callUnsubscribe();
       }
