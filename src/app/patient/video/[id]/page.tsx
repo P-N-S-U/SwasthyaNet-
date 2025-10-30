@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
@@ -124,8 +125,8 @@ export default function VideoCallPage() {
         if(!isMounted) return;
 
         if (callData) {
-            setRemoteMuted(callData.doctorMuted);
-            setRemoteCameraOff(callData.doctorCameraOff);
+            setRemoteMuted(callData.doctorMuted ?? false);
+            setRemoteCameraOff(callData.doctorCameraOff ?? false);
         } else {
             if(isMounted) {
               const appointmentRef = doc(db, 'appointments', callId);

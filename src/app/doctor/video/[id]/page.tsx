@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
@@ -130,8 +131,8 @@ export default function DoctorVideoCallPage() {
     callUnsubscribe = getCall(callId, (callData) => {
         if(!isMounted) return;
         if (callData) {
-            setRemoteMuted(callData.patientMuted);
-            setRemoteCameraOff(callData.patientCameraOff);
+            setRemoteMuted(callData.patientMuted ?? false);
+            setRemoteCameraOff(callData.patientCameraOff ?? false);
         } else {
             // Call document might be deleted upon completion
             if (isMounted) {

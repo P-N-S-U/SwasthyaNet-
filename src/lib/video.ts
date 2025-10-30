@@ -1,3 +1,4 @@
+
 'use client';
 
 import { db } from './firebase/firebase';
@@ -83,7 +84,13 @@ export const createOrJoinCall = async (
         await pc.setLocalDescription(offerDescription);
         
         const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
-        await setDoc(callDocRef, { offer, answer: deleteField() }, { merge: true }); // Overwrite with fresh offer
+        // This setDoc will create the document if it doesn't exist.
+        await setDoc(callDocRef, { 
+            offer, 
+            answer: deleteField(),
+            doctorMuted: false,
+            doctorCameraOff: false
+        }, { merge: true });
 
         const answerUnsubscribe = onSnapshot(callDocRef, (snapshot) => {
             const data = snapshot.data();
@@ -125,7 +132,11 @@ export const createOrJoinCall = async (
         await pc.setLocalDescription(answerDescription);
         
         const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
-        await updateDoc(callDocRef, { answer });
+        await updateDoc(callDocRef, { 
+            answer,
+            patientMuted: false,
+            patientCameraOff: false
+        });
         
         const offerCandidatesUnsubscribe = onSnapshot(offerCandidatesCollection, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
