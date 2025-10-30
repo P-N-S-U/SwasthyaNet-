@@ -45,6 +45,7 @@ export default function DoctorVideoCallPage() {
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
+  const reconnectTriggerRef = useRef(0); // Used to trigger reconnection
   
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -69,21 +70,51 @@ export default function DoctorVideoCallPage() {
 
     const initializeCall = async () => {
         try {
-            pc = await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'doctor');
+            console.log('Initializing call...');
+            setCallStatus('Joining');
+            
+            // Clean up old connection if exists
+            if (pcRef.current) {
+                await hangup(pcRef.current, callId);
+                pcRef.current = null;
+            }
+
+            pc = await createOrJoinCall(
+                callId, 
+                localVideoRef, 
+                remoteVideoRef, 
+                'doctor',
+                () => {
+                    // Reconnection callback
+                    console.log('Reconnection needed, triggering...');
+                    if (isMounted) {
+                        reconnectTriggerRef.current++;
+                    }
+                }
+            );
+            
             if (isMounted) {
               pcRef.current = pc;
               
               pc.onconnectionstatechange = () => {
                 if (isMounted) {
+                    console.log('Connection state changed:', pc?.connectionState);
                     switch (pc?.connectionState) {
                         case 'connected':
                             setCallStatus('Connected');
                             break;
                         case 'disconnected':
-                        case 'closed':
                         case 'failed':
-                            // Handle potential brief disconnects gracefully if needed
-                            // For now, we consider them as the call ending
+                            console.log('Connection lost, may need reconnection');
+                            setCallStatus('Joining');
+                            // Trigger reconnection after brief delay
+                            setTimeout(() => {
+                                if (isMounted) {
+                                    reconnectTriggerRef.current++;
+                                }
+                            }, 2000);
+                            break;
+                        case 'closed':
                             setCallStatus('Ended');
                             break;
                     }
@@ -105,22 +136,19 @@ export default function DoctorVideoCallPage() {
             setRemoteMuted(callData.patientMuted);
             setRemoteCameraOff(callData.patientCameraOff);
         } else {
-          // Document was likely deleted by `completeAppointment`
           if (isMounted) setCallStatus('Ended');
         }
     });
-
 
     return () => {
       isMounted = false;
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      // Pass callId to hangup to reset Firestore state for reconnection
       hangup(pcRef.current, callId);
       pcRef.current = null;
     };
-  }, [callId, router, user, loading]);
+  }, [callId, router, user, loading, reconnectTriggerRef.current]); // Re-run when reconnect trigger changes
 
   const handleToggleMute = () => {
     if (!user) return;
@@ -142,7 +170,7 @@ export default function DoctorVideoCallPage() {
   };
 
   const handleCompleteAppointment = async () => {
-    await hangup(pcRef.current, callId);
+    await hangup(pcRef.current, callId, false);
     pcRef.current = null;
     toast({
         title: 'Completing Appointment...',
@@ -177,7 +205,7 @@ export default function DoctorVideoCallPage() {
   const getStatusText = () => {
     switch (callStatus) {
       case 'Joining':
-        return 'Joining call, waiting for patient...';
+        return 'Connecting to call...';
       case 'Connected':
         return 'Connected';
       case 'Ended':
