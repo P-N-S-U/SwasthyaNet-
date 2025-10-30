@@ -35,8 +35,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Unsubscribe } from 'firebase/firestore';
 
-type CallStatus = 'Idle' | 'Starting' | 'Waiting' | 'Connected' | 'Reconnecting' | 'Ended';
-
 export default function DoctorVideoCallPage() {
   const router = useRouter();
   const params = useParams();
@@ -48,78 +46,66 @@ export default function DoctorVideoCallPage() {
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   
   const [pc, setPc] = useState<RTCPeerConnection | null>(null);
-  const [callStatus, setCallStatus] = useState<CallStatus>('Idle');
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
   const [remoteMuted, setRemoteMuted] = useState(false);
   const [remoteCameraOff, setRemoteCameraOff] = useState(false);
   const [patientJoined, setPatientJoined] = useState(false);
-
-  // When callId changes, forcefully reset the component state for the new call.
-  useEffect(() => {
-    setCallStatus('Idle');
-    if (pc) {
-      pc.close();
-    }
-    setPc(null);
-    setIsMuted(false);
-    setIsCameraOff(false);
-    setPatientJoined(false);
-    setRemoteMuted(false);
-    setRemoteCameraOff(false);
-  }, [callId]);
-  
-  // When call ends, redirect back to the dashboard.
-  useEffect(() => {
-    if (callStatus === 'Ended') {
-      toast({
-        title: 'Consultation Ended',
-        description: 'The video session has been terminated.',
-      });
-      router.push('/doctor/dashboard');
-    }
-  }, [callStatus, router, toast]);
+  const [isConnecting, setIsConnecting] = useState(true);
 
   // Main effect to auto-start the call for the doctor when the component mounts.
   useEffect(() => {
-    if (!user || !callId || !localVideoRef.current || pc || callStatus === 'Connected') return;
+    // This check ensures we only run this once.
+    if (!user || !callId || !localVideoRef.current || pc) {
+      return;
+    }
+
+    let peerConnection: RTCPeerConnection;
 
     const initCall = async () => {
-      setCallStatus('Starting');
       try {
-        const newPc = await startCall(callId, localVideoRef, remoteVideoRef);
-        setPc(newPc);
+        peerConnection = await startCall(callId, localVideoRef, remoteVideoRef);
+        setPc(peerConnection);
 
-        newPc.onconnectionstatechange = () => {
-          console.log('Doctor Connection state changed:', newPc.connectionState);
-          switch (newPc.connectionState) {
+        peerConnection.onconnectionstatechange = () => {
+          console.log('Doctor Connection state changed:', peerConnection.connectionState);
+          switch (peerConnection.connectionState) {
             case 'connected':
-              setCallStatus('Connected');
+              setIsConnecting(false);
               break;
             case 'disconnected':
             case 'failed':
-              setCallStatus('Reconnecting');
+              toast({ title: "Connection lost", description: "Attempting to reconnect...", variant: "destructive" });
               break;
             case 'closed':
-              setCallStatus('Ended'); 
+              toast({ title: "Call Ended", description: "The session has been terminated." });
+              router.push('/doctor/dashboard');
               break;
           }
         };
       } catch (error) {
         console.error('Error starting call:', error);
         toast({ title: 'Error Starting Call', description: (error as Error).message, variant: 'destructive' });
-        setCallStatus('Idle');
+        router.push('/doctor/dashboard');
       }
     };
 
     initCall();
-    
-  }, [user, callId, pc, toast, callStatus]);
+
+    // Cleanup function to hang up when component unmounts
+    return () => {
+      if (peerConnection) {
+        endCall(callId);
+        peerConnection.close();
+      }
+    };
+    // The dependency array ensures this runs only when the necessary elements are ready.
+  }, [user, callId, pc, toast, router]);
 
   // Subscribe to call document updates to monitor patient presence and state.
   useEffect(() => {
     let unsubscribe: Unsubscribe | null = null;
-    if (callId && callStatus !== 'Ended') {
+    if (callId) {
       unsubscribe = onCallUpdate(callId, (data) => {
         if (data) {
           setRemoteMuted(data.patientMuted ?? false);
@@ -134,40 +120,33 @@ export default function DoctorVideoCallPage() {
           }
           setPatientJoined(patientIsPresent);
 
-          if (data.active === false && callStatus !== 'Ended') {
-             setCallStatus('Ended');
+          // If the call document is marked as inactive by the endCall function
+          if (data.active === false) {
+             pc?.close(); // This will trigger the 'closed' connection state change
           }
-        } else {
-            // A call can't have ended if the patient never joined.
-            // This prevents a race condition on new calls.
-            if (patientJoined && callStatus !== 'Ended') {
-                setCallStatus('Ended');
-            }
         }
       });
     }
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [callId, patientJoined, toast, callStatus]);
+  }, [callId, patientJoined, toast, pc]);
 
   const handleToggleMute = async () => {
     if (!pc) return;
-    const newMutedState = await toggleMute(pc, callId, 'doctor');
+    const newMutedState = await toggleMute(callId, 'doctor');
     setIsMuted(newMutedState);
   };
 
   const handleToggleCamera = async () => {
     if (!pc) return;
-    const newCameraState = await toggleCamera(pc, callId, 'doctor');
+    const newCameraState = await toggleCamera(callId, 'doctor');
     setIsCameraOff(newCameraState);
   };
 
   const handleEndCall = async () => {
-    if(callId && pc) await endCall(callId);
-    setCallStatus('Ended');
+    if(callId) await endCall(callId);
   };
-
 
   if (loading) {
     return (
@@ -177,18 +156,6 @@ export default function DoctorVideoCallPage() {
       </div>
     );
   }
-  
-  const getStatusText = () => {
-    switch (callStatus) {
-      case 'Starting': return 'Starting call...';
-      case 'Connected': return 'Connected';
-      case 'Reconnecting': return 'Connection lost. Attempting to reconnect...';
-      case 'Idle':
-      default: return 'Initializing...';
-    }
-  }
-
-  const isCallInProgress = callStatus === 'Connected' || callStatus === 'Starting' || callStatus === 'Reconnecting';
 
   return (
     <div className="flex h-screen flex-col items-center justify-center bg-black text-white p-4">
@@ -203,13 +170,13 @@ export default function DoctorVideoCallPage() {
             </div>
           )}
           <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-sm">Patient</div>
-          {(callStatus === 'Starting' || callStatus === 'Reconnecting') && (
+          {isConnecting && (
             <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-background/80">
               <Loader2 className="h-8 w-8 animate-spin" />
-              <p className="mt-2 text-center text-sm">{getStatusText()}</p>
+              <p className="mt-2 text-center text-sm">Initializing call...</p>
             </div>
           )}
-          {isCallInProgress && !patientJoined && (
+          {!isConnecting && !patientJoined && (
              <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-background/80">
                  <Loader2 className="h-8 w-8 animate-spin" />
                  <p className="mt-2 text-center text-sm">Waiting for patient to join...</p>
@@ -233,7 +200,12 @@ export default function DoctorVideoCallPage() {
       <div className="fixed bottom-4 left-1/2 -translate-x-1/2">
         <Card className="bg-secondary/30 p-2 md:p-4">
           <div className="flex items-center justify-center gap-2 md:gap-4">
-            {isCallInProgress ? (
+            {isConnecting ? (
+                <div className="flex items-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <p>Initializing...</p>
+                </div>
+            ) : (
                 <>
                     <Button variant={isMuted ? 'destructive' : 'outline'} size="icon" className="rounded-full h-12 w-12 md:h-16 md:w-16" onClick={handleToggleMute}>
                         {isMuted ? <MicOff /> : <Mic />}
@@ -263,11 +235,6 @@ export default function DoctorVideoCallPage() {
                       </AlertDialogContent>
                     </AlertDialog>
                 </>
-            ) : (
-                <div className="flex items-center gap-2">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <p>{getStatusText()}</p>
-                </div>
             )}
           </div>
         </Card>
