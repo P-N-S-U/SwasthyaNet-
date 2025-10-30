@@ -42,12 +42,12 @@ async function deleteSubcollection(collectionRef) {
 export const createOrJoinCall = async (
   callId: string,
   localVideoRef: React.RefObject<HTMLVideoElement>,
-  remoteVideoRef: React.RefObject<HTMLVideoElement>
+  remoteVideoRef: React.RefObject<HTMLVideoElement>,
+  userType: 'doctor' | 'patient'
 ): Promise<RTCPeerConnection> => {
     const pc = new RTCPeerConnection(servers);
     (pc as any)._unsubscribes = [];
     
-    // 1. Setup media
     localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     remoteStream = new MediaStream();
 
@@ -64,22 +64,17 @@ export const createOrJoinCall = async (
         });
     };
 
-    // 2. Signaling logic
     const callDocRef = doc(db, 'calls', callId);
     const offerCandidatesCollection = collection(callDocRef, 'offerCandidates');
     const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
 
-    const callDocSnap = await getDoc(callDocRef);
-    const callDocExists = callDocSnap.exists();
-    const existingOffer = callDocExists && callDocSnap.data()?.offer;
-
-    if (!existingOffer) {
-        // === This user is the CALLER (first to join or call was reset) ===
-        console.log("No offer exists. Acting as CALLER.");
-
-        await deleteSubcollection(offerCandidatesCollection);
-        await deleteSubcollection(answerCandidatesCollection);
+    if (userType === 'doctor') {
+        // DOCTOR IS ALWAYS THE CALLER
+        console.log("Acting as CALLER (Doctor)");
         
+        await deleteSubcollection(answerCandidatesCollection);
+        await deleteSubcollection(offerCandidatesCollection);
+
         pc.onicecandidate = event => {
             event.candidate && addDoc(offerCandidatesCollection, event.candidate.toJSON());
         };
@@ -88,23 +83,21 @@ export const createOrJoinCall = async (
         await pc.setLocalDescription(offerDescription);
         
         const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
-        await setDoc(callDocRef, { offer, answer: deleteField() });
+        await setDoc(callDocRef, { offer, answer: deleteField() }); // Overwrite with fresh offer
 
-        // Listen for the answer
         const answerUnsubscribe = onSnapshot(callDocRef, (snapshot) => {
             const data = snapshot.data();
             if (!pc.currentRemoteDescription && data?.answer) {
-                console.log("Caller received answer.");
+                console.log("Doctor received answer.");
                 const answerDescription = new RTCSessionDescription(data.answer);
                 pc.setRemoteDescription(answerDescription);
             }
         });
         
-        // Listen for answer candidates
         const answerCandidatesUnsubscribe = onSnapshot(answerCandidatesCollection, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'added') {
-                    console.log("Caller adding answer candidate.");
+                    console.log("Doctor adding answer candidate.");
                     pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
                 }
             });
@@ -113,16 +106,20 @@ export const createOrJoinCall = async (
         (pc as any)._unsubscribes.push(answerUnsubscribe, answerCandidatesUnsubscribe);
 
     } else {
-        // === This user is the CALLEE (joining an existing call) ===
-        console.log("Offer exists. Acting as CALLEE.");
-        
-        await deleteSubcollection(answerCandidatesCollection);
+        // PATIENT IS ALWAYS THE CALLEE
+        console.log("Acting as CALLEE (Patient)");
+
+        const callDocSnap = await getDoc(callDocRef);
+        if (!callDocSnap.exists() || !callDocSnap.data()?.offer) {
+            throw new Error("Doctor has not started the call yet.");
+        }
 
         pc.onicecandidate = event => {
             event.candidate && addDoc(answerCandidatesCollection, event.candidate.toJSON());
         };
 
-        await pc.setRemoteDescription(new RTCSessionDescription(existingOffer));
+        const offer = callDocSnap.data().offer;
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
         
         const answerDescription = await pc.createAnswer();
         await pc.setLocalDescription(answerDescription);
@@ -130,16 +127,15 @@ export const createOrJoinCall = async (
         const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
         await updateDoc(callDocRef, { answer });
         
-        // Listen for offer candidates
         const offerCandidatesUnsubscribe = onSnapshot(offerCandidatesCollection, (snapshot) => {
             snapshot.docChanges().forEach((change) => {
                 if (change.type === 'added') {
-                    console.log("Callee adding offer candidate.");
+                    console.log("Patient adding offer candidate.");
                     pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
                 }
             });
         });
-
+        
         (pc as any)._unsubscribes.push(offerCandidatesUnsubscribe);
     }
 
@@ -161,20 +157,6 @@ export const hangup = async (currentPc: RTCPeerConnection | null, callId?: strin
     remoteStream = null;
 
     currentPc.close();
-
-    // To allow for reconnection, we clear the answer, leaving the offer intact.
-    // The next user to join will become a new "callee".
-    if (callId) {
-        const callDocRef = doc(db, 'calls', callId);
-        const callDocSnap = await getDoc(callDocRef);
-        if(callDocSnap.exists()) {
-             await updateDoc(callDocRef, {
-                answer: deleteField(),
-             });
-            // Also clear old answer candidates for a clean reconnect
-            await deleteSubcollection(collection(callDocRef, 'answerCandidates'));
-        }
-    }
 };
 
 

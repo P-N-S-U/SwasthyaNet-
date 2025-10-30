@@ -67,8 +67,7 @@ export default function VideoCallPage() {
     const startCall = async () => {
       if(isMounted) setCallStatus('Initializing');
       try {
-        console.log(`Attempting to start/join call, attempt: ${reconnectAttempt}`);
-
+        console.log(`Patient attempting to join call, attempt: ${reconnectAttempt}`);
         if (reconnectAttempt > 0 && remoteVideoRef.current) {
           remoteVideoRef.current.srcObject = null;
         }
@@ -78,7 +77,8 @@ export default function VideoCallPage() {
         pc = await createOrJoinCall(
             callId, 
             localVideoRef, 
-            remoteVideoRef
+            remoteVideoRef,
+            'patient'
         );
         
         if (isMounted) {

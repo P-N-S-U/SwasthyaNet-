@@ -81,7 +81,12 @@ export default function DoctorVideoCallPage() {
             // Clean up old connection if exists
             await hangup(pcRef.current, callId);
 
-            pc = await createOrJoinCall(callId, localVideoRef, remoteVideoRef);
+            pc = await createOrJoinCall(
+                callId, 
+                localVideoRef, 
+                remoteVideoRef, 
+                'doctor'
+            );
             
             if (isMounted) {
               pcRef.current = pc;
@@ -169,8 +174,6 @@ export default function DoctorVideoCallPage() {
   };
 
   const handleCompleteAppointment = async () => {
-    // When completing, we don't need to preserve the offer.
-    // The main `completeAppointment` action will delete the call doc anyway.
     await hangup(pcRef.current, callId); 
     pcRef.current = null;
 
