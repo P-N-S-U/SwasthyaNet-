@@ -20,7 +20,6 @@ const UserMarker = ({ userLocation }: any) => {
     const map = useMap();
     useEffect(() => {
         if (userLocation) {
-            console.log('[MapWrapper] Flying to user location:', userLocation);
             map.flyTo([userLocation.lat, userLocation.lng], 14);
         }
     }, [userLocation, map]);
@@ -51,7 +50,6 @@ const UserMarker = ({ userLocation }: any) => {
 }
 
 export default function MapWrapper({ userLocation, pharmacies }: any) {
-  console.log('[MapWrapper] Rendering with received props:', { userLocation, pharmacies });
   
   return (
     <div id="map-container" className="h-full w-full rounded-md z-0">
@@ -66,7 +64,7 @@ export default function MapWrapper({ userLocation, pharmacies }: any) {
         {pharmacies?.map((p: any) => (
           <Marker key={p.id} position={[p.lat, p.lon]}>
             <Popup>
-              <b>{p.tags.name || "Unnamed Pharmacy"}</b>
+              <b>{p.name || "Unnamed Pharmacy"}</b>
               <br />
               {p.distance?.toFixed(2)} km away
             </Popup>
