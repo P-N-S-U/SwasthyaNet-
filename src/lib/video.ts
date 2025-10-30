@@ -12,6 +12,7 @@ import {
   getDocs,
   setDoc,
   Unsubscribe,
+  deleteDoc,
 } from 'firebase/firestore';
 import { db } from './firebase/firebase';
 
@@ -24,23 +25,30 @@ const servers = {
   iceCandidatePoolSize: 10,
 };
 
+// Store the local stream in a variable accessible by different functions
 let localStream: MediaStream | null = null;
 let remoteStream: MediaStream | null = null;
 
-async function setupStreams(
-  localVideoRef: React.RefObject<HTMLVideoElement>,
-  remoteVideoRef: React.RefObject<HTMLVideoElement>
-) {
-  localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-  remoteStream = new MediaStream();
+export async function setupLocalStream(
+  localVideoRef: React.RefObject<HTMLVideoElement>
+): Promise<MediaStream | null> {
+    try {
+        // if a stream already exists, stop its tracks before getting a new one
+        if (localStream) {
+            localStream.getTracks().forEach(track => track.stop());
+        }
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
 
-  if (localVideoRef.current) {
-    localVideoRef.current.srcObject = localStream;
-  }
-  if (remoteVideoRef.current) {
-    remoteVideoRef.current.srcObject = remoteStream;
-  }
+        if (localVideoRef.current) {
+            localVideoRef.current.srcObject = localStream;
+        }
+        return localStream;
+    } catch(error) {
+        console.error("Error accessing media devices.", error);
+        return null;
+    }
 }
+
 
 export const createOrJoinCall = async (
   callId: string,
@@ -48,12 +56,22 @@ export const createOrJoinCall = async (
   remoteVideoRef: React.RefObject<HTMLVideoElement>,
   role: 'doctor' | 'patient'
 ): Promise<RTCPeerConnection> => {
-  const pc = new RTCPeerConnection(servers);
-  const callDocRef = doc(db, 'calls', callId);
   
-  await setupStreams(localVideoRef, remoteVideoRef);
+  if (!localStream) {
+    await setupLocalStream(localVideoRef);
+    if (!localStream) {
+        throw new Error("Could not start local video stream.");
+    }
+  }
 
-  localStream?.getTracks().forEach(track => {
+  remoteStream = new MediaStream();
+  if (remoteVideoRef.current) {
+    remoteVideoRef.current.srcObject = remoteStream;
+  }
+
+  const pc = new RTCPeerConnection(servers);
+
+  localStream.getTracks().forEach(track => {
     pc.addTrack(track, localStream!);
   });
 
@@ -62,6 +80,8 @@ export const createOrJoinCall = async (
       remoteStream?.addTrack(track);
     });
   };
+
+  const callDocRef = doc(db, 'calls', callId);
 
   if (role === 'doctor') {
     const offerCandidates = collection(callDocRef, 'offerCandidates');
@@ -86,7 +106,8 @@ export const createOrJoinCall = async (
       type: offerDescription.type,
     };
 
-    await setDoc(callDocRef, { offer, active: true, doctorMuted: false, doctorCameraOff: false }, { merge: true });
+    // Set the doctor as active, and patient hasn't joined yet.
+    await setDoc(callDocRef, { offer, active: true, patientJoined: false }, { merge: true });
 
     onSnapshot(callDocRef, snapshot => {
       const data = snapshot.data();
@@ -110,6 +131,9 @@ export const createOrJoinCall = async (
     if (!callDoc.exists() || !callDoc.data().offer) {
         throw new Error("Doctor has not started the call yet.");
     }
+
+    // Mark that patient has joined
+    await updateDoc(callDocRef, { patientJoined: true });
 
     pc.onicecandidate = event => {
         event.candidate && addDoc(collection(callDocRef, 'answerCandidates'), event.candidate.toJSON());
@@ -140,33 +164,33 @@ export const createOrJoinCall = async (
 };
 
 
-export const hangup = async (pc: RTCPeerConnection | null, callId?: string) => {
-  if (!pc) return;
+export const endCall = async (pc: RTCPeerConnection | null, callId?: string) => {
+  // Stop all local media tracks
+  if (localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+    localStream = null;
+  }
   
-  pc.getSenders().forEach(sender => {
-    sender.track?.stop();
-  });
-  pc.close();
+  // Close the peer connection
+  if (pc) {
+    pc.close();
+  }
   
-  // Clean up local stream tracks
-  localStream?.getTracks().forEach(track => track.stop());
-  localStream = null;
-  remoteStream = null;
-
+  // If callId is provided, delete the call document from Firestore
   if (callId) {
     const callDocRef = doc(db, 'calls', callId);
-    const callDoc = await getDoc(callDocRef);
-    if (callDoc.exists()) {
-       // Reset the call document for potential reconnections, but keep it active
-       await updateDoc(callDocRef, {
-           answer: null, // Clear the answer so a new one can be created
-       });
-       const answerCandidates = collection(callDocRef, 'answerCandidates');
-       const answerSnapshot = await getDocs(answerCandidates);
-       const batch = writeBatch(db);
-       answerSnapshot.forEach(doc => batch.delete(doc.ref));
-       await batch.commit();
-    }
+    const offerCandidates = collection(callDocRef, 'offerCandidates');
+    const answerCandidates = collection(callDocRef, 'answerCandidates');
+
+    // Delete subcollections first
+    const [offerSnapshot, answerSnapshot] = await Promise.all([getDocs(offerCandidates), getDocs(answerCandidates)]);
+    const batch = writeBatch(db);
+    offerSnapshot.forEach(doc => batch.delete(doc.ref));
+    answerSnapshot.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+
+    // Finally, delete the main call document
+    await deleteDoc(callDocRef);
   }
 };
 
@@ -183,7 +207,9 @@ export const toggleMute = (isMuted: boolean, callId: string, role: 'doctor' | 'p
     });
     const callDocRef = doc(db, 'calls', callId);
     const field = role === 'doctor' ? 'doctorMuted' : 'patientMuted';
-    updateDoc(callDocRef, { [field]: isMuted });
+    if(getDoc(callDocRef)) {
+      updateDoc(callDocRef, { [field]: isMuted }).catch(()=>{});
+    }
 };
 
 export const toggleCamera = (isCameraOff: boolean, callId: string, role: 'doctor' | 'patient') => {
@@ -192,5 +218,7 @@ export const toggleCamera = (isCameraOff: boolean, callId: string, role: 'doctor
     });
     const callDocRef = doc(db, 'calls', callId);
     const field = role === 'doctor' ? 'doctorCameraOff' : 'patientCameraOff';
-    updateDoc(callDocRef, { [field]: isCameraOff });
+    if(getDoc(callDocRef)) {
+      updateDoc(callDocRef, { [field]: isCameraOff }).catch(()=>{});
+    }
 };

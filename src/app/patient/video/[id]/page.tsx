@@ -15,11 +15,12 @@ import { Button } from '@/components/ui/button';
 import { useRouter, useParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import {
-  hangup,
+  endCall,
   toggleMute,
   toggleCamera,
   getCall,
   createOrJoinCall,
+  setupLocalStream
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
 import {
@@ -56,6 +57,29 @@ export default function VideoCallPage() {
   const [remoteCameraOff, setRemoteCameraOff] = useState(false);
   const [isCallActiveByDoctor, setIsCallActiveByDoctor] = useState(false);
 
+  // Effect to set up the local video preview as soon as the component mounts
+  useEffect(() => {
+    let isMounted = true;
+    
+    async function initPreview() {
+      await setupLocalStream(localVideoRef);
+      if (!isMounted) {
+        // if component unmounted while waiting for stream, clean up
+        const stream = localVideoRef.current?.srcObject as MediaStream;
+        stream?.getTracks().forEach(track => track.stop());
+        localVideoRef.current!.srcObject = null;
+      }
+    }
+    initPreview();
+    
+    return () => {
+      isMounted = false;
+      // Clean up the local stream when the component unmounts for good
+      const stream = localVideoRef.current?.srcObject as MediaStream;
+      stream?.getTracks().forEach(track => track.stop());
+    };
+  }, []);
+
   useEffect(() => {
     if (callStatus === 'Ended') {
       toast({
@@ -74,15 +98,16 @@ export default function VideoCallPage() {
       unsubscribe = getCall(callId, (data) => {
         if (!isMounted) return;
 
-        if (data && data.active) {
-            setIsCallActiveByDoctor(true);
+        const callExists = data && data.active;
+        setIsCallActiveByDoctor(!!callExists);
+        
+        if (callExists) {
             setRemoteMuted(data.doctorMuted ?? false);
             setRemoteCameraOff(data.doctorCameraOff ?? false);
         } else {
             // Doctor hasn't joined or has ended the call by deleting the doc
-            setIsCallActiveByDoctor(false);
-            if (pcRef.current) { // If we were in a call, it means it has ended.
-              hangup(pcRef.current);
+            if (pcRef.current) {
+              endCall(pcRef.current);
               pcRef.current = null;
               setCallStatus('Ended');
             }
@@ -133,7 +158,7 @@ export default function VideoCallPage() {
   useEffect(() => {
     return () => {
       if (pcRef.current) {
-        hangup(pcRef.current);
+        endCall(pcRef.current);
         pcRef.current = null;
       }
     };
@@ -155,11 +180,10 @@ export default function VideoCallPage() {
 
   const handleHangup = async () => {
     if (pcRef.current) {
-      await hangup(pcRef.current);
+      await endCall(pcRef.current);
       pcRef.current = null;
     }
-    // We don't set status to 'Ended' because the doctor might still be there.
-    // We just disconnect the patient and go back to waiting state.
+    // Go back to the waiting state
     setCallStatus('Waiting'); 
     toast({ title: 'You left the call', description: 'You can rejoin as long as the consultation is active.' });
   };
@@ -177,8 +201,8 @@ export default function VideoCallPage() {
     if (callStatus === 'Failed') return 'Failed to connect.';
     if (callStatus === 'Reconnecting') return 'Connection lost. Reconnecting...';
     if (!isCallActiveByDoctor) return 'Waiting for doctor to join...';
-    if (callStatus === 'Waiting') return 'Ready to join.';
-    if (callStatus === 'Joining') return 'Joining call...';
+    if (callStatus === 'Waiting') return 'Doctor is ready. You can join the call.';
+    if (callStatus === 'Joining') return 'Connecting...';
     if (callStatus === 'Connected') return 'Connected';
     return '...';
   }
@@ -200,7 +224,7 @@ export default function VideoCallPage() {
           <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-sm">Doctor</div>
           {!isCallInProgress && (
             <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-background/80">
-               { callStatus === 'Joining' ? <Loader2 className="h-8 w-8 animate-spin" /> : null}
+               { !isCallActiveByDoctor || callStatus === 'Joining' ? <Loader2 className="h-8 w-8 animate-spin" /> : null}
               <p className="mt-2 text-center text-sm">{getStatusText()}</p>
             </div>
           )}
