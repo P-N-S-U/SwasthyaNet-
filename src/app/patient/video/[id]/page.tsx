@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -58,6 +57,16 @@ export default function VideoCallPage() {
   const [doctorJoined, setDoctorJoined] = useState(false);
   const [isCallActive, setIsCallActive] = useState(false);
 
+  // Force reset the state when navigating to a new call
+  useEffect(() => {
+    setCallStatus('Waiting');
+    setIsCallActive(false);
+    setPc(null);
+    setIsMuted(false);
+    setIsCameraOff(false);
+    setDoctorJoined(false);
+  }, [callId]);
+
   // Subscribe to call document to know when the doctor starts it
   useEffect(() => {
     let unsubscribe: Unsubscribe | null = null;
@@ -77,20 +86,24 @@ export default function VideoCallPage() {
             }
             setDoctorJoined(doctorIsPresent);
 
-            if (data.active === false) {
+            if (data.active === false && callStatus !== 'Ended') {
               setCallStatus('Ended');
             }
         } else {
-            // If the call document is deleted (e.g. by appointment completion), end the call.
-            setIsCallActive(false);
-            setCallStatus('Ended');
+            // If the call document is null/deleted, the call hasn't started or has been cleaned up.
+            // If the doctor explicitly ends the call (active: false), we show the ended screen.
+            if (isCallActive && callStatus !== 'Ended') {
+              setCallStatus('Ended');
+            } else {
+              setIsCallActive(false);
+            }
         }
       });
     }
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [callId, doctorJoined, toast]);
+  }, [callId, doctorJoined, toast, isCallActive, callStatus]);
   
   const handleJoinCall = useCallback(async () => {
     if (!user || callStatus === 'Joining' || callStatus === 'Connected') return;
@@ -108,7 +121,6 @@ export default function VideoCallPage() {
           case 'disconnected':
           case 'failed':
             setCallStatus('Reconnecting');
-            // Reconnection is handled by re-clicking 'join'
             break;
           case 'closed':
             setCallStatus('Waiting');
@@ -132,11 +144,13 @@ export default function VideoCallPage() {
   }, [pc, callId]);
 
   const handleToggleMute = async () => {
+    if (!pc) return;
     const newMutedState = await toggleMute(callId, 'patient');
     setIsMuted(newMutedState);
   };
 
   const handleToggleCamera = async () => {
+    if (!pc) return;
     const newCameraState = await toggleCamera(callId, 'patient');
     setIsCameraOff(newCameraState);
   };
@@ -177,9 +191,11 @@ export default function VideoCallPage() {
       case 'Connected': return 'Connected';
       case 'Reconnecting': return 'Connection lost. Please try rejoining.';
       case 'Waiting':
-      default: return 'Waiting for doctor to start the call...';
+      default: return 'Ready to join call';
     }
   }
+
+  const isCallInProgress = callStatus === 'Connected' || callStatus === 'Joining' || callStatus === 'Reconnecting';
 
   return (
     <div className="flex h-screen flex-col items-center justify-center bg-black text-white p-4">
@@ -222,7 +238,7 @@ export default function VideoCallPage() {
       <div className="fixed bottom-4 left-1/2 -translate-x-1/2">
         <Card className="bg-secondary/30 p-2 md:p-4">
           <div className="flex items-center justify-center gap-2 md:gap-4">
-            {callStatus === 'Waiting' ? (
+            {!isCallInProgress ? (
                 <Button onClick={handleJoinCall} size="lg" className="rounded-full h-16 w-32" disabled={!isCallActive || callStatus === 'Joining'}>
                     {callStatus === 'Joining' ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Video className="mr-2 h-5 w-5" />}
                     Join Call
@@ -267,5 +283,3 @@ export default function VideoCallPage() {
     </div>
   );
 }
-
-    

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -10,7 +9,6 @@ import {
   VideoOff,
   Loader2,
   CheckCircle,
-  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter, useParams } from 'next/navigation';
@@ -58,9 +56,18 @@ export default function DoctorVideoCallPage() {
   const [remoteCameraOff, setRemoteCameraOff] = useState(false);
   const [patientJoined, setPatientJoined] = useState(false);
 
-  // Memoize the start call function to avoid re-creation
-  const handleStartOrJoinCall = useCallback(async () => {
-    if (!user) return;
+  // Force reset the state when navigating to a new call
+  useEffect(() => {
+    setCallStatus('Idle');
+    setPc(null);
+    setIsMuted(false);
+    setIsCameraOff(false);
+    setPatientJoined(false);
+  }, [callId]);
+
+  // The single function for the doctor to join or start the call
+  const handleJoinCall = useCallback(async () => {
+    if (!user || callStatus === 'Starting' || callStatus === 'Connected') return;
     setCallStatus('Starting');
     try {
       const newPc = await startCall(callId, localVideoRef, remoteVideoRef);
@@ -75,10 +82,9 @@ export default function DoctorVideoCallPage() {
           case 'disconnected':
           case 'failed':
             setCallStatus('Reconnecting');
-            // Allow user to manually try reconnecting by clicking the button again
             break;
           case 'closed':
-            setCallStatus('Idle'); // Or a new state like 'Disconnected'
+            setCallStatus('Idle');
             break;
         }
       };
@@ -87,7 +93,7 @@ export default function DoctorVideoCallPage() {
       setCallStatus('Idle');
       toast({ title: 'Error Starting Call', description: (error as Error).message, variant: 'destructive' });
     }
-  }, [user, callId, toast]);
+  }, [user, callId, toast, callStatus]);
 
   // Subscribe to call document updates
   useEffect(() => {
@@ -107,12 +113,11 @@ export default function DoctorVideoCallPage() {
           }
           setPatientJoined(patientIsPresent);
 
-          // If the doctor has ended the call, update status
           if (data.active === false && callStatus !== 'Ended') {
             setCallStatus('Ended');
           }
         } else {
-           // If doc is deleted (e.g., by appointment completion), treat as ended.
+           // If doc is null (e.g., deleted or after endCall clears it), treat as ended.
            if (callStatus !== 'Ended') {
              setCallStatus('Ended');
            }
@@ -124,7 +129,7 @@ export default function DoctorVideoCallPage() {
     };
   }, [callId, patientJoined, toast, callStatus]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount or when callId changes
   useEffect(() => {
     return () => {
       if (pc) {
@@ -179,7 +184,7 @@ export default function DoctorVideoCallPage() {
       case 'Reconnecting': return 'Connection lost. Attempting to reconnect...';
       case 'Waiting':
       case 'Idle':
-      default: return 'Ready to start the call';
+      default: return 'Ready to join the call';
     }
   }
 
@@ -198,7 +203,7 @@ export default function DoctorVideoCallPage() {
             </div>
           )}
           <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-sm">Patient</div>
-          {callStatus === 'Starting' && (
+          {(callStatus === 'Starting' || callStatus === 'Reconnecting') && (
             <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-background/80">
               <Loader2 className="h-8 w-8 animate-spin" />
               <p className="mt-2 text-center text-sm">{getStatusText()}</p>
@@ -228,8 +233,8 @@ export default function DoctorVideoCallPage() {
         <Card className="bg-secondary/30 p-2 md:p-4">
           <div className="flex items-center justify-center gap-2 md:gap-4">
              {!isCallInProgress ? (
-                 <Button onClick={handleStartOrJoinCall} size="lg" className="rounded-full h-16 w-32">
-                     <Video className="mr-2 h-5 w-5" /> Start Call
+                 <Button onClick={handleJoinCall} size="lg" className="rounded-full h-16 w-32">
+                     <Video className="mr-2 h-5 w-5" /> Join Call
                  </Button>
              ) : (
                 <>
