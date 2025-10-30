@@ -13,7 +13,6 @@ import {
   Unsubscribe,
   writeBatch,
   getDocs,
-  deleteDoc,
   deleteField,
 } from 'firebase/firestore';
 
@@ -70,6 +69,11 @@ export const createOrJoinCall = async (
     const offerCandidatesCollection = collection(callDocRef, 'offerCandidates');
     const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
     
+    // Aggressively clean up previous session data for a clean start
+    await updateDoc(callDocRef, { answer: deleteField() });
+    await deleteSubcollection(answerCandidatesCollection);
+    await deleteSubcollection(offerCandidatesCollection);
+    
     const callDocSnap = await getDoc(callDocRef);
     const callData = callDocSnap.data();
 
@@ -78,9 +82,6 @@ export const createOrJoinCall = async (
         // I am the CALLER
         console.log("No offer found. Acting as CALLER.");
         
-        await deleteSubcollection(answerCandidatesCollection);
-        await deleteSubcollection(offerCandidatesCollection);
-
         pc.onicecandidate = event => {
             event.candidate && addDoc(offerCandidatesCollection, event.candidate.toJSON());
         };
@@ -89,7 +90,7 @@ export const createOrJoinCall = async (
         await pc.setLocalDescription(offerDescription);
         
         const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
-        await setDoc(callDocRef, { offer }, { merge: true });
+        await setDoc(callDocRef, { offer, patientMuted: false, patientCameraOff: false, doctorMuted: false, doctorCameraOff: false }, { merge: true });
 
         const answerUnsubscribe = onSnapshot(callDocRef, (snapshot) => {
             const data = snapshot.data();
@@ -140,8 +141,13 @@ export const createOrJoinCall = async (
         (pc as any)._unsubscribes.push(offerCandidatesUnsubscribe);
     }
     
-     const initialMuteState = (await getDoc(callDocRef)).data()?.doctorMuted ?? false;
-    localStream?.getAudioTracks().forEach(track => track.enabled = !initialMuteState);
+    // Set initial mute state based on what's in Firestore, if anything
+    const freshCallData = (await getDoc(callDocRef)).data();
+    const isDoctor = freshCallData?.doctorId === 'some-way-to-identify-doctor'; // This logic needs to be passed in
+    const initialMuteState = isDoctor ? freshCallData?.doctorMuted : freshCallData?.patientMuted;
+    localStream?.getAudioTracks().forEach(track => track.enabled = !(initialMuteState ?? false));
+    const initialCameraState = isDoctor ? freshCallData?.doctorCameraOff : freshCallData?.patientCameraOff;
+    localStream?.getVideoTracks().forEach(track => track.enabled = !(initialCameraState ?? false));
 
     return pc;
 };
@@ -155,25 +161,17 @@ export const hangup = async (currentPc: RTCPeerConnection | null, callId?: strin
         (currentPc as any)._unsubscribes.forEach((unsub: Unsubscribe) => unsub());
     }
 
+    // Stop all local media tracks
     localStream?.getTracks().forEach(track => track.stop());
     remoteStream?.getTracks().forEach(track => track.stop());
     localStream = null;
     remoteStream = null;
     
+    // Close the peer connection
     currentPc.close();
 
-    // Clean up signaling state to allow for reconnections
-    if (callId) {
-        const callDocRef = doc(db, 'calls', callId);
-        const callDocSnap = await getDoc(callDocRef);
-        if (callDocSnap.exists()) {
-             await updateDoc(callDocRef, {
-                answer: deleteField()
-             });
-             const answerCandidatesRef = collection(callDocRef, 'answerCandidates');
-             await deleteSubcollection(answerCandidatesRef);
-        }
-    }
+    // No longer cleaning up Firestore state here to allow reconnections.
+    // Cleanup is handled at the start of the next createOrJoinCall.
 };
 
 export const toggleMute = async (callId: string, role: 'patient' | 'doctor'): Promise<boolean> => {

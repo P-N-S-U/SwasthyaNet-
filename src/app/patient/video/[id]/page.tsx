@@ -98,9 +98,11 @@ export default function VideoCallPage() {
                     case 'disconnected':
                     case 'failed':
                         setCallStatus('Initializing');
-                        setTimeout(() => {
-                            if (isMounted) setReconnectAttempt(prev => prev + 1);
-                        }, 2000 + Math.random() * 1000);
+                        if (isMounted) {
+                            setTimeout(() => {
+                                if (isMounted) setReconnectAttempt(prev => prev + 1);
+                            }, 2000 + Math.random() * 1000);
+                        }
                         break;
                     case 'closed':
                         setCallStatus('Ended');

@@ -105,9 +105,11 @@ export default function DoctorVideoCallPage() {
                         case 'failed':
                             setCallStatus('Joining');
                             // Simple retry mechanism
-                            setTimeout(() => {
-                                if (isMounted) setReconnectAttempt(prev => prev + 1);
-                            }, 2000 + Math.random() * 1000);
+                            if (isMounted) {
+                               setTimeout(() => {
+                                  if (isMounted) setReconnectAttempt(prev => prev + 1);
+                               }, 2000 + Math.random() * 1000);
+                            }
                             break;
                         case 'closed':
                             setCallStatus('Ended');
