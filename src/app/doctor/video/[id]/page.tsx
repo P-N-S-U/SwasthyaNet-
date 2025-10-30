@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useRef, useState, use } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Mic,
   MicOff,
@@ -12,7 +12,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import {
   hangup,
@@ -38,8 +38,9 @@ import { useToast } from '@/hooks/use-toast';
 
 type CallStatus = 'Joining' | 'Connected' | 'Ended' | 'Failed';
 
-export default function DoctorVideoCallPage({ params }: { params: { id: string } }) {
+export default function DoctorVideoCallPage() {
   const router = useRouter();
+  const params = useParams();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -52,10 +53,10 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
   const [callStatus, setCallStatus] = useState<CallStatus>('Joining');
   const { user, loading } = useAuthState();
-  const { id: callId } = use(params);
+  const callId = params.id as string;
 
   useEffect(() => {
-    if (loading) return;
+    if (loading || !callId) return;
     if (!user) {
       router.push('/auth');
       return;
@@ -86,18 +87,19 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
               hasConnected = true;
               setCallStatus('Connected');
             }
-        } else if (hasConnected) {
-            setCallStatus('Ended');
-            router.push('/doctor/dashboard');
         }
     });
+
+    // A component-level reference to pc is needed for cleanup
+    // but the core logic is in video.ts
+    const currentPc = pcRef.current;
 
     return () => {
       isMounted = false;
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      hangup(pcRef.current, callId);
+      hangup(currentPc, callId);
     };
   }, [callId, router, user, loading]);
 

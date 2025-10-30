@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useRef, useState, use } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Mic,
   MicOff,
@@ -11,7 +11,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import {
   hangup,
@@ -35,8 +35,9 @@ import {
 
 type CallStatus = 'Initializing' | 'Waiting' | 'Connected' | 'Ended' | 'Failed';
 
-export default function VideoCallPage({ params }: { params: { id: string } }) {
+export default function VideoCallPage() {
   const router = useRouter();
+  const params = useParams();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -48,10 +49,10 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   
   const [callStatus, setCallStatus] = useState<CallStatus>('Initializing');
   const { user, loading } = useAuthState();
-  const { id: callId } = use(params);
+  const callId = params.id as string;
   
   useEffect(() => {
-    if (loading) return;
+    if (loading || !callId) return;
     if (!user) {
       router.push('/auth');
       return;
@@ -86,17 +87,17 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
               hasConnected = true;
               setCallStatus('Connected');
             }
-        } else if (hasConnected) {
-            setCallStatus('Ended');
         }
     });
+
+    const currentPc = pcRef.current;
 
     return () => {
       isMounted = false;
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      hangup(pcRef.current, callId);
+      hangup(currentPc, callId);
     };
   }, [callId, router, user, loading]);
 
