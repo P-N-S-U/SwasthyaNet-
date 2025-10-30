@@ -73,13 +73,14 @@ export default function VideoCallPage() {
           remoteVideoRef.current.srcObject = null;
         }
         
-        await hangup(pcRef.current, callId);
+        if (pcRef.current) {
+            await hangup(pcRef.current, callId);
+        }
 
         pc = await createOrJoinCall(
             callId, 
             localVideoRef, 
-            remoteVideoRef,
-            'patient'
+            remoteVideoRef
         );
         
         if (isMounted) {

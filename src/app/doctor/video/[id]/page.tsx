@@ -80,13 +80,14 @@ export default function DoctorVideoCallPage() {
             }
 
             // Clean up old connection if exists
-            await hangup(pcRef.current, callId);
+            if(pcRef.current) {
+              await hangup(pcRef.current, callId);
+            }
 
             pc = await createOrJoinCall(
                 callId, 
                 localVideoRef, 
-                remoteVideoRef, 
-                'doctor'
+                remoteVideoRef
             );
             
             if (isMounted) {
@@ -212,7 +213,7 @@ export default function DoctorVideoCallPage() {
       case 'Connected': return 'Connected';
       case 'Ended': return 'Call has ended.';
       case 'Failed': return 'Failed to connect. Retrying...';
-      default: return 'Waiting for patient...';
+      default: return 'Waiting for other party...';
     }
   }
 
