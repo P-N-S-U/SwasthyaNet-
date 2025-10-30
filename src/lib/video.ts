@@ -11,6 +11,9 @@ import {
   setDoc,
   getDoc,
   Unsubscribe,
+  writeBatch,
+  getDocs,
+  deleteField,
 } from 'firebase/firestore';
 
 const servers = {
@@ -35,15 +38,35 @@ const cleanupListeners = () => {
   unsubscribes = [];
 };
 
+async function deleteSubcollection(collectionRef) {
+    const snapshot = await getDocs(collectionRef);
+    if (snapshot.empty) {
+        return;
+    }
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(doc => {
+        batch.delete(doc.ref);
+    });
+    await batch.commit();
+}
+
+
 export const createOrJoinCall = async (
   id: string,
   localVideoRef: React.RefObject<HTMLVideoElement>,
   remoteVideoRef: React.RefObject<HTMLVideoElement>,
   userType: 'doctor' | 'patient'
 ) => {
-  hangup(); // Clean up any previous call state
+  hangup(pc, callId); // Clean up any previous call state
   callId = id;
   const callDocRef = doc(db, 'calls', callId);
+
+  // Clean up old candidates before starting
+  const offerCandidatesCollection = collection(callDocRef, 'offerCandidates');
+  const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
+  await deleteSubcollection(offerCandidatesCollection);
+  await deleteSubcollection(answerCandidatesCollection);
+
 
   // Setup local media
   localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -70,23 +93,21 @@ export const createOrJoinCall = async (
   };
 
   const callDocSnap = await getDoc(callDocRef);
+  const callDocExists = callDocSnap.exists();
+  const existingOffer = callDocExists && callDocSnap.data().offer;
 
-  if (!callDocSnap.exists()) {
-    // === This user is the CALLER (first to join) ===
-    const offerCandidatesCollection = collection(callDocRef, 'offerCandidates');
-    const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
-
+  // The logic is now: if there's an offer, I'm the callee. If not, I'm the caller.
+  if (!existingOffer) {
+    // === This user is the CALLER (first to join or rejoining after hangup) ===
     pc.onicecandidate = event => {
       event.candidate && addDoc(offerCandidatesCollection, event.candidate.toJSON());
     };
     
-    // Create offer
     const offerDescription = await pc.createOffer();
     await pc.setLocalDescription(offerDescription);
     const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
     
-    // Create call document in Firestore
-    await setDoc(callDocRef, { offer, id, patientMuted: false, patientCameraOff: false, doctorMuted: false, doctorCameraOff: false });
+    await setDoc(callDocRef, { offer }, { merge: true });
 
     // Listen for answer from the other peer
     const unsubCall = onSnapshot(callDocRef, (snapshot) => {
@@ -111,15 +132,11 @@ export const createOrJoinCall = async (
 
   } else {
     // === This user is the CALLEE (second to join) ===
-    const offerCandidatesCollection = collection(callDocRef, 'offerCandidates');
-    const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
-    
     pc.onicecandidate = event => {
       event.candidate && addDoc(answerCandidatesCollection, event.candidate.toJSON());
     };
 
-    const callData = callDocSnap.data();
-    const offerDescription = new RTCSessionDescription(callData.offer);
+    const offerDescription = new RTCSessionDescription(existingOffer);
     await pc.setRemoteDescription(offerDescription);
     
     const answerDescription = await pc.createAnswer();
@@ -128,7 +145,6 @@ export const createOrJoinCall = async (
     const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
     await updateDoc(callDocRef, { answer });
     
-    // Listen for ICE candidates from the other peer
     const unsubOfferCandidates = onSnapshot(offerCandidatesCollection, (snapshot) => {
       snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
@@ -142,13 +158,12 @@ export const createOrJoinCall = async (
 };
 
 
-export const hangup = () => {
+export const hangup = async (currentPc: typeof pc, currentCallId: typeof callId) => {
   cleanupListeners();
 
-  if (pc) {
-    pc.getSenders().forEach(sender => sender.track?.stop());
-    pc.close();
-    pc = null;
+  if (currentPc) {
+    currentPc.getSenders().forEach(sender => sender.track?.stop());
+    currentPc.close();
   }
 
   if (localStream) {
@@ -157,7 +172,22 @@ export const hangup = () => {
   }
   
   remoteStream = null;
-  // Do NOT delete the call document, to allow for reconnection.
+  pc = null;
+  
+  if (currentCallId) {
+    const callDocRef = doc(db, 'calls', currentCallId);
+    const callDocSnap = await getDoc(callDocRef);
+    if (callDocSnap.exists()) {
+        // Clear old SDP to allow for renegotiation on rejoin
+        await updateDoc(callDocRef, {
+            offer: deleteField(),
+            answer: deleteField(),
+        });
+        // Subcollections are cleared on the next createOrJoinCall
+    }
+  }
+
+  callId = null;
 };
 
 
@@ -168,7 +198,7 @@ export const toggleMute = async (isMuted: boolean, role: 'patient' | 'doctor') =
   if (callId && role) {
     const callDoc = doc(db, 'calls', callId);
     const field = role === 'patient' ? 'patientMuted' : 'doctorMuted';
-    await updateDoc(callDoc, { [field]: isMuted });
+    await updateDoc(callDoc, { [field]: isMuted }, { merge: true });
   }
 };
 
@@ -179,7 +209,7 @@ export const toggleCamera = async (isCameraOff: boolean, role: 'patient' | 'doct
   if (callId && role) {
     const callDoc = doc(db, 'calls', callId);
     const field = role === 'patient' ? 'patientCameraOff' : 'doctorCameraOff';
-    await updateDoc(callDoc, { [field]: isCameraOff });
+    await updateDoc(callDoc, { [field]: isCameraOff }, { merge: true });
   }
 };
 

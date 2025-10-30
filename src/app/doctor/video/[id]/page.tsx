@@ -42,6 +42,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   const router = useRouter();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const pcRef = useRef<RTCPeerConnection | null>(null);
   
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -81,30 +82,22 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
         if (callData) {
             setRemoteMuted(callData.patientMuted);
             setRemoteCameraOff(callData.patientCameraOff);
-            // Once the answer is set by the patient, we are connected
             if (callData.answer && !hasConnected) {
               hasConnected = true;
               setCallStatus('Connected');
             }
         } else if (hasConnected) {
-            // Document deleted, call is over for good.
             setCallStatus('Ended');
-            // This is a definitive end, so we can push the user out.
-            toast({
-                title: "Call Finished",
-                description: "The appointment has been completed.",
-            });
             router.push('/doctor/dashboard');
         }
     });
 
-    // Cleanup function
     return () => {
       isMounted = false;
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      hangup();
+      hangup(pcRef.current, callId);
     };
   }, [callId, router, user, loading, toast]);
 
@@ -122,13 +115,13 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
     toggleCamera(newCameraState, 'doctor');
   };
 
-  const endCall = () => {
-    hangup();
+  const endCall = async () => {
+    await hangup(pcRef.current, callId);
     router.push('/doctor/dashboard');
   };
 
   const handleCompleteAppointment = async () => {
-    hangup(); // First, hangup locally
+    await hangup(pcRef.current, callId);
     toast({
         title: 'Completing Appointment...',
         description: 'Please wait while we finalize everything.',
@@ -140,16 +133,13 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
             description: result.error,
             variant: 'destructive'
         });
-        // If completion fails, still redirect to dashboard.
-        // The call is already hung up locally.
         router.push('/doctor/dashboard');
     } else {
-        // The useEffect's onSnapshot will handle the redirect
-        // once the call document is deleted.
         toast({
             title: 'Appointment Completed',
             description: 'The appointment has been successfully marked as complete.',
         });
+        router.push('/doctor/dashboard');
     }
   };
 

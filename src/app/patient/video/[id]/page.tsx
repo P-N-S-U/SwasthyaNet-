@@ -39,6 +39,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const pcRef = useRef<RTCPeerConnection | null>(null);
   
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOff, setIsCameraOff] = useState(false);
@@ -86,18 +87,16 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
               setCallStatus('Connected');
             }
         } else if (hasConnected) {
-             // Call document was deleted, so it's over.
             setCallStatus('Ended');
         }
     });
 
-    // Cleanup function
     return () => {
       isMounted = false;
       if (callUnsubscribe) {
         callUnsubscribe();
       }
-      hangup();
+      hangup(pcRef.current, callId);
     };
   }, [callId, router, user, loading]);
 
@@ -115,8 +114,8 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
     toggleCamera(newCameraState, 'patient');
   };
 
-  const endCall = () => {
-    hangup();
+  const endCall = async () => {
+    await hangup(pcRef.current, callId);
     router.push('/patient/appointments');
   };
 
