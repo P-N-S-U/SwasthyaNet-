@@ -65,12 +65,10 @@ export function PharmacyFinder() {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           };
-          console.log('[PharmacyFinder] User location found:', location);
           setUserLocation(location);
           setLoadingLocation(false);
         },
         err => {
-          console.error('[PharmacyFinder] Geolocation error:', err.message);
           setError(
             'Location access denied. Please enable location services in your browser.'
           );
@@ -78,7 +76,6 @@ export function PharmacyFinder() {
         }
       );
     } else {
-      console.error('[PharmacyFinder] Geolocation not supported.');
       setError('Geolocation is not supported by your browser.');
       setLoadingLocation(false);
     }
@@ -93,8 +90,8 @@ export function PharmacyFinder() {
         const overpassQuery = `
           [out:json][timeout:25];
           (
-            nwr["amenity"="restaurant"](around:${radius},${userLocation.lat},${userLocation.lng});
-            nwr["amenity"="school"](around:${radius},${userLocation.lat},${userLocation.lng});
+            nwr["amenity"="pharmacy"](around:${radius},${userLocation.lat},${userLocation.lng});
+            nwr["shop"="chemist"](around:${radius},${userLocation.lat},${userLocation.lng});
           );
           out center;
         `;
@@ -118,14 +115,8 @@ export function PharmacyFinder() {
           const data = await response.json();
           
           if (!data.elements || data.elements.length === 0) {
-            console.log("[PharmacyFinder] No elements found in Overpass response.");
             setPharmacies([]);
           } else {
-            console.log(`[PharmacyFinder] Found ${data.elements.length} elements. Processing...`);
-            data.elements.forEach((element: any, index: number) => {
-              console.log(`[PharmacyFinder] Element ${index + 1}:`, element);
-            });
-
             const locationsWithDistance = data.elements
               .map((p: any) => {
                 const location = p.type === 'node' ? { lat: p.lat, lon: p.lon } : { lat: p.center.lat, lon: p.center.lon };
@@ -140,7 +131,6 @@ export function PharmacyFinder() {
             setPharmacies(locationsWithDistance);
           }
         } catch (e: any) {
-          console.error("[PharmacyFinder] Error fetching locations:", e.message, e);
           setError('Could not fetch location data. The service might be temporarily unavailable.');
         } finally {
           setIsFetchingPharmacies(false);
@@ -219,7 +209,7 @@ export function PharmacyFinder() {
                         className="truncate font-semibold"
                         title={pharmacy.tags.name || 'Unnamed Location'}
                       >
-                        {pharmacy.tags.name || 'Unnamed Location'}
+                        {pharmacy.tags.name || 'Unnamed Pharmacy'}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {pharmacy.distance?.toFixed(2)} km away
@@ -238,7 +228,7 @@ export function PharmacyFinder() {
               </ul>
             ) : (
                 <p className="pt-10 text-center text-sm text-muted-foreground">
-                    {!userLocation && !loadingLocation ? "Cannot search for locations without your location." : "No locations found within 5km."}
+                    {!userLocation && !loadingLocation ? "Cannot search for pharmacies without your location." : "No pharmacies or chemists found within 5km."}
                 </p>
             )}
           </CardContent>
