@@ -84,14 +84,11 @@ export const createOrJoinCall = async (
   const callDocRef = doc(db, 'calls', callId);
 
   if (role === 'doctor') {
-    // Set the doctor as active, and patient hasn't joined yet.
-    // This creates the document so subcollections can be added.
     await setDoc(callDocRef, { active: true, patientJoined: false });
 
     const offerCandidates = collection(callDocRef, 'offerCandidates');
     const answerCandidates = collection(callDocRef, 'answerCandidates');
     
-    // Clean up previous candidates
     const [offerSnapshot, answerSnapshot] = await Promise.all([getDocs(offerCandidates), getDocs(answerCandidates)]);
     const batch = writeBatch(db);
     offerSnapshot.forEach(doc => batch.delete(doc.ref));
@@ -110,7 +107,6 @@ export const createOrJoinCall = async (
       type: offerDescription.type,
     };
 
-    // Update the document with the offer
     await updateDoc(callDocRef, { offer });
 
     onSnapshot(callDocRef, snapshot => {
@@ -124,8 +120,10 @@ export const createOrJoinCall = async (
     onSnapshot(answerCandidates, snapshot => {
       snapshot.docChanges().forEach(change => {
         if (change.type === 'added') {
-          const candidate = new RTCIceCandidate(change.doc.data());
-          pc.addIceCandidate(candidate);
+          if (pc.signalingState !== 'closed') {
+            const candidate = new RTCIceCandidate(change.doc.data());
+            pc.addIceCandidate(candidate);
+          }
         }
       });
     });
@@ -136,11 +134,13 @@ export const createOrJoinCall = async (
         throw new Error("Doctor has not started the call yet.");
     }
 
-    // Mark that patient has joined
     await updateDoc(callDocRef, { patientJoined: true });
 
+    const answerCandidates = collection(callDocRef, 'answerCandidates');
+    const offerCandidates = collection(callDocRef, 'offerCandidates');
+
     pc.onicecandidate = event => {
-        event.candidate && addDoc(collection(callDocRef, 'answerCandidates'), event.candidate.toJSON());
+        event.candidate && addDoc(answerCandidates, event.candidate.toJSON());
     };
 
     await pc.setRemoteDescription(new RTCSessionDescription(callDoc.data().offer));
@@ -155,10 +155,13 @@ export const createOrJoinCall = async (
 
     await updateDoc(callDocRef, { answer });
     
-    onSnapshot(collection(callDocRef, 'offerCandidates'), (snapshot) => {
+    onSnapshot(offerCandidates, (snapshot) => {
         snapshot.docChanges().forEach((change) => {
             if (change.type === 'added') {
-                pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+              if (pc.signalingState !== 'closed') {
+                const candidate = new RTCIceCandidate(change.doc.data());
+                pc.addIceCandidate(candidate);
+              }
             }
         });
     });
@@ -169,35 +172,29 @@ export const createOrJoinCall = async (
 
 
 export const endCall = async (pc: RTCPeerConnection | null, callId?: string) => {
-  // Stop all local media tracks
   if (localStream) {
     localStream.getTracks().forEach(track => track.stop());
     localStream = null;
   }
   
-  // Close the peer connection
   if (pc) {
     pc.close();
   }
   
-  // If callId is provided, delete the call document from Firestore
   if (callId) {
     const callDocRef = doc(db, 'calls', callId);
     try {
         const offerCandidates = collection(callDocRef, 'offerCandidates');
         const answerCandidates = collection(callDocRef, 'answerCandidates');
 
-        // Delete subcollections first
         const [offerSnapshot, answerSnapshot] = await Promise.all([getDocs(offerCandidates), getDocs(answerCandidates)]);
         const batch = writeBatch(db);
         offerSnapshot.forEach(doc => batch.delete(doc.ref));
         answerSnapshot.forEach(doc => batch.delete(doc.ref));
         await batch.commit();
 
-        // Finally, delete the main call document
         await deleteDoc(callDocRef);
     } catch (error) {
-        // It's possible the document doesn't exist, which is fine.
         console.warn("Could not delete call document, it might already be gone.", error);
     }
   }
