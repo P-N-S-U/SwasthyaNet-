@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -20,7 +19,7 @@ interface Pharmacy {
   id: string;
   name: string;
   lat: number;
-  lon: number;
+  lng: number; // Changed from lon to lng to match Google API
   address: string;
   distance?: number;
 }
@@ -46,6 +45,7 @@ export function PharmacyFinder() {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           };
+          console.log('[PharmacyFinder] User location found:', location);
           setUserLocation(location);
           setLoadingLocation(false);
         },
@@ -68,18 +68,22 @@ export function PharmacyFinder() {
         setIsFetchingPharmacies(true);
         setError(null);
         
+        console.log('[PharmacyFinder] Calling server action to find pharmacies.');
         const result = await findNearbyPharmacies(userLocation);
 
         if (result.error) {
+            console.error('[PharmacyFinder] Error from server action:', result.error);
             setError(result.error);
             setPharmacies([]);
         } else if (result.data) {
+            console.log('[PharmacyFinder] Received data from server action:', result.data);
             const locationsWithDistance = result.data
               .map(p => ({
                   ...p,
-                  distance: haversineDistance(userLocation, { lat: p.lat, lon: p.lon }),
+                  distance: haversineDistance(userLocation, { lat: p.lat, lng: p.lng }),
               }))
               .sort((a, b) => (a.distance || 0) - (b.distance || 0));
+            console.log('[PharmacyFinder] Processed and sorted pharmacies:', locationsWithDistance);
             setPharmacies(locationsWithDistance);
         }
         setIsFetchingPharmacies(false);
@@ -88,9 +92,9 @@ export function PharmacyFinder() {
     }
   }, [userLocation]);
 
-  const openInGoogleMaps = (lat: number, lon: number) => {
+  const openInGoogleMaps = (lat: number, lng: number) => {
     window.open(
-      `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`,
+      `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
       '_blank'
     );
   };
@@ -166,7 +170,7 @@ export function PharmacyFinder() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => openInGoogleMaps(pharmacy.lat, pharmacy.lon)}
+                      onClick={() => openInGoogleMaps(pharmacy.lat, pharmacy.lng)}
                     >
                       <Navigation className="mr-2 h-4 w-4" />
                       Visit

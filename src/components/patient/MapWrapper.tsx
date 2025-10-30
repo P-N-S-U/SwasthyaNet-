@@ -50,7 +50,7 @@ const UserMarker = ({ userLocation }: any) => {
 }
 
 export default function MapWrapper({ userLocation, pharmacies }: any) {
-  
+  console.log('[MapWrapper] Rendering with received props:', { userLocation, pharmacies });
   return (
     <div id="map-container" className="h-full w-full rounded-md z-0">
       <MapContainer
@@ -62,11 +62,13 @@ export default function MapWrapper({ userLocation, pharmacies }: any) {
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <UserMarker userLocation={userLocation} />
         {pharmacies?.map((p: any) => (
-          <Marker key={p.id} position={[p.lat, p.lon]}>
+          <Marker key={p.id} position={[p.lat, p.lng]}>
             <Popup>
               <b>{p.name || "Unnamed Pharmacy"}</b>
               <br />
-              {p.distance?.toFixed(2)} km away
+              {p.address}
+              <br/>
+              {p.distance ? `${p.distance.toFixed(2)} km away` : ''}
             </Popup>
           </Marker>
         ))}

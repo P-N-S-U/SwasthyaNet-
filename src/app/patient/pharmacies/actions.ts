@@ -12,7 +12,8 @@ export async function findNearbyPharmacies(location: Location | null) {
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   if (!apiKey) {
-    return { error: 'Google Maps API key is missing.' };
+    console.error('[Google Places API] API key is missing.');
+    return { error: 'Google Maps API key is missing on the server.' };
   }
 
   const { lat, lng } = location;
@@ -22,32 +23,29 @@ export async function findNearbyPharmacies(location: Location | null) {
   const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radius}&type=${type}&key=${apiKey}`;
 
   try {
+    console.log(`[Google Places API] Fetching URL: ${url.replace(apiKey, 'REDACTED')}`);
     const response = await fetch(url, {
         headers: {
-            'User-Agent': 'SwasthyaNet/1.0 (Web; +https://example.com)',
+            'User-Agent': 'SwasthyaNet/1.0 (Web)',
         }
     });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      console.error('[Google Places API Error]', errorData);
-      throw new Error(errorData.error_message || `Failed to fetch from Google Places API: ${response.status}`);
-    }
 
     const data = await response.json();
     
     if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+        console.error('[Google Places API Error]', data);
         throw new Error(data.error_message || `Google Places API returned status: ${data.status}`);
     }
     
-    const pharmacies = data.results.map((p: any) => ({
+    const pharmacies = (data.results || []).map((p: any) => ({
         id: p.place_id,
         name: p.name,
         lat: p.geometry.location.lat,
-        lon: p.geometry.location.lng,
+        lng: p.geometry.location.lng,
         address: p.vicinity,
     }));
-
+    
+    console.log(`[Google Places API] Found ${pharmacies.length} pharmacies.`);
     return { data: pharmacies };
 
   } catch (e: any) {
