@@ -65,12 +65,6 @@ export const createOrJoinCall = async (
   const offerCandidatesCollection = collection(callDocRef, 'offerCandidates');
   const answerCandidatesCollection = collection(callDocRef, 'answerCandidates');
 
-  // Clean up old candidates before starting
-  await Promise.all([
-      deleteSubcollection(offerCandidatesCollection),
-      deleteSubcollection(answerCandidatesCollection)
-  ]);
-
   // Setup local media
   localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
   if (localVideoRef.current) {
@@ -102,6 +96,13 @@ export const createOrJoinCall = async (
   // The logic is now: if there's an offer, I'm the callee. If not, I'm the caller.
   if (!existingOffer) {
     // === This user is the CALLER (first to join or rejoining after hangup) ===
+    
+    // Clean up old candidates before creating a new offer
+    await Promise.all([
+      deleteSubcollection(offerCandidatesCollection),
+      deleteSubcollection(answerCandidatesCollection)
+    ]);
+    
     pc.onicecandidate = event => {
       event.candidate && addDoc(offerCandidatesCollection, event.candidate.toJSON());
     };
@@ -165,7 +166,11 @@ export const hangup = async (currentPc: typeof pc, currentCallId: string | null)
   cleanupListeners();
 
   if (currentPc) {
-    currentPc.getSenders().forEach(sender => sender.track?.stop());
+    currentPc.getSenders().forEach(sender => {
+        if (sender.track) {
+            sender.track.stop();
+        }
+    });
     currentPc.close();
   }
   
@@ -174,21 +179,11 @@ export const hangup = async (currentPc: typeof pc, currentCallId: string | null)
     localStream = null;
   }
   
+  // Clear the video elements
+  // This logic should be handled in the component that owns the refs.
+  
   remoteStream = null;
   pc = null;
-  
-  if (currentCallId) {
-    const callDocRef = doc(db, 'calls', currentCallId);
-    const callDocSnap = await getDoc(callDocRef);
-    if (callDocSnap.exists()) {
-        // Clear old SDP to allow for renegotiation on rejoin
-        await updateDoc(callDocRef, {
-            offer: deleteField(),
-            answer: deleteField(),
-        });
-    }
-  }
-
   callId = null;
 };
 
@@ -200,7 +195,7 @@ export const toggleMute = async (isMuted: boolean, role: 'patient' | 'doctor') =
   if (callId && role) {
     const callDoc = doc(db, 'calls', callId);
     const field = role === 'patient' ? 'patientMuted' : 'doctorMuted';
-    await updateDoc(callDoc, { [field]: isMuted }, { merge: true });
+    await setDoc(callDoc, { [field]: isMuted }, { merge: true });
   }
 };
 
@@ -211,7 +206,7 @@ export const toggleCamera = async (isCameraOff: boolean, role: 'patient' | 'doct
   if (callId && role) {
     const callDoc = doc(db, 'calls', callId);
     const field = role === 'patient' ? 'patientCameraOff' : 'doctorCameraOff';
-    await updateDoc(callDoc, { [field]: isCameraOff }, { merge: true });
+    await setDoc(callDoc, { [field]: isCameraOff }, { merge: true });
   }
 };
 
@@ -224,3 +219,4 @@ export const getCall = (id: string, callback: (data: any | null) => void) => {
   unsubscribes.push(unsub);
   return unsub;
 };
+
