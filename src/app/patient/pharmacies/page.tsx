@@ -1,8 +1,10 @@
 
+'use client';
+
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
 import { MapPin } from 'lucide-react';
-import { Card } from '@/components/ui/card';
+import { PharmacyFinder } from '@/components/patient/PharmacyFinder';
 
 export default function PharmaciesPage() {
   return (
@@ -15,18 +17,13 @@ export default function PharmaciesPage() {
               <MapPin className="h-12 w-12 text-primary" />
             </div>
             <h1 className="text-4xl font-bold font-headline">
-              Nearby Pharmacies
+              Find a Pharmacy Near You
             </h1>
             <p className="mt-2 text-lg text-foreground/70">
-              Find pharmacies near your location.
+              Discover local pharmacies, check their distance, and get directions.
             </p>
           </div>
-          <Card className="flex min-h-[500px] w-full items-center justify-center border-dashed bg-background">
-            <div className="text-center">
-                <h2 className="text-2xl font-semibold">Map Feature Coming Soon</h2>
-                <p className="mt-2 text-muted-foreground">We are working on bringing you an interactive map of nearby pharmacies.</p>
-            </div>
-          </Card>
+          <PharmacyFinder />
         </div>
       </main>
       <Footer />
