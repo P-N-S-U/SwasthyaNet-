@@ -57,6 +57,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const hasAnswered = useRef(false);
+  const localHangup = useRef(false);
 
   useEffect(() => {
     if (loading) return;
@@ -66,7 +67,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
     }
     
     let callUnsubscribe: (() => void) | null = null;
-    const localHangup = { current: false };
+    
 
     const handleCallEnded = () => {
         if (!localHangup.current) {
@@ -134,7 +135,6 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
     // Cleanup function
     return () => {
-      localHangup.current = true;
       if (callUnsubscribe) {
         callUnsubscribe();
       }
@@ -161,6 +161,7 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
   const endCall = () => {
     // Just hangup locally and go back to dashboard. Does not complete the appointment.
+    localHangup.current = true;
     hangup(pcRef.current);
     router.push('/doctor/dashboard');
   };

@@ -121,7 +121,6 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
 
     // Cleanup function
     return () => {
-      localHangup.current = true;
       if(callUnsubscribe) {
           callUnsubscribe();
       }
@@ -148,6 +147,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
 
   const endCall = () => {
     // Just hangup locally and go back to appointments. Does not complete the appointment.
+    localHangup.current = true;
     hangup(pcRef.current);
     router.push('/patient/appointments');
   };
