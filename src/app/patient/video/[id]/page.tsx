@@ -10,6 +10,7 @@ import {
   VideoOff,
   Loader2,
   AlertTriangle,
+  ArrowLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter, useParams } from 'next/navigation';
@@ -246,10 +247,16 @@ export default function VideoCallPage() {
         <Card className="bg-secondary/30 p-2 md:p-4">
           <div className="flex items-center justify-center gap-2 md:gap-4">
             {!isCallInProgress ? (
+              <>
+                <Button variant="outline" size="lg" className="rounded-full h-16" onClick={() => router.push('/patient/appointments')}>
+                    <ArrowLeft className="mr-2 h-5 w-5" />
+                    Back
+                </Button>
                 <Button onClick={handleJoinCall} size="lg" className="rounded-full h-16 w-32" disabled={!isCallActiveByDoctor || callStatus === 'Joining'}>
                     {callStatus === 'Joining' ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Video className="mr-2 h-5 w-5" />}
                     Join Call
                 </Button>
+              </>
             ) : (
                 <>
                     <Button variant={isMuted ? 'destructive' : 'outline'} size="icon" className="rounded-full h-12 w-12 md:h-16 md:w-16" onClick={handleToggleMute}>
