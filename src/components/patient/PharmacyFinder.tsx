@@ -6,7 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2, Map, List, Navigation } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  useMap,
+} from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { Skeleton } from '../ui/skeleton';
@@ -31,8 +37,13 @@ interface Pharmacy {
   distance?: number;
 }
 
+interface Location {
+  lat: number;
+  lng: number;
+}
+
 const haversineDistance = (
-  coords1: { lat: number; lng: number },
+  coords1: Location,
   coords2: { lat: number; lon: number }
 ): number => {
   const toRad = (x: number) => (x * Math.PI) / 180;
@@ -51,10 +62,45 @@ const haversineDistance = (
   return R * c; // in km
 };
 
-export function PharmacyFinder() {
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(
-    null
+// New component to handle map content and updates
+const MapContent = ({
+  location,
+  pharmacies,
+}: {
+  location: Location;
+  pharmacies: Pharmacy[];
+}) => {
+  const map = useMap();
+  useEffect(() => {
+    if (location) {
+      map.setView([location.lat, location.lng], map.getZoom());
+    }
+  }, [location, map]);
+
+  return (
+    <>
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      />
+      <Marker position={[location.lat, location.lng]}>
+        <Popup>Your Location</Popup>
+      </Marker>
+      {pharmacies.map(p => (
+        <Marker key={p.id} position={[p.lat, p.lon]}>
+          <Popup>
+            <b>{p.tags.name || 'Pharmacy'}</b>
+            <br />
+            {p.distance?.toFixed(2)} km away
+          </Popup>
+        </Marker>
+      ))}
+    </>
   );
+};
+
+export function PharmacyFinder() {
+  const [location, setLocation] = useState<Location | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
@@ -111,20 +157,26 @@ export function PharmacyFinder() {
   }, [location]);
 
   const openInGoogleMaps = (lat: number, lon: number) => {
-    window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`, '_blank');
+    window.open(
+      `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`,
+      '_blank'
+    );
   };
 
   const PharmacyListSkeleton = () => (
     <div className="space-y-4">
-        {[...Array(4)].map((_, i) => (
-            <div key={i} className="flex items-center justify-between rounded-lg bg-secondary/50 p-3">
-                <div className='w-full'>
-                    <Skeleton className="h-5 w-3/4 mb-2" />
-                    <Skeleton className="h-4 w-1/4" />
-                </div>
-                <Skeleton className="h-9 w-20" />
-            </div>
-        ))}
+      {[...Array(4)].map((_, i) => (
+        <div
+          key={i}
+          className="flex items-center justify-between rounded-lg bg-secondary/50 p-3"
+        >
+          <div className="w-full">
+            <Skeleton className="mb-2 h-5 w-3/4" />
+            <Skeleton className="h-4 w-1/4" />
+          </div>
+          <Skeleton className="h-9 w-20" />
+        </div>
+      ))}
     </div>
   );
 
@@ -157,22 +209,7 @@ export function PharmacyFinder() {
                 zoom={14}
                 className="h-full w-full rounded-md"
               >
-                <TileLayer
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                />
-                <Marker position={[location.lat, location.lng]}>
-                  <Popup>Your Location</Popup>
-                </Marker>
-                {pharmacies.map(p => (
-                  <Marker key={p.id} position={[p.lat, p.lon]}>
-                    <Popup>
-                      <b>{p.tags.name || 'Pharmacy'}</b>
-                      <br />
-                      {p.distance?.toFixed(2)} km away
-                    </Popup>
-                  </Marker>
-                ))}
+                <MapContent location={location} pharmacies={pharmacies} />
               </MapContainer>
             ) : null}
           </CardContent>
@@ -189,9 +226,9 @@ export function PharmacyFinder() {
           </CardHeader>
           <CardContent>
             {isFetchingPharmacies ? (
-                <PharmacyListSkeleton />
+              <PharmacyListSkeleton />
             ) : error ? (
-                <p className="text-destructive text-sm">{error}</p>
+              <p className="text-sm text-destructive">{error}</p>
             ) : pharmacies.length > 0 ? (
               <ul className="space-y-4">
                 {pharmacies.map(pharmacy => (
@@ -200,7 +237,12 @@ export function PharmacyFinder() {
                     className="flex items-center justify-between rounded-lg bg-secondary/50 p-3"
                   >
                     <div className="max-w-[70%]">
-                      <p className="font-semibold truncate" title={pharmacy.tags.name || 'Unnamed Pharmacy'}>{pharmacy.tags.name || 'Unnamed Pharmacy'}</p>
+                      <p
+                        className="truncate font-semibold"
+                        title={pharmacy.tags.name || 'Unnamed Pharmacy'}
+                      >
+                        {pharmacy.tags.name || 'Unnamed Pharmacy'}
+                      </p>
                       <p className="text-sm text-muted-foreground">
                         {pharmacy.distance?.toFixed(2)} km away
                       </p>
@@ -217,7 +259,9 @@ export function PharmacyFinder() {
                 ))}
               </ul>
             ) : (
-                <p className="text-muted-foreground text-sm text-center pt-10">No pharmacies found within 5km.</p>
+              <p className="pt-10 text-center text-sm text-muted-foreground">
+                No pharmacies found within 5km.
+              </p>
             )}
           </CardContent>
         </Card>
