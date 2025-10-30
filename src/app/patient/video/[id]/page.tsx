@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
@@ -66,6 +67,17 @@ export default function VideoCallPage() {
     setIsCameraOff(false);
     setDoctorJoined(false);
   }, [callId]);
+  
+  // Redirect when call ends
+  useEffect(() => {
+    if (callStatus === 'Ended') {
+      toast({
+        title: 'Consultation Ended',
+        description: 'The doctor has ended the video session.',
+      });
+      router.push('/patient/appointments');
+    }
+  }, [callStatus, router, toast]);
 
   // Subscribe to call document to know when the doctor starts it
   useEffect(() => {
@@ -90,8 +102,7 @@ export default function VideoCallPage() {
               setCallStatus('Ended');
             }
         } else {
-            // If the call document is null/deleted, the call hasn't started or has been cleaned up.
-            // If the doctor explicitly ends the call (active: false), we show the ended screen.
+            // This handles the case where the doctor ends the call by deleting the doc
             if (isCallActive && callStatus !== 'Ended') {
               setCallStatus('Ended');
             } else {
@@ -170,17 +181,6 @@ export default function VideoCallPage() {
       <div className="flex h-screen flex-col items-center justify-center bg-black text-white">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
         <p className="mt-4">Loading user information...</p>
-      </div>
-    );
-  }
-
-  if (callStatus === 'Ended') {
-    return (
-      <div className="flex h-screen flex-col items-center justify-center bg-black text-white">
-        <CheckCircle className="h-16 w-16 text-green-500" />
-        <h1 className="mt-4 text-2xl font-bold">Consultation Ended</h1>
-        <p className="text-muted-foreground">The doctor has ended the session.</p>
-        <Button onClick={() => router.push('/patient/appointments')} className="mt-6">Back to Appointments</Button>
       </div>
     );
   }

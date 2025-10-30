@@ -67,6 +67,17 @@ export default function DoctorVideoCallPage() {
     setIsCameraOff(false);
     setPatientJoined(false);
   }, [callId]);
+  
+  // Redirect when call ends
+  useEffect(() => {
+    if (callStatus === 'Ended' || hasCallEnded) {
+      toast({
+        title: 'Consultation Ended',
+        description: 'The video session has been terminated.',
+      });
+      router.push('/doctor/dashboard');
+    }
+  }, [callStatus, hasCallEnded, router, toast]);
 
   // The single function for the doctor to join or start the call
   const handleJoinCall = useCallback(async () => {
@@ -151,8 +162,6 @@ export default function DoctorVideoCallPage() {
 
   const handleEndCall = async () => {
     await endCall(callId);
-    toast({ title: 'Call Ended', description: 'The consultation has been terminated for this session.' });
-    setCallStatus('Ended');
     setHasCallEnded(true);
   };
 
@@ -162,17 +171,6 @@ export default function DoctorVideoCallPage() {
       <div className="flex h-screen flex-col items-center justify-center bg-black text-white">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
         <p className="mt-4">Authenticating...</p>
-      </div>
-    );
-  }
-
-  if (callStatus === 'Ended' || hasCallEnded) {
-    return (
-      <div className="flex h-screen flex-col items-center justify-center bg-black text-white">
-        <CheckCircle className="h-16 w-16 text-green-500" />
-        <h1 className="mt-4 text-2xl font-bold">Consultation Ended</h1>
-        <p className="text-muted-foreground">You can now safely close this window.</p>
-        <Button onClick={() => router.push('/doctor/dashboard')} className="mt-6">Back to Dashboard</Button>
       </div>
     );
   }
