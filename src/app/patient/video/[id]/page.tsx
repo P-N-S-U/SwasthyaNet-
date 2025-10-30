@@ -14,13 +14,12 @@ import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import {
-  createCall,
   hangup,
   registerEventHandlers,
   toggleMute,
   toggleCamera,
   getCall,
-  setupLocalStream,
+  createOrJoinCall,
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
 import {
@@ -52,16 +51,12 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
   const { user, loading } = useAuthState();
   const { id: callId } = use(params);
   
-  const hasCreatedCall = useRef(false);
-
   useEffect(() => {
     if (loading) return;
     if (!user) {
       router.push('/auth');
       return;
     }
-
-    let callUnsubscribe: (() => void) | null = null;
 
     const handleCallConnected = () => {
         setCallStatus('Connected');
@@ -81,13 +76,8 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
     const startCall = async () => {
       setCallStatus('Initializing');
       try {
-        await setupLocalStream(localVideoRef);
-
-        if (!hasCreatedCall.current) {
-            hasCreatedCall.current = true;
-            await createCall(callId, remoteVideoRef);
-            setCallStatus('Waiting');
-        }
+        await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'patient');
+        setCallStatus('Waiting');
 
       } catch (error: any) {
         console.error('Error starting call:', error);
@@ -97,20 +87,18 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
 
     startCall();
     
-    callUnsubscribe = getCall(callId, (callData) => {
+    const callUnsubscribe = getCall(callId, (callData) => {
         if(callData) {
             setRemoteMuted(callData.doctorMuted);
             setRemoteCameraOff(callData.doctorCameraOff);
-        } else if (hasCreatedCall.current && !localHangup.current) {
+        } else if (!localHangup.current) {
             handleCallEnded();
         }
     });
 
     // Cleanup function
     return () => {
-      if(callUnsubscribe) {
-          callUnsubscribe();
-      }
+      callUnsubscribe();
       if (localHangup.current) {
         hangup();
       }

@@ -13,6 +13,7 @@ import {
   Unsubscribe,
   deleteDoc,
   getDocs,
+  writeBatch,
 } from 'firebase/firestore';
 
 const servers = {
@@ -28,6 +29,7 @@ let pc: RTCPeerConnection | null = null;
 let localStream: MediaStream | null = null;
 let remoteStream: MediaStream | null = null;
 let callId: string | null = null;
+let role: 'caller' | 'callee' | null = null;
 
 let onCallConnectedCallback: (() => void) | null = null;
 let onCallEndedCallback: (() => void) | null = null;
@@ -61,125 +63,119 @@ export const setupLocalStream = async (localVideoRef: React.RefObject<HTMLVideoE
     }
 };
 
-const initializePeerConnection = (remoteVideoRef: React.RefObject<HTMLVideoElement>) => {
-    pc = new RTCPeerConnection(servers);
-
-    localStream?.getTracks().forEach(track => {
-        pc!.addTrack(track, localStream!);
-    });
-    
-    pc.ontrack = event => {
-        event.streams[0].getTracks().forEach(track => {
-            remoteStream?.addTrack(track);
-        });
-        if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = remoteStream;
-        }
-        onCallConnectedCallback?.();
-    };
-    
-    // Store ICE candidates in an array, to be processed only after remote description is set.
-    const queuedIceCandidates: RTCIceCandidateInit[] = [];
-
-    pc.onicecandidate = event => {
-        if (event.candidate) {
-            const candidatesCollection = collection(db, 'calls', callId!, pc!.localDescription?.type === 'offer' ? 'offerCandidates' : 'answerCandidates');
-            addDoc(candidatesCollection, event.candidate.toJSON());
-        }
-    };
-    
-    // This function will be used to process candidates from the queue.
-    const processQueuedCandidates = () => {
-        while(queuedIceCandidates.length > 0) {
-            const candidate = queuedIceCandidates.shift();
-            if (candidate) {
-                pc!.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => console.error("Error adding received ICE candidate", e));
-            }
-        }
-    };
-
-    // Return the function to add candidates to the queue.
-    return (candidate: RTCIceCandidateInit) => {
-        if (pc?.remoteDescription) {
-            pc.addIceCandidate(new RTCIceCandidate(candidate));
-        } else {
-            queuedIceCandidates.push(candidate);
-        }
-    };
-};
-
-
-export const createCall = async (id: string, remoteVideoRef: React.RefObject<HTMLVideoElement>) => {
+export const createOrJoinCall = async (
+  id: string,
+  localVideoRef: React.RefObject<HTMLVideoElement>,
+  remoteVideoRef: React.RefObject<HTMLVideoElement>,
+  userType: 'doctor' | 'patient'
+) => {
   callId = id;
-  const addIceCandidate = initializePeerConnection(remoteVideoRef);
+  await setupLocalStream(localVideoRef);
 
-  const callDoc = doc(db, 'calls', id);
-  const answerCandidates = collection(callDoc, 'answerCandidates');
+  pc = new RTCPeerConnection(servers);
 
-  const offerDescription = await pc!.createOffer();
-  await pc!.setLocalDescription(offerDescription);
+  localStream?.getTracks().forEach(track => {
+    pc!.addTrack(track, localStream!);
+  });
 
-  const offer = {
-    sdp: offerDescription.sdp,
-    type: offerDescription.type,
+  pc.ontrack = event => {
+    event.streams[0].getTracks().forEach(track => {
+      remoteStream?.addTrack(track);
+    });
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStream;
+    }
+    onCallConnectedCallback?.();
   };
 
-  await setDoc(callDoc, { offer, id, patientMuted: false, patientCameraOff: false, doctorMuted: false, doctorCameraOff: false });
+  const callDocRef = doc(db, 'calls', callId);
+  const callDocSnap = await getDoc(callDocRef);
 
-  // Listen for remote answer
-  const unsubCall = onSnapshot(callDoc, snapshot => {
-    const data = snapshot.data();
-    if (!pc!.currentRemoteDescription && data?.answer) {
-      const answerDescription = new RTCSessionDescription(data.answer);
-      pc!.setRemoteDescription(answerDescription);
+  const offerCandidatesCol = collection(callDocRef, 'offerCandidates');
+  const answerCandidatesCol = collection(callDocRef, 'answerCandidates');
+
+  pc.onicecandidate = event => {
+    if (event.candidate) {
+      const candidatesCollection = role === 'caller' ? offerCandidatesCol : answerCandidatesCol;
+      addDoc(candidatesCollection, event.candidate.toJSON());
     }
-  });
-  unsubscribes.push(unsubCall);
-  
-  // Listen for ICE candidates from remote
-  const unsubAnswerCandidates = onSnapshot(answerCandidates, snapshot => {
-    snapshot.docChanges().forEach(change => {
-      if (change.type === 'added') {
-        addIceCandidate(change.doc.data());
+  };
+
+  if (!callDocSnap.exists()) {
+    // This user is the first to join, they become the "caller"
+    role = 'caller';
+
+    // Create the call document and the offer
+    const offerDescription = await pc.createOffer();
+    await pc.setLocalDescription(offerDescription);
+    const offer = { sdp: offerDescription.sdp, type: offerDescription.type };
+    await setDoc(callDocRef, { offer, id, patientMuted: false, patientCameraOff: false, doctorMuted: false, doctorCameraOff: false });
+
+    // Listen for the answer
+    const unsubCall = onSnapshot(callDocRef, (snapshot) => {
+      const data = snapshot.data();
+      if (!pc?.currentRemoteDescription && data?.answer) {
+        const answerDescription = new RTCSessionDescription(data.answer);
+        pc?.setRemoteDescription(answerDescription);
       }
     });
-  });
-  unsubscribes.push(unsubAnswerCandidates);
-};
 
-
-export const answerCall = async (id: string, remoteVideoRef: React.RefObject<HTMLVideoElement>) => {
-  callId = id;
-  const addIceCandidate = initializePeerConnection(remoteVideoRef);
-  
-  const callDoc = doc(db, 'calls', id);
-  const offerCandidates = collection(callDoc, 'offerCandidates');
-
-  const callSnap = await getDoc(callDoc);
-  if (!callSnap.exists()) {
-    throw new Error("Call document not found.");
-  }
-
-  const callData = callSnap.data();
-  if (callData.offer && pc) {
-    await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
-
-    const answerDescription = await pc.createAnswer();
-    await pc.setLocalDescription(answerDescription);
-
-    const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
-    await updateDoc(callDoc, { answer });
-    
-    // Listen for ICE candidates from remote
-    const unsubOfferCandidates = onSnapshot(offerCandidates, snapshot => {
-      snapshot.docChanges().forEach(change => {
+    // Listen for ICE candidates from the callee
+    const unsubAnswerCandidates = onSnapshot(answerCandidatesCol, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
         if (change.type === 'added') {
-            addIceCandidate(change.doc.data());
+          const candidate = new RTCIceCandidate(change.doc.data());
+          pc?.addIceCandidate(candidate);
         }
       });
     });
+
+    unsubscribes.push(unsubCall, unsubAnswerCandidates);
+    
+  } else {
+    // The other user is already here, we are the "callee"
+    role = 'callee';
+
+    // Get the offer and create an answer
+    const callData = callDocSnap.data();
+    if (callData.offer) {
+        await pc.setRemoteDescription(new RTCSessionDescription(callData.offer));
+        const answerDescription = await pc.createAnswer();
+        await pc.setLocalDescription(answerDescription);
+        const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
+        await updateDoc(callDocRef, { answer });
+    }
+
+    // Listen for ICE candidates from the caller
+    const unsubOfferCandidates = onSnapshot(offerCandidatesCol, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added') {
+                const candidate = new RTCIceCandidate(change.doc.data());
+                pc?.addIceCandidate(candidate);
+            }
+        });
+    });
     unsubscribes.push(unsubOfferCandidates);
   }
+
+  // Common logic: listen for hangup (document deletion)
+  const unsubHangup = onSnapshot(callDocRef, (snapshot) => {
+      if (!snapshot.exists()) {
+        onCallEndedCallback?.();
+      }
+      if(snapshot.data()) {
+        const data = snapshot.data();
+        if (userType === 'doctor') {
+            // patientVideoMuted(data.patientMuted || false)
+            // patientCameraOff(data.patientCameraOff || false)
+        } else {
+            // doctorVideoMuted(data.doctorMuted || false)
+            // doctorCameraOff(data.doctorCameraOff || false)
+        }
+      }
+  });
+  unsubscribes.push(unsubHangup);
+
 };
 
 
@@ -202,19 +198,22 @@ export const hangup = async () => {
 
     if (callId) {
         const callDoc = doc(db, 'calls', callId);
+        
+        // Use a batch to delete the main doc and subcollections efficiently
+        const batch = writeBatch(db);
+        batch.delete(callDoc);
+        
         const offerCandidates = await getDocs(collection(callDoc, 'offerCandidates'));
-        offerCandidates.forEach(async (candidate) => await deleteDoc(candidate.ref));
+        offerCandidates.forEach(candidate => batch.delete(candidate.ref));
 
         const answerCandidates = await getDocs(collection(callDoc, 'answerCandidates'));
-        answerCandidates.forEach(async (candidate) => await deleteDoc(candidate.ref));
+        answerCandidates.forEach(candidate => batch.delete(candidate.ref));
 
-        await deleteDoc(callDoc);
+        await batch.commit();
     }
-
-    if (onCallEndedCallback) {
-        onCallEndedCallback();
-    }
+    
     callId = null;
+    role = null;
 };
 
 export const toggleMute = async (isMuted: boolean, role: 'patient' | 'doctor') => {
@@ -239,6 +238,7 @@ export const toggleCamera = async (isCameraOff: boolean, role: 'patient' | 'doct
   }
 };
 
+// This can be used to listen for remote media state changes
 export const getCall = (id: string, callback: (data: any | null) => void) => {
   const callDoc = doc(db, 'calls', id);
   const unsub = onSnapshot(callDoc, snapshot => {

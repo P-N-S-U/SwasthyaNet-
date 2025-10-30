@@ -14,13 +14,12 @@ import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import {
-  answerCall,
   hangup,
   registerEventHandlers,
   toggleMute,
   toggleCamera,
   getCall,
-  setupLocalStream,
+  createOrJoinCall,
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
 import {
@@ -51,7 +50,6 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
   const [callStatus, setCallStatus] = useState<CallStatus>('Joining');
   const { user, loading } = useAuthState();
   const { id: callId } = use(params);
-  const hasAnswered = useRef(false);
 
   useEffect(() => {
     if (loading) return;
@@ -59,8 +57,6 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
       router.push('/auth');
       return;
     }
-    
-    let callUnsubscribe: (() => void) | null = null;
     
     const handleCallConnected = () => {
         setCallStatus('Connected');
@@ -79,41 +75,27 @@ export default function DoctorVideoCallPage({ params }: { params: { id: string }
 
     const initializeCall = async () => {
         try {
-            await setupLocalStream(localVideoRef);
-
-            // Listen for the call document
-            callUnsubscribe = getCall(callId, async (callData) => {
-                if (callData?.offer && !hasAnswered.current) {
-                    hasAnswered.current = true;
-                    try {
-                        await answerCall(callId, remoteVideoRef);
-                    } catch (error: any) {
-                       console.error('Error answering call:', error);
-                        setCallStatus('Failed');
-                    }
-                }
-
-                if(callData) {
-                    setRemoteMuted(callData.patientMuted);
-                    setRemoteCameraOff(callData.patientCameraOff);
-                } else if (hasAnswered.current && !localHangup.current) {
-                    handleCallEnded();
-                }
-            });
-
+            await createOrJoinCall(callId, localVideoRef, remoteVideoRef, 'doctor');
         } catch (error: any) {
-            console.error('Error setting up streams:', error);
+           console.error('Error initializing call:', error);
             setCallStatus('Failed');
         }
     };
     
     initializeCall();
 
+    const callUnsubscribe = getCall(callId, (callData) => {
+        if(callData) {
+            setRemoteMuted(callData.patientMuted);
+            setRemoteCameraOff(callData.patientCameraOff);
+        } else if (!localHangup.current) {
+            handleCallEnded();
+        }
+    });
+
     // Cleanup function
     return () => {
-      if (callUnsubscribe) {
-        callUnsubscribe();
-      }
+      callUnsubscribe();
       if (localHangup.current) {
         hangup();
       }
