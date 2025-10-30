@@ -237,8 +237,8 @@ export default function DoctorVideoCallPage() {
           </div>
         </div>
       </div>
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2">
-        <Card className="bg-secondary/30 p-2 md:p-4">
+      <div className="absolute bottom-4 left-0 right-0 flex justify-center">
+        <Card className="bg-background/50 p-2 backdrop-blur-sm md:p-4">
           <div className="flex items-center justify-center gap-2 md:gap-4">
             <Button
               variant={isMuted ? 'destructive' : 'outline'}
