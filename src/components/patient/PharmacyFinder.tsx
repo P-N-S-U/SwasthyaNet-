@@ -102,7 +102,7 @@ const MapContent = ({
 export function PharmacyFinder() {
   const [location, setLocation] = useState<Location | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loadingLocation, setLoadingLocation] = useState(true);
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [isFetchingPharmacies, setIsFetchingPharmacies] = useState(false);
 
@@ -114,18 +114,18 @@ export function PharmacyFinder() {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           });
-          setLoading(false);
+          setLoadingLocation(false);
         },
         err => {
           setError(
             'Location access denied. Please enable location services in your browser.'
           );
-          setLoading(false);
+          setLoadingLocation(false);
         }
       );
     } else {
       setError('Geolocation is not supported by your browser.');
-      setLoading(false);
+      setLoadingLocation(false);
     }
   }, []);
 
@@ -144,7 +144,7 @@ export function PharmacyFinder() {
               ...p,
               distance: haversineDistance(location, p),
             }))
-            .sort((a, b) => a.distance - b.distance);
+            .sort((a: Pharmacy, b: Pharmacy) => (a.distance || 0) - (b.distance || 0));
           setPharmacies(pharmaciesWithDistance);
         } catch (e) {
           setError('Could not fetch pharmacy data. Please try again later.');
@@ -191,17 +191,10 @@ export function PharmacyFinder() {
             </div>
           </CardHeader>
           <CardContent className="h-full pb-16">
-            {loading ? (
+            {loadingLocation ? (
               <div className="flex h-full items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="ml-2">Getting your location...</p>
-              </div>
-            ) : error ? (
-              <div className="flex h-full items-center justify-center p-4">
-                <Alert variant="destructive">
-                  <AlertTitle>Location Error</AlertTitle>
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
               </div>
             ) : location ? (
               <MapContainer
@@ -211,7 +204,14 @@ export function PharmacyFinder() {
               >
                 <MapContent location={location} pharmacies={pharmacies} />
               </MapContainer>
-            ) : null}
+            ) : (
+                <div className="flex h-full items-center justify-center p-4">
+                    <Alert variant="destructive">
+                    <AlertTitle>Location Error</AlertTitle>
+                    <AlertDescription>{error || "Could not determine your location."}</AlertDescription>
+                    </Alert>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
