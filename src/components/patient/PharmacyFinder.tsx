@@ -61,13 +61,16 @@ export function PharmacyFinder() {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         position => {
-          setUserLocation({
+          const location = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
-          });
+          };
+          console.log('[PharmacyFinder] User location found:', location);
+          setUserLocation(location);
           setLoadingLocation(false);
         },
         err => {
+          console.error('[PharmacyFinder] Geolocation error:', err.message);
           setError(
             'Location access denied. Please enable location services in your browser.'
           );
@@ -75,6 +78,7 @@ export function PharmacyFinder() {
         }
       );
     } else {
+      console.error('[PharmacyFinder] Geolocation not supported.');
       setError('Geolocation is not supported by your browser.');
       setLoadingLocation(false);
     }
@@ -84,6 +88,7 @@ export function PharmacyFinder() {
     if (userLocation) {
       const fetchPharmacies = async () => {
         setIsFetchingPharmacies(true);
+        console.log('[PharmacyFinder] Fetching pharmacies for location:', userLocation);
         const radius = 5000; // 5km
         const overpassQuery = `
           [out:json];
@@ -105,6 +110,8 @@ export function PharmacyFinder() {
             throw new Error(`Failed to fetch from Overpass API: ${response.statusText}`);
           }
           const data = await response.json();
+          console.log('[PharmacyFinder] Raw data from Overpass API:', data);
+          
           const pharmaciesWithDistance = data.elements
             .map((p: any) => {
               const location = p.type === 'node' ? { lat: p.lat, lon: p.lon } : { lat: p.center.lat, lon: p.center.lon };
@@ -115,9 +122,11 @@ export function PharmacyFinder() {
               }
             })
             .sort((a: Pharmacy, b: Pharmacy) => (a.distance || 0) - (b.distance || 0));
+            
+          console.log('[PharmacyFinder] Processed and sorted pharmacies:', pharmaciesWithDistance);
           setPharmacies(pharmaciesWithDistance);
         } catch (e: any) {
-          console.error("Error fetching pharmacies:", e);
+          console.error("[PharmacyFinder] Error fetching pharmacies:", e);
           setError('Could not fetch pharmacy data. The service might be temporarily unavailable.');
         } finally {
           setIsFetchingPharmacies(false);
@@ -150,6 +159,8 @@ export function PharmacyFinder() {
       ))}
     </div>
   );
+
+  console.log('[PharmacyFinder] Rendering with props for MapWrapper:', { userLocation, pharmacies });
 
   return (
     <div className="grid grid-cols-1 gap-8 md:grid-cols-3">

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
@@ -19,6 +20,7 @@ const UserMarker = ({ userLocation }: any) => {
     const map = useMap();
     useEffect(() => {
         if (userLocation) {
+            console.log('[MapWrapper] Flying to user location:', userLocation);
             map.flyTo([userLocation.lat, userLocation.lng], 14);
         }
     }, [userLocation, map]);
@@ -49,6 +51,8 @@ const UserMarker = ({ userLocation }: any) => {
 }
 
 export default function MapWrapper({ userLocation, pharmacies }: any) {
+  console.log('[MapWrapper] Rendering with received props:', { userLocation, pharmacies });
+  
   return (
     <div id="map-container" className="h-full w-full rounded-md z-0">
       <MapContainer
