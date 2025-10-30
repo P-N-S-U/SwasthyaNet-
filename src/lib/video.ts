@@ -84,6 +84,10 @@ export const createOrJoinCall = async (
   const callDocRef = doc(db, 'calls', callId);
 
   if (role === 'doctor') {
+    // Set the doctor as active, and patient hasn't joined yet.
+    // This creates the document so subcollections can be added.
+    await setDoc(callDocRef, { active: true, patientJoined: false });
+
     const offerCandidates = collection(callDocRef, 'offerCandidates');
     const answerCandidates = collection(callDocRef, 'answerCandidates');
     
@@ -106,8 +110,8 @@ export const createOrJoinCall = async (
       type: offerDescription.type,
     };
 
-    // Set the doctor as active, and patient hasn't joined yet.
-    await setDoc(callDocRef, { offer, active: true, patientJoined: false }, { merge: true });
+    // Update the document with the offer
+    await updateDoc(callDocRef, { offer });
 
     onSnapshot(callDocRef, snapshot => {
       const data = snapshot.data();
@@ -179,18 +183,23 @@ export const endCall = async (pc: RTCPeerConnection | null, callId?: string) => 
   // If callId is provided, delete the call document from Firestore
   if (callId) {
     const callDocRef = doc(db, 'calls', callId);
-    const offerCandidates = collection(callDocRef, 'offerCandidates');
-    const answerCandidates = collection(callDocRef, 'answerCandidates');
+    try {
+        const offerCandidates = collection(callDocRef, 'offerCandidates');
+        const answerCandidates = collection(callDocRef, 'answerCandidates');
 
-    // Delete subcollections first
-    const [offerSnapshot, answerSnapshot] = await Promise.all([getDocs(offerCandidates), getDocs(answerCandidates)]);
-    const batch = writeBatch(db);
-    offerSnapshot.forEach(doc => batch.delete(doc.ref));
-    answerSnapshot.forEach(doc => batch.delete(doc.ref));
-    await batch.commit();
+        // Delete subcollections first
+        const [offerSnapshot, answerSnapshot] = await Promise.all([getDocs(offerCandidates), getDocs(answerCandidates)]);
+        const batch = writeBatch(db);
+        offerSnapshot.forEach(doc => batch.delete(doc.ref));
+        answerSnapshot.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
 
-    // Finally, delete the main call document
-    await deleteDoc(callDocRef);
+        // Finally, delete the main call document
+        await deleteDoc(callDocRef);
+    } catch (error) {
+        // It's possible the document doesn't exist, which is fine.
+        console.warn("Could not delete call document, it might already be gone.", error);
+    }
   }
 };
 
