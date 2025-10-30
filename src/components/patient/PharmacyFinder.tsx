@@ -62,20 +62,20 @@ const haversineDistance = (
   return R * c; // in km
 };
 
-// New component to handle map content and updates
+// Map content component to handle dynamic updates
 const MapContent = ({
-  location,
+  userLocation,
   pharmacies,
 }: {
-  location: Location;
+  userLocation: Location;
   pharmacies: Pharmacy[];
 }) => {
   const map = useMap();
   useEffect(() => {
-    if (location) {
-      map.setView([location.lat, location.lng], map.getZoom());
+    if (userLocation) {
+      map.flyTo([userLocation.lat, userLocation.lng], 14);
     }
-  }, [location, map]);
+  }, [userLocation, map]);
 
   return (
     <>
@@ -83,7 +83,7 @@ const MapContent = ({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
       />
-      <Marker position={[location.lat, location.lng]}>
+      <Marker position={[userLocation.lat, userLocation.lng]}>
         <Popup>Your Location</Popup>
       </Marker>
       {pharmacies.map(p => (
@@ -100,7 +100,7 @@ const MapContent = ({
 };
 
 export function PharmacyFinder() {
-  const [location, setLocation] = useState<Location | null>(null);
+  const [userLocation, setUserLocation] = useState<Location | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
@@ -110,7 +110,7 @@ export function PharmacyFinder() {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         position => {
-          setLocation({
+          setUserLocation({
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           });
@@ -130,31 +130,35 @@ export function PharmacyFinder() {
   }, []);
 
   useEffect(() => {
-    if (location) {
+    if (userLocation) {
       const fetchPharmacies = async () => {
         setIsFetchingPharmacies(true);
         const radius = 5000; // 5km
-        const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];node(around:${radius},${location.lat},${location.lng})[amenity=pharmacy];out;`;
+        const overpassUrl = `https://overpass-api.de/api/interpreter?data=[out:json];node(around:${radius},${userLocation.lat},${userLocation.lng})[amenity=pharmacy];out;`;
 
         try {
           const response = await fetch(overpassUrl);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch from Overpass API: ${response.statusText}`);
+          }
           const data = await response.json();
           const pharmaciesWithDistance = data.elements
             .map((p: Pharmacy) => ({
               ...p,
-              distance: haversineDistance(location, p),
+              distance: haversineDistance(userLocation, p),
             }))
             .sort((a: Pharmacy, b: Pharmacy) => (a.distance || 0) - (b.distance || 0));
           setPharmacies(pharmaciesWithDistance);
-        } catch (e) {
-          setError('Could not fetch pharmacy data. Please try again later.');
+        } catch (e: any) {
+          console.error("Error fetching pharmacies:", e);
+          setError('Could not fetch pharmacy data. The service might be temporarily unavailable.');
         } finally {
           setIsFetchingPharmacies(false);
         }
       };
       fetchPharmacies();
     }
-  }, [location]);
+  }, [userLocation]);
 
   const openInGoogleMaps = (lat: number, lon: number) => {
     window.open(
@@ -183,36 +187,32 @@ export function PharmacyFinder() {
   return (
     <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
       <div className="md:col-span-2">
-        <Card className="h-[500px] border-border/30 bg-background">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <Map className="h-6 w-6 text-primary" />
-              <CardTitle className="font-headline text-2xl">Map View</CardTitle>
-            </div>
-          </CardHeader>
-          <CardContent className="h-full pb-16">
-            {loadingLocation ? (
-              <div className="flex h-full items-center justify-center">
+        <Card className="h-[500px] border-border/30 bg-background relative">
+          <MapContainer
+            center={[20.5937, 78.9629]} // Default to center of India
+            zoom={5}
+            className="h-full w-full rounded-md z-0"
+            scrollWheelZoom={true}
+          >
+            {userLocation && <MapContent userLocation={userLocation} pharmacies={pharmacies} />}
+          </MapContainer>
+          
+          {loadingLocation && (
+             <div className="absolute inset-0 z-10 flex h-full items-center justify-center bg-background/70 backdrop-blur-sm">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="ml-2">Getting your location...</p>
               </div>
-            ) : location ? (
-              <MapContainer
-                center={[location.lat, location.lng]}
-                zoom={14}
-                className="h-full w-full rounded-md"
-              >
-                <MapContent location={location} pharmacies={pharmacies} />
-              </MapContainer>
-            ) : (
-                <div className="flex h-full items-center justify-center p-4">
-                    <Alert variant="destructive">
-                    <AlertTitle>Location Error</AlertTitle>
-                    <AlertDescription>{error || "Could not determine your location."}</AlertDescription>
-                    </Alert>
-              </div>
-            )}
-          </CardContent>
+          )}
+
+          {!loadingLocation && error && (
+             <div className="absolute inset-0 z-10 flex h-full items-center justify-center bg-background/70 backdrop-blur-sm p-4">
+                <Alert variant="destructive">
+                <AlertTitle>Location Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+                </Alert>
+            </div>
+          )}
+
         </Card>
       </div>
 
@@ -227,8 +227,6 @@ export function PharmacyFinder() {
           <CardContent>
             {isFetchingPharmacies ? (
               <PharmacyListSkeleton />
-            ) : error ? (
-              <p className="text-sm text-destructive">{error}</p>
             ) : pharmacies.length > 0 ? (
               <ul className="space-y-4">
                 {pharmacies.map(pharmacy => (
@@ -259,9 +257,9 @@ export function PharmacyFinder() {
                 ))}
               </ul>
             ) : (
-              <p className="pt-10 text-center text-sm text-muted-foreground">
-                No pharmacies found within 5km.
-              </p>
+                <p className="pt-10 text-center text-sm text-muted-foreground">
+                    {!error ? "No pharmacies found within 5km." : "Cannot search for pharmacies without location."}
+                </p>
             )}
           </CardContent>
         </Card>
@@ -269,3 +267,5 @@ export function PharmacyFinder() {
     </div>
   );
 }
+
+    
