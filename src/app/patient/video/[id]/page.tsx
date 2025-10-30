@@ -17,8 +17,6 @@ import { Card } from '@/components/ui/card';
 import {
   joinCall,
   hangup,
-  toggleMute,
-  toggleCamera,
   onCallUpdate,
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
@@ -96,16 +94,10 @@ export default function VideoCallPage() {
                 toast({ title: 'Doctor Left', description: 'The doctor has left the call.', variant: 'destructive' });
             }
             setDoctorJoined(doctorIsPresent);
-
-            if (data.active === false && callStatus !== 'Ended') {
-              setCallStatus('Ended');
-            }
         } else {
-            // This handles the case where the doctor ends the call by deleting the doc
-            if (isCallActive && callStatus !== 'Ended') {
+            // Document was deleted, which means the doctor ended the call.
+            if (callStatus !== 'Ended') {
               setCallStatus('Ended');
-            } else {
-              setIsCallActive(false);
             }
         }
       });
@@ -113,14 +105,19 @@ export default function VideoCallPage() {
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [callId, doctorJoined, toast, isCallActive, callStatus]);
+  }, [callId, doctorJoined, toast, callStatus]);
   
   const handleJoinCall = useCallback(async () => {
     if (!user || callStatus === 'Joining' || callStatus === 'Connected' || !localVideoRef.current || !remoteVideoRef.current) return;
     setCallStatus('Joining');
     try {
-      const newPc = await joinCall(callId, localVideoRef, remoteVideoRef);
+      const { pc: newPc, localStream } = await joinCall(callId, localVideoRef, remoteVideoRef);
       setPc(newPc);
+
+      const audioEnabled = localStream.getAudioTracks().some(track => track.enabled);
+      const videoEnabled = localStream.getVideoTracks().some(track => track.enabled);
+      setIsMuted(!audioEnabled);
+      setIsCameraOff(!videoEnabled);
 
       newPc.onconnectionstatechange = () => {
         console.log('Patient Connection state changed:', newPc.connectionState);
@@ -133,6 +130,8 @@ export default function VideoCallPage() {
             setCallStatus('Reconnecting');
             break;
           case 'closed':
+            // This happens on hangup. Go back to a state where user can rejoin.
+            setPc(null);
             setCallStatus('Waiting');
             break;
         }
@@ -148,29 +147,36 @@ export default function VideoCallPage() {
   useEffect(() => {
     return () => {
       if (pc) {
-        hangup(callId, 'patient');
+        hangup(pc, callId, 'patient');
       }
     };
   }, [pc, callId]);
 
   const handleToggleMute = async () => {
     if (!pc) return;
-    const newMutedState = await toggleMute(pc, callId, 'patient');
-    setIsMuted(newMutedState);
+    pc.getSenders().forEach(sender => {
+      if (sender.track?.kind === 'audio') {
+        const newMutedState = !sender.track.enabled;
+        sender.track.enabled = !newMutedState;
+        setIsMuted(newMutedState);
+      }
+    });
   };
 
   const handleToggleCamera = async () => {
     if (!pc) return;
-    const newCameraState = await toggleCamera(pc, callId, 'patient');
-    setIsCameraOff(newCameraState);
+    pc.getSenders().forEach(sender => {
+      if (sender.track?.kind === 'video') {
+        const newCameraState = !sender.track.enabled;
+        sender.track.enabled = !newCameraState;
+        setIsCameraOff(newCameraState);
+      }
+    });
   };
 
   const handleHangup = async () => {
-    await hangup(callId, 'patient');
-    setCallStatus('Waiting'); // Go back to a state where user can rejoin
     if (pc) {
-        pc.close();
-        setPc(null);
+      await hangup(pc, callId, 'patient');
     }
     toast({ title: 'You left the call', description: 'You can rejoin anytime as long as the consultation is active.' });
   };
@@ -194,7 +200,7 @@ export default function VideoCallPage() {
     }
   }
 
-  const isCallInProgress = callStatus === 'Connected' || callStatus === 'Joining' || callStatus === 'Reconnecting';
+  const isCallInProgress = callStatus === 'Connected' || callStatus === 'Joining';
 
   return (
     <div className="flex h-screen flex-col items-center justify-center bg-black text-white p-4">
@@ -211,7 +217,6 @@ export default function VideoCallPage() {
           <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-sm">Doctor</div>
           {callStatus !== 'Connected' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-background/80">
-              <Loader2 className="h-8 w-8 animate-spin" />
               <p className="mt-2 text-center text-sm">{getStatusText()}</p>
             </div>
           )}

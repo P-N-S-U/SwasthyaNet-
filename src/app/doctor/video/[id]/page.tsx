@@ -16,8 +16,6 @@ import { Card } from '@/components/ui/card';
 import {
   startCall,
   endCall,
-  toggleMute,
-  toggleCamera,
   onCallUpdate,
 } from '@/lib/video';
 import { useAuthState } from '@/hooks/use-auth-state';
@@ -55,27 +53,39 @@ export default function DoctorVideoCallPage() {
 
   // Main effect to auto-start the call for the doctor when the component mounts.
   useEffect(() => {
-    // This check ensures we only run this once.
+    // This check ensures we only run this once when the refs are ready.
     if (!user || !callId || !localVideoRef.current || pc) {
       return;
     }
 
     let peerConnection: RTCPeerConnection;
+    let localStream: MediaStream;
 
     const initCall = async () => {
       try {
-        peerConnection = await startCall(callId, localVideoRef, remoteVideoRef);
+        // We must have the local video ref available to proceed
+        if (!localVideoRef.current || !remoteVideoRef.current) return;
+
+        // Start the call and get the peer connection instance
+        const { pc: newPc, localStream: newLocalStream } = await startCall(callId, localVideoRef, remoteVideoRef);
+        peerConnection = newPc;
+        localStream = newLocalStream;
         setPc(peerConnection);
 
+        // UI state management based on connection status
         peerConnection.onconnectionstatechange = () => {
           console.log('Doctor Connection state changed:', peerConnection.connectionState);
           switch (peerConnection.connectionState) {
+            case 'connecting':
+              setIsConnecting(true);
+              break;
             case 'connected':
               setIsConnecting(false);
               break;
             case 'disconnected':
             case 'failed':
-              toast({ title: "Connection lost", description: "Attempting to reconnect...", variant: "destructive" });
+              toast({ title: "Connection lost", description: "The connection was lost.", variant: "destructive" });
+              setIsConnecting(true); // Show waiting/reconnecting UI
               break;
             case 'closed':
               toast({ title: "Call Ended", description: "The session has been terminated." });
@@ -83,6 +93,13 @@ export default function DoctorVideoCallPage() {
               break;
           }
         };
+
+        // Initial media state
+        const audioEnabled = localStream.getAudioTracks().some(track => track.enabled);
+        const videoEnabled = localStream.getVideoTracks().some(track => track.enabled);
+        setIsMuted(!audioEnabled);
+        setIsCameraOff(!videoEnabled);
+
       } catch (error) {
         console.error('Error starting call:', error);
         toast({ title: 'Error Starting Call', description: (error as Error).message, variant: 'destructive' });
@@ -95,9 +112,9 @@ export default function DoctorVideoCallPage() {
     // Cleanup function to hang up when component unmounts
     return () => {
       if (peerConnection) {
-        endCall(callId);
         peerConnection.close();
       }
+      localStream?.getTracks().forEach(track => track.stop());
     };
     // The dependency array ensures this runs only when the necessary elements are ready.
   }, [user, callId, pc, toast, router]);
@@ -120,32 +137,46 @@ export default function DoctorVideoCallPage() {
           }
           setPatientJoined(patientIsPresent);
 
-          // If the call document is marked as inactive by the endCall function
-          if (data.active === false) {
-             pc?.close(); // This will trigger the 'closed' connection state change
-          }
+        } else {
+           // Document deleted, call has been ended definitively
+           if (pc && pc.connectionState !== 'closed') {
+             pc.close(); // This will trigger the 'closed' connection state and redirect
+           } else if (!pc) {
+             router.push('/doctor/dashboard');
+           }
         }
       });
     }
     return () => {
       if (unsubscribe) unsubscribe();
     };
-  }, [callId, patientJoined, toast, pc]);
+  }, [callId, patientJoined, toast, pc, router]);
 
   const handleToggleMute = async () => {
     if (!pc) return;
-    const newMutedState = await toggleMute(callId, 'doctor');
-    setIsMuted(newMutedState);
+    pc.getSenders().forEach(sender => {
+      if (sender.track?.kind === 'audio') {
+        const newMutedState = !sender.track.enabled;
+        sender.track.enabled = !newMutedState;
+        setIsMuted(newMutedState);
+      }
+    });
   };
 
   const handleToggleCamera = async () => {
     if (!pc) return;
-    const newCameraState = await toggleCamera(callId, 'doctor');
-    setIsCameraOff(newCameraState);
+    pc.getSenders().forEach(sender => {
+      if (sender.track?.kind === 'video') {
+         const newCameraState = !sender.track.enabled;
+         sender.track.enabled = !newCameraState;
+         setIsCameraOff(newCameraState);
+      }
+    });
   };
 
   const handleEndCall = async () => {
     if(callId) await endCall(callId);
+    // endCall deletes the doc, which will trigger the onCallUpdate listener to redirect.
   };
 
   if (loading) {
@@ -173,7 +204,7 @@ export default function DoctorVideoCallPage() {
           {isConnecting && (
             <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-background/80">
               <Loader2 className="h-8 w-8 animate-spin" />
-              <p className="mt-2 text-center text-sm">Initializing call...</p>
+              <p className="mt-2 text-center text-sm">Waiting for patient to join...</p>
             </div>
           )}
           {!isConnecting && !patientJoined && (
@@ -200,42 +231,33 @@ export default function DoctorVideoCallPage() {
       <div className="fixed bottom-4 left-1/2 -translate-x-1/2">
         <Card className="bg-secondary/30 p-2 md:p-4">
           <div className="flex items-center justify-center gap-2 md:gap-4">
-            {isConnecting ? (
-                <div className="flex items-center gap-2">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <p>Initializing...</p>
-                </div>
-            ) : (
-                <>
-                    <Button variant={isMuted ? 'destructive' : 'outline'} size="icon" className="rounded-full h-12 w-12 md:h-16 md:w-16" onClick={handleToggleMute}>
-                        {isMuted ? <MicOff /> : <Mic />}
-                    </Button>
-                    <Button variant={isCameraOff ? 'destructive' : 'outline'} size="icon" className="rounded-full h-12 w-12 md:h-16 md:w-16" onClick={handleToggleCamera}>
-                        {isCameraOff ? <VideoOff /> : <Video />}
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="icon" className="rounded-full h-12 w-12 md:h-16 md:w-16">
-                            <PhoneOff />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>End Video Call?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will end the video session for both you and the patient. This will not mark the appointment as complete.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleEndCall}>
-                            End Call
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                </>
-            )}
+            <Button variant={isMuted ? 'destructive' : 'outline'} size="icon" className="rounded-full h-12 w-12 md:h-16 md:w-16" onClick={handleToggleMute}>
+                {isMuted ? <MicOff /> : <Mic />}
+            </Button>
+            <Button variant={isCameraOff ? 'destructive' : 'outline'} size="icon" className="rounded-full h-12 w-12 md:h-16 md:w-16" onClick={handleToggleCamera}>
+                {isCameraOff ? <VideoOff /> : <Video />}
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="icon" className="rounded-full h-12 w-12 md:h-16 md:w-16">
+                    <PhoneOff />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>End Video Call?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will end the video session for both you and the patient. This will not mark the appointment as complete.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleEndCall}>
+                    End Call
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </Card>
       </div>
