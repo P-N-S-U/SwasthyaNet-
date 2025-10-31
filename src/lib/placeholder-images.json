@@ -3,8 +3,8 @@
     {
       "id": "hero-dashboard",
       "description": "A preview of the SwasthyaNet application dashboard.",
-      "imageUrl": "https://images.unsplash.com/photo-1576091160550-2173dba999ef?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxtZWRpY2FsJTIwdGVjaG5vbG9neXxlbnwwfHx8fDE3NjE5MDgzODB8MA&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "healthcare technology"
+      "imageUrl": "https://plus.unsplash.com/premium_photo-1698421947098-d68176a8f5b2?ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8OXx8bWVkaWNhbCUyMHRlY2hub2xvZ3l8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&q=60&w=1200",
+      "imageHint": "medical technology"
     },
     {
       "id": "testimonial-1",
