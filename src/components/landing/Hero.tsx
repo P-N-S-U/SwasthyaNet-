@@ -44,15 +44,16 @@ export const Hero = () => {
         </div>
         <div className="mt-16 md:mt-24">
           {heroImage && (
-            <Image
-              src={heroImage.imageUrl}
-              alt={heroImage.description}
-              width={1024}
-              height={512}
-              className="mx-auto rounded-lg border-2 border-border/20 shadow-2xl shadow-primary/20"
-              data-ai-hint={heroImage.imageHint}
-              priority
-            />
+            <div className="relative mx-auto h-[512px] w-full max-w-5xl overflow-hidden rounded-lg border-2 border-border/20 shadow-2xl shadow-primary/20">
+              <Image
+                src={heroImage.imageUrl}
+                alt={heroImage.description}
+                fill
+                className="object-cover"
+                data-ai-hint={heroImage.imageHint}
+                priority
+              />
+            </div>
           )}
         </div>
       </div>
