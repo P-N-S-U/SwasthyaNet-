@@ -14,9 +14,9 @@ export default function AuthPage() {
               SwasthyaNet
             </span>
           </Link>
-          <h1 className="text-2xl font-bold font-headline">Welcome Back</h1>
+          <h1 className="text-2xl font-bold font-headline">Get Started</h1>
           <p className="text-foreground/60">
-            Sign in or create an account to continue
+            Sign in or create a new account to continue
           </p>
         </div>
         <AuthForm />
