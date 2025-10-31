@@ -4,6 +4,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
+import { useUserProfile } from '@/hooks/use-user-profile';
 import {
   Loader2,
   Calendar,
@@ -32,7 +33,6 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
 import useSWR from 'swr';
-import { getUserProfile } from '@/lib/firebase/firestore';
 import { completeAppointment } from '@/app/actions/appointments';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -69,16 +69,6 @@ const appointmentsFetcher = async ([, uid]) => {
   return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Appointment[];
 };
 
-const profileFetcher = async (uid) => {
-  if (!uid) return null;
-  try {
-    return await getUserProfile(uid);
-  } catch (e) {
-    // Errors will be handled by the global error emitter in firestore.ts
-    return null;
-  }
-};
-
 const getWeeklyChartData = (appointments: Appointment[] = []) => {
   // Show from yesterday up to 5 days in the future
   const dateRange = Array.from({ length: 7 }, (_, i) => {
@@ -107,13 +97,9 @@ const getWeeklyChartData = (appointments: Appointment[] = []) => {
 
 export default function DoctorDashboardPage() {
   const { user, loading: authLoading, role } = useAuthState();
+  const { profile, loading: profileLoading } = useUserProfile(user?.uid);
   const router = useRouter();
   const { toast } = useToast();
-
-  const { data: profile, isLoading: profileLoading } = useSWR(
-    user ? user.uid : null,
-    profileFetcher
-  );
 
   const {
     data: allAppointments,
@@ -465,5 +451,3 @@ export default function DoctorDashboardPage() {
     </div>
   );
 }
-
-    
