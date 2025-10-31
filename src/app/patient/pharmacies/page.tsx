@@ -1,22 +1,26 @@
-
 'use client';
 
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
-import { MapPin, Loader2 } from 'lucide-react';
+import { MapPin, ArrowLeft } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 const PharmacyFinder = dynamic(
-  () => import('@/components/patient/PharmacyFinder').then(mod => mod.PharmacyFinder),
+  () =>
+    import('@/components/patient/PharmacyFinder').then(
+      mod => mod.PharmacyFinder
+    ),
   {
     loading: () => (
       <div className="flex flex-col gap-8">
-        <Skeleton className="h-[300px] md:h-[500px] w-full" />
+        <Skeleton className="h-[300px] w-full md:h-[500px]" />
         <div className="space-y-4">
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-20 w-full" />
-            <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" />
+          <Skeleton className="h-20 w-full" />
         </div>
       </div>
     ),
@@ -30,15 +34,22 @@ export default function PharmaciesPage() {
       <Header />
       <main className="flex-grow bg-secondary/30 py-12">
         <div className="container">
+          <Button asChild variant="outline" size="sm" className="mb-6">
+            <Link href="/patient/dashboard">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Dashboard
+            </Link>
+          </Button>
           <div className="mb-10 text-center">
             <div className="mb-4 inline-block rounded-full bg-primary/10 p-4">
-              <MapPin className="h-10 w-10 md:h-12 md:w-12 text-primary" />
+              <MapPin className="h-10 w-10 text-primary md:h-12 md:w-12" />
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold font-headline">
+            <h1 className="text-3xl font-bold font-headline md:text-4xl">
               Find a Pharmacy Near You
             </h1>
-            <p className="mt-2 text-md md:text-lg text-foreground/70">
-              Discover local pharmacies and chemists, check their distance, and get directions.
+            <p className="mt-2 text-md text-foreground/70 md:text-lg">
+              Discover local pharmacies and chemists, check their distance, and
+              get directions.
             </p>
           </div>
           <PharmacyFinder />
