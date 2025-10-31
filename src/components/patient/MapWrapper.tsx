@@ -57,6 +57,7 @@ export default function MapWrapper({ userLocation, pharmacies }: any) {
         zoom={userLocation ? 14 : 5}
         scrollWheelZoom={true}
         className="h-full w-full rounded-md"
+        style={{ zIndex: 10 }}
       >
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <UserMarker userLocation={userLocation} />
