@@ -49,7 +49,7 @@ export const Hero = () => {
               alt={heroImage.description}
               width={1200}
               height={600}
-              className="mx-auto rounded-lg border-2 border-border/20 shadow-2xl shadow-primary/20"
+              className="mx-auto border-2 border-border/20 shadow-2xl shadow-primary/20"
               data-ai-hint={heroImage.imageHint}
               priority
             />
