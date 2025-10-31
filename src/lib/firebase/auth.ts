@@ -150,24 +150,23 @@ export async function signInWithGoogle() {
 
 export async function signOut() {
   try {
+    // Immediately sign out on the client
     await firebaseSignOut(auth);
-    console.log('[v3] [auth.ts] Client-side sign out complete. Clearing server session...');
-    const response = await fetch('/api/auth/session', {
-      method: 'DELETE',
-    });
-    console.log('[v3] [auth.ts] Server session clear response status:', response.status);
-    if (!response.ok) {
-      try {
-        const responseBody = await response.json();
-        console.error('[v3] [auth.ts] Failed to clear server session.', responseBody.error);
-        throw new Error(responseBody.error || 'Failed to clear session.');
-      } catch (jsonError: any) {
-        // If the response is not JSON (e.g., HTML error page), throw a generic error.
-        console.error('[v3] [auth.ts] Failed to parse error response from server.', jsonError.message);
-        throw new Error('Failed to clear session on server.');
-      }
-    }
-    console.log('[v3] [auth.ts] Server session cleared successfully.');
+    console.log('[v3] [auth.ts] Client-side sign out complete.');
+
+    // Fire-and-forget the server-side session clearing
+    fetch('/api/auth/session', { method: 'DELETE' })
+      .then(response => {
+        if (!response.ok) {
+           console.error('[v3] [auth.ts] Failed to clear server session in background.');
+        } else {
+           console.log('[v3] [auth.ts] Server session cleared in background.');
+        }
+      })
+      .catch(error => {
+        console.error('[v3] Error clearing server session in background:', error);
+      });
+
     return { success: true, error: null };
   } catch (error: any) {
     console.error('[v3] Error signing out:', error.message, error);
