@@ -47,9 +47,9 @@ export const Hero = () => {
             <Image
               src={heroImage.imageUrl}
               alt={heroImage.description}
-              width={1200}
-              height={600}
-              className="mx-auto border-2 border-border/20 shadow-2xl shadow-primary/20"
+              width={1024}
+              height={512}
+              className="mx-auto rounded-lg border-2 border-border/20 shadow-2xl shadow-primary/20"
               data-ai-hint={heroImage.imageHint}
               priority
             />
