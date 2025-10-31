@@ -21,11 +21,22 @@ import {
   SheetClose,
 } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Stethoscope, LogOut, UserCircle, LayoutDashboard, Menu } from 'lucide-react';
+import {
+  Stethoscope,
+  LogOut,
+  UserCircle,
+  LayoutDashboard,
+  Menu,
+  Calendar,
+  Pill,
+  Bot,
+  Users,
+} from 'lucide-react';
 import { useAuthState } from '@/hooks/use-auth-state';
 import { signOut } from '@/lib/firebase/auth';
 import { useRouter } from 'next/navigation';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '../ui/separator';
 
 const UserMenu = ({ user }) => {
   const router = useRouter();
@@ -88,6 +99,24 @@ const UserMenu = ({ user }) => {
 
 export const Header = () => {
   const { user, role, loading } = useAuthState();
+  const router = useRouter();
+
+  const handleSignOut = () => {
+    signOut();
+    router.push('/');
+  };
+
+  const MobileNavLink = ({ href, icon: Icon, children }) => (
+    <SheetClose asChild>
+      <Link
+        href={href}
+        className="flex items-center gap-3 rounded-lg p-3 text-lg transition-colors hover:bg-secondary"
+      >
+        <Icon className="h-5 w-5 text-primary" />
+        {children}
+      </Link>
+    </SheetClose>
+  );
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -98,7 +127,7 @@ export const Header = () => {
         </Link>
         <nav className="hidden items-center gap-6 text-sm md:flex">
           {(!user || role === 'patient') && (
-             <>
+            <>
               <Link
                 href="/symptom-checker"
                 className="text-foreground/60 transition-colors hover:text-foreground/80"
@@ -111,49 +140,91 @@ export const Header = () => {
               >
                 Find a Doctor
               </Link>
+              <Link
+                href="/patient/pharmacies"
+                className="text-foreground/60 transition-colors hover:text-foreground/80"
+              >
+                Pharmacies
+              </Link>
             </>
           )}
         </nav>
         <div className="flex flex-1 items-center justify-end space-x-2">
           {/* Mobile Menu */}
           <div className="md:hidden">
-             <Sheet>
-               <SheetTrigger asChild>
-                 <Button variant="ghost" size="icon">
-                   <Menu className="h-5 w-5" />
-                   <span className="sr-only">Open menu</span>
-                 </Button>
-               </SheetTrigger>
-               <SheetContent side="right">
-                 <SheetHeader>
-                    <SheetTitle>
-                       <Link href="/" className="mr-6 flex items-center gap-2">
-                          <Stethoscope className="h-6 w-6 text-primary" />
-                          <span className="text-lg font-bold font-headline">SwasthyaNet</span>
-                        </Link>
-                    </SheetTitle>
-                    <SheetDescription>
-                        Navigate through the application features.
-                    </SheetDescription>
-                 </SheetHeader>
-                 <div className="flex flex-col gap-4 py-6">
-                 {(!user || role === 'patient') && (
-                  <>
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Open menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="flex flex-col">
+                <SheetHeader className="text-left">
+                  <SheetTitle>
+                    <Link href="/" className="flex items-center gap-2">
+                      <Stethoscope className="h-6 w-6 text-primary" />
+                      <span className="text-lg font-bold font-headline">
+                        SwasthyaNet
+                      </span>
+                    </Link>
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="flex-grow py-6">
+                  <nav className="flex flex-col gap-2">
+                    {user && role === 'patient' ? (
+                      <>
+                        <MobileNavLink href="/patient/dashboard" icon={LayoutDashboard}>
+                          Dashboard
+                        </MobileNavLink>
+                        <MobileNavLink href="/patient/appointments" icon={Calendar}>
+                          My Appointments
+                        </MobileNavLink>
+                        <MobileNavLink href="/patient/pharmacies" icon={Pill}>
+                          Nearby Pharmacies
+                        </MobileNavLink>
+                        <MobileNavLink href="/symptom-checker" icon={Bot}>
+                          Symptom Checker
+                        </MobileNavLink>
+                        <MobileNavLink href="/find-a-doctor" icon={Users}>
+                          Find a Doctor
+                        </MobileNavLink>
+                        <MobileNavLink href="/profile" icon={UserCircle}>
+                          My Profile
+                        </MobileNavLink>
+                      </>
+                    ) : (
+                      <>
+                        <MobileNavLink href="/symptom-checker" icon={Bot}>
+                          Symptom Checker
+                        </MobileNavLink>
+                        <MobileNavLink href="/find-a-doctor" icon={Users}>
+                          Find a Doctor
+                        </MobileNavLink>
+                         <MobileNavLink href="/patient/pharmacies" icon={Pill}>
+                          Nearby Pharmacies
+                        </MobileNavLink>
+                      </>
+                    )}
+                  </nav>
+                </div>
+                {user && (
+                    <>
+                    <Separator className="my-4"/>
                     <SheetClose asChild>
-                      <Link href="/symptom-checker" className="text-lg">Symptom Checker</Link>
+                         <Button variant="ghost" onClick={handleSignOut} className="w-full justify-start text-lg p-3 gap-3 flex">
+                            <LogOut className="h-5 w-5 text-destructive" />
+                            Sign Out
+                         </Button>
                     </SheetClose>
-                    <SheetClose asChild>
-                      <Link href="/find-a-doctor" className="text-lg">Find a Doctor</Link>
-                    </SheetClose>
-                  </>
-                  )}
-                 </div>
-               </SheetContent>
-             </Sheet>
+                    </>
+                )}
+              </SheetContent>
+            </Sheet>
           </div>
 
           {loading ? (
-             <Skeleton className="h-8 w-8 rounded-full" />
+            <Skeleton className="h-8 w-8 rounded-full" />
           ) : user ? (
             <UserMenu user={user} />
           ) : (
