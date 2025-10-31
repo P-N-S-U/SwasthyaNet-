@@ -115,8 +115,8 @@ export function PharmacyFinder() {
   );
 
   return (
-    <div className="flex flex-col gap-8 md:grid md:grid-cols-3">
-      <div className="relative h-[400px] md:h-full overflow-hidden rounded-lg border border-border/30 bg-background md:col-span-2">
+    <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+      <div className="relative h-[400px] md:h-[500px] overflow-hidden rounded-lg border border-border/30 bg-background md:col-span-2">
           <MapWrapper userLocation={userLocation} pharmacies={pharmacies} />
           
           {loadingLocation && (
