@@ -4,6 +4,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
+import { useUserProfile } from '@/hooks/use-user-profile';
 import { Header } from '@/components/landing/Header';
 import { Footer } from '@/components/landing/Footer';
 import {
@@ -25,37 +26,40 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 
-const ProfileDetailItem = ({ icon, label, value }) => {
-  if (!value) return null;
+const ProfileDetailItem = ({ icon, label, value, loading = false }) => {
+  if (!value && !loading) return null;
 
   return (
     <div className="flex items-start gap-4 rounded-lg bg-secondary/50 p-4">
       <div className="mt-1 text-primary">{icon}</div>
       <div>
         <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="font-medium">{value}</p>
+        {loading ? <Skeleton className="h-6 w-40 mt-1" /> : <p className="font-medium">{value}</p>}
       </div>
     </div>
   );
 };
 
-
 export default function ProfilePage() {
-  const { user, loading, role } = useAuthState();
+  const { user, loading: authLoading, role } = useAuthState();
+  const { profile, loading: profileLoading } = useUserProfile(user?.uid);
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading) {
+    if (!authLoading) {
         if (!user) {
             router.push('/auth');
         } else if (role === 'doctor') {
             router.replace('/doctor/profile');
         }
     }
-  }, [user, loading, role, router]);
+  }, [user, authLoading, role, router]);
 
-  if (loading || !user || role === 'doctor') {
+  const isLoading = authLoading || profileLoading;
+
+  if (isLoading || !user || role === 'doctor') {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -63,13 +67,17 @@ export default function ProfilePage() {
     );
   }
 
-  const getInitials = email => {
-    if (!email) return 'U';
-    return email.substring(0, 2).toUpperCase();
+  const getInitials = (nameOrEmail: string | null | undefined) => {
+    if (!nameOrEmail) return 'U';
+    const names = nameOrEmail.split(' ');
+    if (names.length > 1) {
+      return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+    }
+    return nameOrEmail.substring(0, 2).toUpperCase();
   };
 
-  const registrationDate = user.metadata.creationTime
-    ? new Date(user.metadata.creationTime).toLocaleDateString()
+  const registrationDate = profile?.createdAt
+    ? profile.createdAt.toDate().toLocaleDateString()
     : 'Not available';
     
   return (
@@ -82,7 +90,7 @@ export default function ProfilePage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                    <CardTitle className="text-3xl font-bold font-headline">
-                    {user.displayName || 'User Profile'}
+                    {profile?.displayName || 'User Profile'}
                   </CardTitle>
                    <Dialog>
                     <DialogTrigger asChild>
@@ -106,17 +114,17 @@ export default function ProfilePage() {
                 </div>
                 <div className="mx-auto pt-4 text-center">
                   <Avatar className="mx-auto h-24 w-24 border-4 border-primary">
-                    <AvatarImage src={user.photoURL || undefined} alt={user.displayName || ''} />
+                    <AvatarImage src={profile?.photoURL || undefined} alt={profile?.displayName || ''} />
                     <AvatarFallback className="text-3xl">
-                      {getInitials(user.email)}
+                      {getInitials(profile?.displayName || profile?.email)}
                     </AvatarFallback>
                   </Avatar>
                 </div>
               </CardHeader>
               <CardContent className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                 <ProfileDetailItem icon={<Mail className="h-5 w-5" />} label="Email" value={user.email} />
-                 <ProfileDetailItem icon={<User className="h-5 w-5" />} label="Full Name" value={user.displayName || 'Not set'} />
-                 <ProfileDetailItem icon={<Calendar className="h-5 w-5" />} label="Member Since" value={registrationDate} />
+                 <ProfileDetailItem icon={<Mail className="h-5 w-5" />} label="Email" value={profile?.email} loading={isLoading} />
+                 <ProfileDetailItem icon={<User className="h-5 w-5" />} label="Full Name" value={profile?.displayName || 'Not set'} loading={isLoading} />
+                 <ProfileDetailItem icon={<Calendar className="h-5 w-5" />} label="Member Since" value={registrationDate} loading={isLoading} />
               </CardContent>
             </Card>
           </div>

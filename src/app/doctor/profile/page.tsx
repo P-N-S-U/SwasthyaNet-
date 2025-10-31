@@ -4,6 +4,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
+import { useUserProfile } from '@/hooks/use-user-profile';
 import {
   Loader2,
   User,
@@ -19,8 +20,6 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { doc } from 'firebase/firestore';
-import { db } from '@/lib/firebase/firebase';
 import { DoctorProfileForm } from '@/components/doctor/DoctorProfileForm';
 import { UpdateProfileForm } from '@/components/profile/UpdateProfileForm';
 import {
@@ -32,11 +31,7 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 import { Skeleton } from '@/components/ui/skeleton';
-import useSWR from 'swr';
-import { getDoc } from 'firebase/firestore';
 
 const ProfileDetailItem = ({ icon, label, value, isBio = false, loading = false }) => {
   if (!value && !loading && !isBio) return null;
@@ -58,45 +53,23 @@ const ProfileDetailItem = ({ icon, label, value, isBio = false, loading = false 
   );
 };
 
-const profileFetcher = async ([, uid]) => {
-  if (!uid) return null;
-  const userDocRef = doc(db, 'users', uid);
-  try {
-    const docSnap = await getDoc(userDocRef);
-    if (docSnap.exists()) {
-      return docSnap.data();
-    }
-    return null;
-  } catch (serverError) {
-    const permissionError = new FirestorePermissionError({
-      path: userDocRef.path,
-      operation: 'get',
-    });
-    errorEmitter.emit('permission-error', permissionError);
-    throw permissionError;
-  }
-};
-
 export default function ProfilePage() {
-  const { user, loading, role } = useAuthState();
+  const { user, loading: authLoading, role } = useAuthState();
+  const { profile, loading: profileLoading } = useUserProfile(user?.uid);
   const router = useRouter();
 
-  const { data: profile, isLoading: profileLoading } = useSWR(
-    user ? ['user', user.uid] : null,
-    profileFetcher,
-    { revalidateOnFocus: true }
-  );
-
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       router.push('/auth');
     }
-    if (user && role && role !== 'doctor') {
+    if (!authLoading && role && role !== 'doctor') {
       router.replace('/patient/dashboard');
     }
-  }, [user, loading, role, router]);
+  }, [user, authLoading, role, router]);
+  
+  const isLoading = authLoading || profileLoading;
 
-  if (loading || !user) {
+  if (isLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -104,13 +77,17 @@ export default function ProfilePage() {
     );
   }
 
-  const getInitials = email => {
-    if (!email) return 'U';
-    return email.substring(0, 2).toUpperCase();
+  const getInitials = (nameOrEmail) => {
+    if (!nameOrEmail) return 'U';
+     const names = nameOrEmail.split(' ');
+    if (names.length > 1) {
+      return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+    }
+    return nameOrEmail.substring(0, 2).toUpperCase();
   };
 
-  const registrationDate = user.metadata.creationTime
-    ? new Date(user.metadata.creationTime).toLocaleDateString()
+  const registrationDate = profile?.createdAt
+    ? profile.createdAt.toDate().toLocaleDateString()
     : 'Not available';
 
   return (
@@ -126,7 +103,7 @@ export default function ProfilePage() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <CardTitle className="font-headline text-3xl font-bold">
-                {user.displayName || 'User Profile'}
+                {profile?.displayName || 'User Profile'}
               </CardTitle>
               <Dialog>
                 <DialogTrigger asChild>
@@ -148,13 +125,13 @@ export default function ProfilePage() {
             </div>
             <div className="mx-auto pt-4 text-center">
               <Avatar className="mx-auto h-24 w-24 border-4 border-primary">
-                <AvatarImage src={user.photoURL || undefined} alt={user.displayName || ''} />
+                <AvatarImage src={profile?.photoURL || undefined} alt={profile?.displayName || ''} />
                 <AvatarFallback className="text-3xl">
-                  {getInitials(user.email)}
+                  {getInitials(profile?.displayName || profile?.email)}
                 </AvatarFallback>
               </Avatar>
               {profile?.role === 'doctor' &&
-                (profileLoading ? (
+                (isLoading ? (
                   <Skeleton className="mx-auto mt-2 h-6 w-36" />
                 ) : (
                   <p className="mt-2 text-lg text-muted-foreground">
@@ -164,16 +141,18 @@ export default function ProfilePage() {
             </div>
           </CardHeader>
           <CardContent className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <ProfileDetailItem icon={<Mail className="h-5 w-5" />} label="Email" value={user.email} />
+            <ProfileDetailItem icon={<Mail className="h-5 w-5" />} label="Email" value={profile?.email} loading={isLoading} />
             <ProfileDetailItem
               icon={<User className="h-5 w-5" />}
               label="Full Name"
-              value={user.displayName || 'Not set'}
+              value={profile?.displayName || 'Not set'}
+              loading={isLoading}
             />
             <ProfileDetailItem
               icon={<Calendar className="h-5 w-5" />}
               label="Member Since"
               value={registrationDate}
+              loading={isLoading}
             />
           </CardContent>
         </Card>
@@ -185,7 +164,7 @@ export default function ProfilePage() {
                 Professional Details
               </CardTitle>
               <Dialog>
-                <DialogTrigger asChild disabled={profileLoading}>
+                <DialogTrigger asChild disabled={isLoading}>
                   <Button variant="outline" size="sm">
                     <Edit className="mr-2 h-4 w-4" />
                     Edit
@@ -207,19 +186,19 @@ export default function ProfilePage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <ProfileDetailItem
-                  loading={profileLoading}
+                  loading={isLoading}
                   icon={<Briefcase className="h-5 w-5" />}
                   label="Specialization"
                   value={profile?.specialization}
                 />
                 <ProfileDetailItem
-                  loading={profileLoading}
+                  loading={isLoading}
                   icon={<GraduationCap className="h-5 w-5" />}
                   label="Qualifications"
                   value={profile?.qualifications}
                 />
                 <ProfileDetailItem
-                  loading={profileLoading}
+                  loading={isLoading}
                   icon={<CalendarClock className="h-5 w-5" />}
                   label="Years of Experience"
                   value={
@@ -227,7 +206,7 @@ export default function ProfilePage() {
                   }
                 />
                 <ProfileDetailItem
-                  loading={profileLoading}
+                  loading={isLoading}
                   icon={<IndianRupee className="h-5 w-5" />}
                   label="Consultation Fee"
                   value={
@@ -236,13 +215,13 @@ export default function ProfilePage() {
                 />
               </div>
               <ProfileDetailItem
-                loading={profileLoading}
+                loading={isLoading}
                 icon={<Hospital className="h-5 w-5" />}
                 label="Clinic / Hospital"
                 value={profile?.clinic}
               />
               <ProfileDetailItem
-                loading={profileLoading}
+                loading={isLoading}
                 icon={<FileText className="h-5 w-5" />}
                 label="Bio"
                 value={profile?.bio}
@@ -255,5 +234,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
