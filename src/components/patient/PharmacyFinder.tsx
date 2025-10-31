@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -114,8 +115,8 @@ export function PharmacyFinder() {
   );
 
   return (
-    <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-      <div className="relative h-[500px] overflow-hidden rounded-lg border border-border/30 bg-background md:col-span-2">
+    <div className="flex flex-col gap-8 md:grid md:grid-cols-3">
+      <div className="relative h-[400px] md:h-full overflow-hidden rounded-lg border border-border/30 bg-background md:col-span-2">
           <MapWrapper userLocation={userLocation} pharmacies={pharmacies} />
           
           {loadingLocation && (
@@ -140,7 +141,7 @@ export function PharmacyFinder() {
           <CardHeader>
             <div className="flex items-center gap-3">
               <List className="h-6 w-6 text-primary" />
-              <CardTitle className="font-headline text-2xl">Nearby</CardTitle>
+              <CardTitle className="font-headline text-xl md:text-2xl">Nearby</CardTitle>
             </div>
           </CardHeader>
           <CardContent>
@@ -153,7 +154,7 @@ export function PharmacyFinder() {
                     key={pharmacy.id}
                     className="flex items-center justify-between rounded-lg bg-secondary/50 p-3"
                   >
-                    <div className="max-w-[70%]">
+                    <div className="max-w-[calc(100%-80px)]">
                       <p
                         className="truncate font-semibold"
                         title={pharmacy.name}

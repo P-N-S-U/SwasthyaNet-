@@ -73,8 +73,8 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
   return (
     <Card className="border-border/30 bg-background">
       <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between">
+          <div className="mb-2 sm:mb-0">
             <CardTitle className="font-headline text-xl">
               {appointment.doctorName}
             </CardTitle>
@@ -90,13 +90,14 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
                 ? 'secondary'
                 : 'destructive'
             }
+            className="w-fit"
           >
             {appointment.status}
           </Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center gap-4 text-sm text-foreground/80">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm text-foreground/80">
           <div className="flex items-center gap-2">
             <Calendar className="h-4 w-4 text-primary" />
             <span>{date}</span>
@@ -107,23 +108,23 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
           </div>
         </div>
         {isUpcoming && (
-          <div className="flex gap-2">
-            <Button asChild size="sm">
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button asChild size="sm" className="w-full sm:w-auto">
               <Link href={`/patient/video/${appointment.id}`}>
                 <Video className="mr-2 h-4 w-4" /> Join Video Call
               </Link>
             </Button>
-            <Button size="sm" variant="outline" disabled>
+            <Button size="sm" variant="outline" disabled  className="w-full sm:w-auto">
               Reschedule
             </Button>
           </div>
         )}
         {appointment.status === 'Completed' && (
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" disabled>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button size="sm" variant="outline" disabled className="w-full sm:w-auto">
               <FileText className="mr-2 h-4 w-4" /> View Prescription
             </Button>
-            <Button size="sm" variant="outline" disabled>
+            <Button size="sm" variant="outline" disabled className="w-full sm:w-auto">
               <User className="mr-2 h-4 w-4" /> View Doctor's Profile
             </Button>
           </div>
@@ -202,8 +203,8 @@ export default function AppointmentsPage() {
                 Back to Dashboard
               </Link>
             </Button>
-            <h1 className="text-4xl font-bold font-headline">My Appointments</h1>
-            <p className="mt-2 text-lg text-foreground/70">
+            <h1 className="text-3xl md:text-4xl font-bold font-headline">My Appointments</h1>
+            <p className="mt-2 text-md md:text-lg text-foreground/70">
               Manage your upcoming and past consultations.
             </p>
           </div>
@@ -225,7 +226,7 @@ export default function AppointmentsPage() {
                     <AppointmentCard key={appt.id} appointment={appt} />
                   ))
                 ) : (
-                  <Card className="flex h-40 flex-col items-center justify-center border-dashed">
+                  <Card className="flex h-40 flex-col items-center justify-center border-dashed text-center p-4">
                     <p className="text-muted-foreground">
                       You have no upcoming appointments.
                     </p>

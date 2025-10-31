@@ -211,10 +211,10 @@ export default function VideoCallPage() {
   const isCallInProgress = callStatus === 'Connected' || callStatus === 'Joining';
 
   return (
-    <div className="flex h-screen flex-col items-center justify-center bg-black text-white p-4">
-      <div className="relative grid w-full max-w-5xl grid-cols-1 gap-4 md:grid-cols-2">
+    <div className="flex h-screen flex-col items-center justify-between bg-black text-white p-4">
+      
         {/* Remote Video */}
-        <div className="relative aspect-video w-full rounded-md bg-secondary">
+        <div className="relative aspect-video w-full max-w-5xl rounded-lg bg-secondary overflow-hidden">
           <video ref={remoteVideoRef} className="h-full w-full rounded-md object-cover" autoPlay playsInline />
           {(remoteMuted || remoteCameraOff) && isCallInProgress && (
             <div className="absolute inset-0 flex items-center justify-center gap-4 rounded-md bg-black/50">
@@ -224,15 +224,15 @@ export default function VideoCallPage() {
           )}
           <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-sm">Doctor</div>
           {!isCallInProgress && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-background/80">
+            <div className="absolute inset-0 flex flex-col items-center justify-center rounded-md bg-background/80 text-center p-4">
                { !isCallActiveByDoctor || callStatus === 'Joining' ? <Loader2 className="h-8 w-8 animate-spin" /> : null}
-              <p className="mt-2 text-center text-sm">{getStatusText()}</p>
+              <p className="mt-2 text-sm">{getStatusText()}</p>
             </div>
           )}
         </div>
 
         {/* Local Video */}
-        <div className="absolute bottom-20 right-4 h-32 w-24 md:relative md:bottom-auto md:right-auto md:h-auto md:w-full rounded-md bg-secondary aspect-video">
+        <div className="relative aspect-video w-full max-w-5xl rounded-lg bg-secondary overflow-hidden mt-4">
           <video ref={localVideoRef} className="h-full w-full rounded-md object-cover [-webkit-transform:scaleX(-1)] [transform:scaleX(-1)]" autoPlay playsInline muted />
           {(isMuted || isCameraOff) && isCallInProgress && (
             <div className="absolute inset-0 flex items-center justify-center gap-4 rounded-md bg-black/50">
@@ -242,32 +242,32 @@ export default function VideoCallPage() {
           )}
           <div className="absolute bottom-2 left-2 rounded-md bg-black/50 px-2 py-1 text-xs">You</div>
         </div>
-      </div>
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2">
-        <Card className="bg-secondary/30 p-2 md:p-4">
-          <div className="flex items-center justify-center gap-2 md:gap-4">
+
+      <div className="w-full mt-4">
+        <Card className="bg-secondary/30 p-2">
+          <div className="flex items-center justify-around gap-2">
             {!isCallInProgress ? (
               <>
-                <Button variant="outline" size="lg" className="rounded-full h-16" onClick={() => router.push('/patient/appointments')}>
+                <Button variant="outline" size="lg" className="rounded-full h-14 flex-1" onClick={() => router.push('/patient/appointments')}>
                     <ArrowLeft className="mr-2 h-5 w-5" />
                     Back
                 </Button>
-                <Button onClick={handleJoinCall} size="lg" className="rounded-full h-16 w-32" disabled={!isCallActiveByDoctor || callStatus === 'Joining'}>
+                <Button onClick={handleJoinCall} size="lg" className="rounded-full h-14 flex-1" disabled={!isCallActiveByDoctor || callStatus === 'Joining'}>
                     {callStatus === 'Joining' ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Video className="mr-2 h-5 w-5" />}
-                    Join Call
+                    Join
                 </Button>
               </>
             ) : (
                 <>
-                    <Button variant={isMuted ? 'destructive' : 'outline'} size="icon" className="rounded-full h-12 w-12 md:h-16 md:w-16" onClick={handleToggleMute}>
+                    <Button variant={isMuted ? 'destructive' : 'outline'} size="icon" className="rounded-full h-14 w-14" onClick={handleToggleMute}>
                         {isMuted ? <MicOff /> : <Mic />}
                     </Button>
-                    <Button variant={isCameraOff ? 'destructive' : 'outline'} size="icon" className="rounded-full h-12 w-12 md:h-16 md:w-16" onClick={handleToggleCamera}>
+                    <Button variant={isCameraOff ? 'destructive' : 'outline'} size="icon" className="rounded-full h-14 w-14" onClick={handleToggleCamera}>
                         {isCameraOff ? <VideoOff /> : <Video />}
                     </Button>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="icon" className="rounded-full h-12 w-12 md:h-16 md:w-16">
+                        <Button variant="destructive" size="icon" className="rounded-full h-14 w-14">
                             <PhoneOff />
                         </Button>
                       </AlertDialogTrigger>
@@ -288,7 +288,7 @@ export default function VideoCallPage() {
             )}
           </div>
         </Card>
-        {!isCallActiveByDoctor && callStatus === 'Waiting' && (
+        {!isCallInProgress && !isCallActiveByDoctor && callStatus === 'Waiting' && (
              <div className="mt-4 text-center text-sm text-amber-400 flex items-center justify-center gap-2">
                  <AlertTriangle className="h-4 w-4" /> Waiting for the doctor to start the consultation.
              </div>
