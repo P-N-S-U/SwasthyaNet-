@@ -51,7 +51,7 @@ const UserMarker = ({ userLocation }: any) => {
 
 export default function MapWrapper({ userLocation, pharmacies }: any) {
   return (
-    <div id="map-container" className="h-full w-full rounded-md z-0">
+    <div id="map-container" className="h-full w-full rounded-md z-10">
       <MapContainer
         center={[userLocation?.lat || 20.5937, userLocation?.lng || 78.9629]}
         zoom={userLocation ? 14 : 5}
