@@ -13,7 +13,10 @@ import {
   Building,
   FileBadge,
   Phone,
-  MapPin
+  MapPin,
+  UploadCloud,
+  Map,
+  CheckCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -30,6 +33,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+import { savePartnerLocation } from '@/app/profile/actions';
+import { useToast } from '@/hooks/use-toast';
+
 
 const ProfileDetailItem = ({ icon, label, value, loading = false }) => {
   if (!value && !loading) return null;
@@ -51,6 +59,109 @@ const ProfileDetailItem = ({ icon, label, value, loading = false }) => {
   );
 };
 
+const VerificationCard = ({ profile, mutate }) => {
+  const { toast } = useToast();
+  const [isVerifying, setIsVerifying] = useState(false);
+  
+  const handleVerifyLocation = async () => {
+    if (!navigator.geolocation) {
+      toast({
+        title: 'Geolocation not supported',
+        description: "Your browser doesn't support location services.",
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setIsVerifying(true);
+    
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        const result = await savePartnerLocation({ lat: latitude, lng: longitude });
+
+        if (result.error) {
+          toast({
+            title: 'Failed to save location',
+            description: result.error,
+            variant: 'destructive',
+          });
+        } else {
+          toast({
+            title: 'Location Verified!',
+            description: 'Your shop location has been saved.',
+          });
+          mutate(); // Re-fetch user profile
+        }
+        setIsVerifying(false);
+      },
+      (error) => {
+        toast({
+          title: 'Location Error',
+          description: `Could not get your location: ${error.message}. Please ensure you have enabled location services for this site.`,
+          variant: 'destructive',
+        });
+        setIsVerifying(false);
+      }
+    );
+  };
+  
+  const hasLocation = profile?.profile?.location;
+  
+  return (
+    <Card className="border-border/30 bg-background">
+      <CardHeader>
+        <CardTitle className="font-headline text-2xl">
+          Verification
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Verify your business by uploading documents and confirming your physical location.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        <div className="rounded-lg border bg-secondary/30 p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h4 className="font-semibold">Business Location</h4>
+                  <p className="text-sm text-muted-foreground">Capture your shop's GPS coordinates to appear on the map for patients.</p>
+                </div>
+                 <Button onClick={handleVerifyLocation} disabled={isVerifying} className="mt-3 sm:mt-0">
+                    {isVerifying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MapPin className="mr-2 h-4 w-4" />}
+                    {hasLocation ? "Re-verify Location" : "Verify My Location"}
+                 </Button>
+            </div>
+             {hasLocation && (
+              <Alert className="mt-4 border-green-500/50 text-green-400 [&>svg]:text-green-400">
+                <CheckCircle className="h-4 w-4" />
+                <AlertTitle className="font-bold">Location Saved</AlertTitle>
+                <AlertDescription>
+                  Your business location is saved and will appear on the map for patients.
+                </AlertDescription>
+              </Alert>
+            )}
+        </div>
+        
+         <div className="rounded-lg border bg-secondary/30 p-4">
+             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                 <div>
+                    <h4 className="font-semibold">Business Documents</h4>
+                    <p className="text-sm text-muted-foreground">Upload a photo of your business license and shop front.</p>
+                </div>
+                <div className="mt-3 sm:mt-0 flex items-center gap-2">
+                    <Input id="picture" type="file" className="w-full sm:w-auto" disabled />
+                    <Button disabled>
+                        <UploadCloud className="mr-2 h-4 w-4" />
+                        Upload
+                    </Button>
+                 </div>
+            </div>
+             <p className="text-xs text-muted-foreground mt-2">Note: File upload is for demonstration purposes and is currently disabled.</p>
+        </div>
+        
+      </CardContent>
+    </Card>
+  )
+}
 
 export default function PartnerProfilePage() {
   const { user, loading: authLoading, role } = useAuthState();
@@ -183,12 +294,14 @@ export default function PartnerProfilePage() {
               </div>
               <ProfileDetailItem
                 loading={isLoading}
-                icon={<MapPin className="h-5 w-5" />}
+                icon={<Map className="h-5 w-5" />}
                 label="Full Address"
                 value={partnerProfile.address}
               />
             </CardContent>
           </Card>
+          
+          <VerificationCard profile={profile} mutate={mutate} />
       </div>
     </div>
   );

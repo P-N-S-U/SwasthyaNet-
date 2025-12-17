@@ -4,38 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { adminDb } from '@/lib/firebase/server-auth';
 import { getSession } from '@/lib/firebase/server-auth';
-import fetch from 'node-fetch';
-
-async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
-  if (!apiKey) {
-    console.error('Google Maps API key is missing.');
-    // In a real app, you might want to return an error to the user
-    return null;
-  }
-  
-  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
-  
-  try {
-    const response = await fetch(url);
-    const data: any = await response.json();
-
-    if (data.status === 'OK' && data.results[0]) {
-      const location = data.results[0].geometry.location; // { lat, lng }
-      console.log(`[Geocoding] Successfully geocoded address "${address}" to`, location);
-      return location;
-    } else {
-      console.warn(`[Geocoding] Failed to geocode address: "${address}". Status: ${data.status}`);
-      if (data.error_message) {
-        console.error(`[Geocoding] API Error: ${data.error_message}`);
-      }
-      return null;
-    }
-  } catch (error) {
-    console.error('Error during geocoding API call:', error);
-    return null;
-  }
-}
+import { FieldValue } from 'firebase-admin/firestore';
 
 
 export async function updateDoctorProfile(prevState: any, formData: FormData) {
@@ -112,17 +81,8 @@ export async function updatePartnerProfile(prevState: any, formData: FormData) {
     if (licenseNumber) profileUpdate['profile.licenseNumber'] = licenseNumber;
     if (contact) profileUpdate['profile.contact'] = contact;
     
-    if (address && street && city && state && postalCode && country) {
+    if (street && city && state && postalCode && country) {
       profileUpdate['profile.address'] = address;
-      // Geocode the full address string to get lat/lng
-      const location = await geocodeAddress(address);
-      if (location) {
-        profileUpdate['profile.location'] = location;
-      } else {
-        // Decide if you want to return an error here if geocoding fails.
-        // For now, we'll allow the profile to update but log a warning.
-        console.warn(`[Server Action] Failed to geocode address: "${address}". Location will not be updated.`);
-      }
     }
     
     if (Object.keys(profileUpdate).length > 0) {
@@ -140,4 +100,33 @@ export async function updatePartnerProfile(prevState: any, formData: FormData) {
       data: null,
     };
   }
+}
+
+
+export async function savePartnerLocation(location: { lat: number; lng: number }) {
+    const session = await getSession();
+
+    if (!session) {
+        return { error: 'You must be logged in to update your profile.' };
+    }
+
+    if (!location || !location.lat || !location.lng) {
+        return { error: 'Invalid location data provided.' };
+    }
+
+    try {
+        const userRef = adminDb.collection('users').doc(session.uid);
+        await userRef.update({
+            'profile.location': new FieldValue.serverTimestamp(), // Using FieldValue for geopoint
+            'profile.location.lat': location.lat,
+            'profile.location.lng': location.lng
+        });
+        
+        revalidatePath('/partner/profile');
+        revalidatePath('/patient/pharmacies');
+        return { data: 'Location saved successfully.' };
+    } catch (error) {
+        console.error('Error saving partner location:', error);
+        return { error: 'Failed to save location.' };
+    }
 }

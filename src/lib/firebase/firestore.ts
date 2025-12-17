@@ -1,5 +1,5 @@
 
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -15,21 +15,22 @@ export async function createUserInFirestore(user, additionalData = {}) {
 
   if (!docSnap.exists()) {
     const { email, photoURL } = user;
-    const createdAt = new Date();
-
-    try {
-      await setDoc(userRef, {
+    
+    const dataToCreate = {
         uid: user.uid,
         displayName: additionalData.displayName || user.displayName,
         email,
         photoURL,
-        createdAt,
+        createdAt: serverTimestamp(),
         role: additionalData.role || 'patient', // Default role to patient
         ...additionalData
-      }, { merge: true });
+    }
+
+    try {
+      await setDoc(userRef, dataToCreate, { merge: true });
     } catch (error) {
       console.error('Error creating user document:', error);
-      const permissionError = new FirestorePermissionError({ path: userRef.path, operation: 'create', requestResourceData: additionalData });
+      const permissionError = new FirestorePermissionError({ path: userRef.path, operation: 'create', requestResourceData: dataToCreate });
       errorEmitter.emit('permission-error', permissionError);
       throw permissionError;
     }
