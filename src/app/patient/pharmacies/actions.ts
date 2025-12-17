@@ -37,7 +37,7 @@ export async function findNearbyPharmacies(location: Location | null) {
 
     return { data: pharmacies };
 
-  } catch (e: any) => {
+  } catch (e: any) {
     console.error('Error in findNearbyPharmacies action:', e);
     return { error: 'Could not fetch location data. Please try again later.' };
   }
