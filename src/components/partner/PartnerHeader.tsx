@@ -19,14 +19,14 @@ export const PartnerHeader = () => {
                 asChild
                 variant="ghost"
               >
-                <Link href="/partners/signup">Partner Login</Link>
+                <Link href="/partners/signup">Partner Portal</Link>
             </Button>
             <Button
                 asChild
                 variant="outline"
                 className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
               >
-                <Link href="/partners/signup">Register Your Business</Link>
+                <Link href="/partners/signup">Join the Network</Link>
             </Button>
         </div>
       </div>
