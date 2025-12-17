@@ -33,7 +33,7 @@ interface Location {
 
 const createPharmacyIcon = () => {
   return new L.DivIcon({
-    html: `<div class="w-6 h-6 rounded-full bg-blue-500 border-2 border-white shadow-md"></div>`,
+    html: `<div class="w-6 h-6 rounded-full bg-primary border-2 border-white shadow-md flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pill"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/></svg></div>`,
     className: 'bg-transparent border-0',
     iconSize: [24, 24],
     iconAnchor: [12, 12],
@@ -82,7 +82,6 @@ export function PharmacyFinder() {
           };
           setUserLocation(location);
           setLoadingLocation(false);
-          // Directly call fetchAndSetPharmacies here after location is confirmed
           fetchAndSetPharmacies(location);
         },
         (err) => {
@@ -134,7 +133,7 @@ export function PharmacyFinder() {
               </div>
           )}
 
-          {!loadingLocation && error && (
+          {!loadingLocation && error && !userLocation && (
              <div className="absolute inset-0 z-20 flex h-full items-center justify-center bg-background/70 backdrop-blur-sm p-4">
                 <Alert variant="destructive">
                 <AlertTitle>Location Error</AlertTitle>

@@ -39,7 +39,7 @@ const UserMarker = ({ userLocation }: any) => {
     
     // Quick style to make user marker stand out.
     const style = document.createElement('style');
-    style.innerHTML = `.user-marker { filter: hue-rotate(120deg); }`;
+    style.innerHTML = `.user-marker { filter: hue-rotate(120deg) saturate(1.5); }`;
     document.head.appendChild(style);
 
     return (
@@ -50,10 +50,14 @@ const UserMarker = ({ userLocation }: any) => {
 }
 
 export default function MapWrapper({ userLocation, pharmacies, pharmacyIcon }: any) {
+  const initialCenter: [number, number] = userLocation 
+    ? [userLocation.lat, userLocation.lng] 
+    : [20.5937, 78.9629];
+
   return (
     <div id="map-container" className="h-full w-full rounded-md z-10">
       <MapContainer
-        center={[userLocation?.lat || 20.5937, userLocation?.lng || 78.9629]}
+        center={initialCenter}
         zoom={userLocation ? 14 : 5}
         scrollWheelZoom={true}
         className="h-full w-full rounded-md"
