@@ -1,26 +1,60 @@
+
 import { AuthForm } from '@/components/auth/AuthForm';
 import { Stethoscope } from 'lucide-react';
 import Link from 'next/link';
+import { Suspense } from 'react';
+
+// A fallback component to show while the AuthForm and its dependencies are loading.
+function AuthFormFallback() {
+  return (
+    <div className="w-full max-w-md p-4">
+      <div className="animate-pulse space-y-4">
+        <div className="h-10 rounded-md bg-muted"></div>
+        <div className="h-40 rounded-md bg-secondary/50"></div>
+      </div>
+    </div>
+  );
+}
+
 
 export default function AuthPage() {
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-grid-small-white/[0.2]">
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"></div>
       <div className="container relative z-10 w-full max-w-md p-4">
-        <div className="mb-8 text-center">
-          <Link href="/" className="mb-4 inline-flex items-center gap-2">
-            <Stethoscope className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold font-headline">
-              SwasthyaNet
-            </span>
-          </Link>
-          <h1 className="text-2xl font-bold font-headline">Get Started</h1>
-          <p className="text-foreground/60">
-            Sign in or create a new account to continue
-          </p>
-        </div>
-        <AuthForm />
+        <Suspense fallback={<AuthFormFallback />}>
+          <AuthFormWrapper />
+        </Suspense>
       </div>
     </div>
+  );
+}
+
+// Create a new component to wrap AuthForm so we can use useSearchParams
+function AuthFormWrapper() {
+  const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+  const nextUrl = searchParams.get('next');
+  const isAdminLogin = nextUrl?.startsWith('/admin');
+
+  return (
+    <>
+      <div className="mb-8 text-center">
+        <Link href="/" className="mb-4 inline-flex items-center gap-2">
+          <Stethoscope className="h-8 w-8 text-primary" />
+          <span className="text-2xl font-bold font-headline">
+            SwasthyaNet
+          </span>
+        </Link>
+        <h1 className="text-2xl font-bold font-headline">
+          {isAdminLogin ? 'Admin Access' : 'Get Started'}
+        </h1>
+        <p className="text-foreground/60">
+          {isAdminLogin
+            ? 'Sign in to access the administrator dashboard'
+            : 'Sign in or create a new account to continue'}
+        </p>
+      </div>
+      <AuthForm isAdminLogin={isAdminLogin} />
+    </>
   );
 }

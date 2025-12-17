@@ -13,17 +13,18 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith('/admin')) {
     const session = await getSession();
     if (!session) {
-      console.log('Middleware: No session found, redirecting to /auth');
       const loginUrl = new URL('/auth', request.url);
+      // Pass the original URL as a 'next' query parameter for redirection after login
       loginUrl.searchParams.set('next', pathname);
       return NextResponse.redirect(loginUrl);
     }
-    // The role-based check is now handled in the AdminLayout
+    // The role-based authorization check is handled in the AdminLayout server component
   }
 
   return NextResponse.next();
 }
 
 export const config = {
+  // Match all routes under /admin, including the root /admin page
   matcher: ['/admin/:path*'],
 };

@@ -78,7 +78,7 @@ const emailLinkSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
 });
 
-export function AuthForm() {
+export function AuthForm({ isAdminLogin = false }: { isAdminLogin?: boolean }) {
   const { toast } = useToast();
   const router = useRouter();
   const [isLoading, setIsLoading] = React.useState(false);
@@ -112,7 +112,9 @@ export function AuthForm() {
         title: 'Signed In Successfully',
         description: "Welcome back!",
       });
-      router.push('/dashboard');
+      // Redirect based on whether it was an admin login
+      const nextUrl = new URLSearchParams(window.location.search).get('next');
+      router.push(nextUrl || '/dashboard');
     }
     setIsLoading(false);
   };
@@ -178,41 +180,49 @@ export function AuthForm() {
 
   return (
     <Tabs defaultValue="signin" className="w-full">
-      <TabsList className="grid w-full grid-cols-3">
-        <TabsTrigger value="signin">Sign In</TabsTrigger>
-        <TabsTrigger value="signup">Sign Up</TabsTrigger>
-        <TabsTrigger value="link">Passwordless</TabsTrigger>
-      </TabsList>
+      {!isAdminLogin && (
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="signin">Sign In</TabsTrigger>
+          <TabsTrigger value="signup">Sign Up</TabsTrigger>
+          <TabsTrigger value="link">Passwordless</TabsTrigger>
+        </TabsList>
+      )}
       <TabsContent value="signin">
         <Card className="border-none bg-secondary/50">
           <CardHeader>
-            <CardTitle className="font-headline">Sign In</CardTitle>
-            <CardDescription>
-              Enter your credentials to access your account.
-            </CardDescription>
+            <CardTitle className="font-headline">{isAdminLogin ? 'Admin Sign In' : 'Sign In'}</CardTitle>
+            {!isAdminLogin && (
+              <CardDescription>
+                Enter your credentials to access your account.
+              </CardDescription>
+            )}
           </CardHeader>
           <Form {...signInForm}>
             <form onSubmit={signInForm.handleSubmit(handleSignIn)}>
               <CardContent className="space-y-4">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleGoogleSignIn}
-                  disabled={isLoading}
-                  type="button"
-                >
-                  {isLoading ? <Loader2 className="animate-spin" /> : <><GoogleIcon /> Sign in with Google</>}
-                </Button>
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-secondary/50 px-2 text-muted-foreground">
-                      Or continue with
-                    </span>
-                  </div>
-                </div>
+                {!isAdminLogin && (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleGoogleSignIn}
+                      disabled={isLoading}
+                      type="button"
+                    >
+                      {isLoading ? <Loader2 className="animate-spin" /> : <><GoogleIcon /> Sign in with Google</>}
+                    </Button>
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-secondary/50 px-2 text-muted-foreground">
+                          Or continue with
+                        </span>
+                      </div>
+                    </div>
+                  </>
+                )}
                 <FormField
                   control={signInForm.control}
                   name="email"
@@ -263,200 +273,202 @@ export function AuthForm() {
           </Form>
         </Card>
       </TabsContent>
-      <TabsContent value="signup">
-        <Card className="border-none bg-secondary/50">
-          <CardHeader>
-            <CardTitle className="font-headline">Sign Up</CardTitle>
-            <CardDescription>Create an account to get started.</CardDescription>
-          </CardHeader>
-          <Form {...signUpForm}>
-            <form onSubmit={signUpForm.handleSubmit(handleSignUp)}>
-              <CardContent className="space-y-4">
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={handleGoogleSignIn}
-                  disabled={isLoading}
-                  type="button"
-                >
-                  {isLoading ? <Loader2 className="animate-spin" /> : <><GoogleIcon /> Sign up with Google</>}
-                </Button>
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                    <span className="bg-secondary/50 px-2 text-muted-foreground">
-                      Or continue with
-                    </span>
-                  </div>
-                </div>
-                <FormField
-                  control={signUpForm.control}
-                  name="fullName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Full Name</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="Ravi Kumar"
-                          {...field}
-                          disabled={isLoading}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={signUpForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="email"
-                          placeholder="m@example.com"
-                          {...field}
-                          disabled={isLoading}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={signUpForm.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="password"
-                          {...field}
-                          disabled={isLoading}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={signUpForm.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem className="space-y-3">
-                      <FormLabel>You are a...</FormLabel>
-                      <FormControl>
-                        <RadioGroup
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          className="grid grid-cols-2 gap-4"
-                          disabled={isLoading}
-                        >
-                          <FormItem>
-                            <Label
-                              htmlFor="role-patient"
-                              className={cn(
-                                'flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary',
-                                'cursor-pointer'
-                              )}
+      {!isAdminLogin && (
+        <>
+          <TabsContent value="signup">
+            <Card className="border-none bg-secondary/50">
+              <CardHeader>
+                <CardTitle className="font-headline">Sign Up</CardTitle>
+                <CardDescription>Create an account to get started.</CardDescription>
+              </CardHeader>
+              <Form {...signUpForm}>
+                <form onSubmit={signUpForm.handleSubmit(handleSignUp)}>
+                  <CardContent className="space-y-4">
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={handleGoogleSignIn}
+                      disabled={isLoading}
+                      type="button"
+                    >
+                      {isLoading ? <Loader2 className="animate-spin" /> : <><GoogleIcon /> Sign up with Google</>}
+                    </Button>
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-secondary/50 px-2 text-muted-foreground">
+                          Or continue with
+                        </span>
+                      </div>
+                    </div>
+                    <FormField
+                      control={signUpForm.control}
+                      name="fullName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Full Name</FormLabel>
+                          <FormControl>
+                            <Input
+                              placeholder="Ravi Kumar"
+                              {...field}
+                              disabled={isLoading}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={signUpForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="email"
+                              placeholder="m@example.com"
+                              {...field}
+                              disabled={isLoading}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={signUpForm.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              {...field}
+                              disabled={isLoading}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={signUpForm.control}
+                      name="role"
+                      render={({ field }) => (
+                        <FormItem className="space-y-3">
+                          <FormLabel>You are a...</FormLabel>
+                          <FormControl>
+                            <RadioGroup
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                              className="grid grid-cols-2 gap-4"
+                              disabled={isLoading}
                             >
-                              <RadioGroupItem
-                                value="patient"
-                                id="role-patient"
-                                className="peer sr-only"
-                              />
-                              <User className="mb-3 h-6 w-6" />
-                              Patient
-                            </Label>
-                          </FormItem>
-                          <FormItem>
-                            <Label
-                              htmlFor="role-doctor"
-                              className={cn(
-                                'flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary',
-                                'cursor-pointer'
-                              )}
-                            >
-                              <RadioGroupItem
-                                value="doctor"
-                                id="role-doctor"
-                                className="peer sr-only"
-                              />
-                              <Stethoscope className="mb-3 h-6 w-6" />
-                              Doctor
-                            </Label>
-                          </FormItem>
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-              <CardFooter>
-                <Button
-                  className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
-                  type="submit"
-                  disabled={isLoading}
-                >
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Create Account
-                </Button>
-              </CardFooter>
-            </form>
-          </Form>
-        </Card>
-      </TabsContent>
-      <TabsContent value="link">
-        <Card className="border-none bg-secondary/50">
-          <CardHeader>
-            <CardTitle className="font-headline">Passwordless Sign-In</CardTitle>
-            <CardDescription>
-              We'll send a magic link to your email. No password needed.
-            </CardDescription>
-          </CardHeader>
-          <Form {...emailLinkForm}>
-            <form onSubmit={emailLinkForm.handleSubmit(handleSendSignInLink)}>
-              <CardContent className="space-y-4">
-                <FormField
-                  control={emailLinkForm.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="email"
-                          placeholder="m@example.com"
-                          {...field}
-                          disabled={isLoading}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </CardContent>
-              <CardFooter>
-                <Button
-                  className="w-full bg-primary hover:bg-primary/90"
-                  type="submit"
-                  disabled={isLoading}
-                >
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Send Sign-In Link
-                </Button>
-              </CardFooter>
-            </form>
-          </Form>
-        </Card>
-      </TabsContent>
+                              <FormItem>
+                                <Label
+                                  htmlFor="role-patient"
+                                  className={cn(
+                                    'flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary',
+                                    'cursor-pointer'
+                                  )}
+                                >
+                                  <RadioGroupItem
+                                    value="patient"
+                                    id="role-patient"
+                                    className="peer sr-only"
+                                  />
+                                  <User className="mb-3 h-6 w-6" />
+                                  Patient
+                                </Label>
+                              </FormItem>
+                              <FormItem>
+                                <Label
+                                  htmlFor="role-doctor"
+                                  className={cn(
+                                    'flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary',
+                                    'cursor-pointer'
+                                  )}
+                                >
+                                  <RadioGroupItem
+                                    value="doctor"
+                                    id="role-doctor"
+                                    className="peer sr-only"
+                                  />
+                                  <Stethoscope className="mb-3 h-6 w-6" />
+                                  Doctor
+                                </Label>
+                              </FormItem>
+                            </RadioGroup>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                  <CardFooter>
+                    <Button
+                      className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+                      type="submit"
+                      disabled={isLoading}
+                    >
+                      {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Create Account
+                    </Button>
+                  </CardFooter>
+                </form>
+              </Form>
+            </Card>
+          </TabsContent>
+          <TabsContent value="link">
+            <Card className="border-none bg-secondary/50">
+              <CardHeader>
+                <CardTitle className="font-headline">Passwordless Sign-In</CardTitle>
+                <CardDescription>
+                  We'll send a magic link to your email. No password needed.
+                </CardDescription>
+              </CardHeader>
+              <Form {...emailLinkForm}>
+                <form onSubmit={emailLinkForm.handleSubmit(handleSendSignInLink)}>
+                  <CardContent className="space-y-4">
+                    <FormField
+                      control={emailLinkForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="email"
+                              placeholder="m@example.com"
+                              {...field}
+                              disabled={isLoading}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </CardContent>
+                  <CardFooter>
+                    <Button
+                      className="w-full bg-primary hover:bg-primary/90"
+                      type="submit"
+                      disabled={isLoading}
+                    >
+                      {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Send Sign-In Link
+                    </Button>
+                  </CardFooter>
+                </form>
+              </Form>
+            </Card>
+          </TabsContent>
+        </>
+      )}
     </Tabs>
   );
 }
-
-    
