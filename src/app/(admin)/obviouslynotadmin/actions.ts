@@ -5,5 +5,5 @@ import { redirect } from 'next/navigation';
 
 export async function signOut() {
   await destroyAdminSession();
-  redirect('/obviouslynotadmin/login');
+  redirect('/admin-login');
 }

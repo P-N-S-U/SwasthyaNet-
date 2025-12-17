@@ -1,8 +1,17 @@
 import { AdminLoginForm } from './AdminLoginForm';
 import { Stethoscope, ShieldAlert } from 'lucide-react';
 import Link from 'next/link';
+import { getAdminSession } from '@/lib/session';
+import { redirect } from 'next/navigation';
 
-export default function AdminLoginPage() {
+export default async function AdminLoginPage() {
+  const session = await getAdminSession();
+  
+  // If the user is already an admin, redirect them to the dashboard.
+  if (session?.isAdmin) {
+    redirect('/obviouslynotadmin');
+  }
+
   return (
     <div className="relative flex min-h-screen items-center justify-center bg-gray-900 bg-grid-small-red-400/[0.2]">
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-gray-900 [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"></div>
