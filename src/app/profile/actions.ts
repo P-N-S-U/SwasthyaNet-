@@ -4,39 +4,37 @@
 import { revalidatePath } from 'next/cache';
 import { adminDb } from '@/lib/firebase/server-auth';
 import { getSession } from '@/lib/firebase/server-auth';
+import fetch from 'node-fetch';
 
-// TODO: Replace this with a real geocoding service call (e.g., Google Maps Geocoding API)
 async function geocodeAddress(address: string): Promise<{ lat: number; lng: number } | null> {
-  console.log(`[Geocoding Placeholder] "Geocoding" address: ${address}`);
-  // This is a placeholder. In a real application, you would use an API 
-  // to convert the address string into latitude and longitude.
-  // For now, we'll return a fixed location for demonstration purposes if the address contains '123 Main St'.
-  if (address.toLowerCase().includes('123 main st')) {
-    console.log('[Geocoding Placeholder] Matched placeholder address. Returning fixed coordinates for LA.');
-    return { lat: 34.0522, lng: -118.2437 }; // Example: Los Angeles City Hall
-  }
-
-  // A real implementation would look something like this:
-  /*
   const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) {
+    console.error('Google Maps API key is missing.');
+    // In a real app, you might want to return an error to the user
+    return null;
+  }
+  
   const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;
   
   try {
     const response = await fetch(url);
-    const data = await response.json();
+    const data: any = await response.json();
+
     if (data.status === 'OK' && data.results[0]) {
-      return data.results[0].geometry.location; // { lat, lng }
+      const location = data.results[0].geometry.location; // { lat, lng }
+      console.log(`[Geocoding] Successfully geocoded address "${address}" to`, location);
+      return location;
+    } else {
+      console.warn(`[Geocoding] Failed to geocode address: "${address}". Status: ${data.status}`);
+      if (data.error_message) {
+        console.error(`[Geocoding] API Error: ${data.error_message}`);
+      }
+      return null;
     }
-    return null;
   } catch (error) {
-    console.error('Error during geocoding:', error);
+    console.error('Error during geocoding API call:', error);
     return null;
   }
-  */
-
-  console.log('[Geocoding Placeholder] Address did not match placeholder. Returning null.');
-  // Return null if no match, simulating a failed geocoding attempt.
-  return null;
 }
 
 
@@ -114,16 +112,16 @@ export async function updatePartnerProfile(prevState: any, formData: FormData) {
     if (licenseNumber) profileUpdate['profile.licenseNumber'] = licenseNumber;
     if (contact) profileUpdate['profile.contact'] = contact;
     
-    if (address) {
+    if (address && street && city && state && postalCode && country) {
       profileUpdate['profile.address'] = address;
       // Geocode the full address string to get lat/lng
       const location = await geocodeAddress(address);
       if (location) {
         profileUpdate['profile.location'] = location;
-         console.log(`[Server Action] Geocoded address "${address}" to`, location);
       } else {
-        console.warn(`[Server Action] Failed to geocode address: "${address}"`);
-        // Decide if you want to return an error here if geocoding fails
+        // Decide if you want to return an error here if geocoding fails.
+        // For now, we'll allow the profile to update but log a warning.
+        console.warn(`[Server Action] Failed to geocode address: "${address}". Location will not be updated.`);
       }
     }
     
