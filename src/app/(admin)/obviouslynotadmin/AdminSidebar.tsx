@@ -9,6 +9,7 @@ import {
   Building,
   Users,
   Menu,
+  CalendarDays,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -47,6 +48,9 @@ const NavContent = ({ onLinkClick }) => {
       <nav className="flex-1 space-y-2 overflow-y-auto p-4">
         <NavLink href="/obviouslynotadmin" icon={LayoutDashboard} onClick={onLinkClick}>
           Dashboard
+        </NavLink>
+        <NavLink href="/obviouslynotadmin/appointments" icon={CalendarDays} onClick={onLinkClick}>
+          Appointments
         </NavLink>
         <NavLink href="/obviouslynotadmin/partners" icon={Building} onClick={onLinkClick}>
           Partners
