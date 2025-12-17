@@ -31,26 +31,16 @@ export default function PartnersPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <PartnerHeader />
       <main className="flex-grow">
-        <section className="relative py-20 md:py-32">
-           <div className="absolute inset-0">
-            <Image
-              src="https://images.unsplash.com/photo-1576671081833-0935a4a7543a?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-              alt="A modern pharmacy"
-              fill
-              className="object-cover"
-              data-ai-hint="modern pharmacy"
-            />
-            <div className="absolute inset-0 bg-black/60" />
-          </div>
-          <div className="container relative z-10 text-center">
-            <h1 className="text-4xl font-bold tracking-tighter text-white font-headline md:text-5xl">
+        <section className="bg-secondary/30 py-20 md:py-32">
+          <div className="container text-center">
+            <h1 className="text-4xl font-bold tracking-tighter text-foreground font-headline md:text-5xl">
               Partner with SwasthyaNet
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-neutral-200/80 md:text-xl">
+            <p className="mx-auto mt-4 max-w-2xl text-lg text-foreground/70 md:text-xl">
               Join our growing network of healthcare providers and revolutionize patient care together.
             </p>
             <div className="mt-8">
-              <Button asChild size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
+              <Button asChild size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90">
                 <Link href="/partners/signup">Register Your Business</Link>
               </Button>
             </div>

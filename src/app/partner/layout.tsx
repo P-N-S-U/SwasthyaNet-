@@ -6,6 +6,19 @@ import { useAuthState } from '@/hooks/use-auth-state';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { Plus_Jakarta_Sans, DM_Sans } from 'next/font/google';
+
+const headlineFont = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['700', '800'],
+  variable: '--font-headline-partner',
+});
+
+const bodyFont = DM_Sans({
+  subsets: ['latin'],
+  weight: ['400', '500', '700'],
+  variable: '--font-body-partner',
+});
 
 export default function PartnerLayout({
   children,
@@ -36,13 +49,13 @@ export default function PartnerLayout({
   }
 
   return (
-    <div className="min-h-screen bg-secondary/30">
+    <div
+      className={`min-h-screen bg-secondary/30 partner-theme ${headlineFont.variable} ${bodyFont.variable}`}
+    >
       <PartnerSidebar user={user} />
       <main className="md:pl-64">
         <div className="p-4 sm:p-6 md:p-8">
-          <div className="mx-auto max-w-7xl">
-            {children}
-          </div>
+          <div className="mx-auto max-w-7xl">{children}</div>
         </div>
       </main>
     </div>
