@@ -114,7 +114,11 @@ export function AuthForm({ isAdminLogin = false }: { isAdminLogin?: boolean }) {
       });
       // Redirect based on whether it was an admin login
       const nextUrl = new URLSearchParams(window.location.search).get('next');
-      router.push(nextUrl || '/dashboard');
+      if (isAdminLogin) {
+        router.push(nextUrl || '/obviouslynotadmins');
+      } else {
+        router.push(nextUrl || '/dashboard');
+      }
     }
     setIsLoading(false);
   };
@@ -155,7 +159,12 @@ export function AuthForm({ isAdminLogin = false }: { isAdminLogin?: boolean }) {
         title: 'Signed In Successfully',
         description: 'Welcome!',
       });
-      router.push('/dashboard');
+      const nextUrl = new URLSearchParams(window.location.search).get('next');
+       if (isAdminLogin) {
+        router.push(nextUrl || '/obviouslynotadmins');
+      } else {
+        router.push(nextUrl || '/dashboard');
+      }
     }
     setIsLoading(false);
   };
@@ -200,29 +209,25 @@ export function AuthForm({ isAdminLogin = false }: { isAdminLogin?: boolean }) {
           <Form {...signInForm}>
             <form onSubmit={signInForm.handleSubmit(handleSignIn)}>
               <CardContent className="space-y-4">
-                {!isAdminLogin && (
-                  <>
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={handleGoogleSignIn}
-                      disabled={isLoading}
-                      type="button"
-                    >
-                      {isLoading ? <Loader2 className="animate-spin" /> : <><GoogleIcon /> Sign in with Google</>}
-                    </Button>
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t" />
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-secondary/50 px-2 text-muted-foreground">
-                          Or continue with
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                )}
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleGoogleSignIn}
+                  disabled={isLoading}
+                  type="button"
+                >
+                  {isLoading ? <Loader2 className="animate-spin" /> : <><GoogleIcon /> Sign in with Google</>}
+                </Button>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-secondary/50 px-2 text-muted-foreground">
+                      Or continue with
+                    </span>
+                  </div>
+                </div>
                 <FormField
                   control={signInForm.control}
                   name="email"
