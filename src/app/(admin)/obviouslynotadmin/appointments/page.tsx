@@ -194,7 +194,14 @@ export default async function AppointmentsManagementPage() {
                           role="patient"
                           isPatient={true}
                         />
-                        <div className="h-px flex-grow bg-gradient-to-r from-blue-400 via-purple-400 to-purple-400"></div>
+                        <div className="flex-grow text-center">
+                            <div className="h-px w-full bg-gradient-to-r from-blue-400 via-purple-400 to-purple-400"></div>
+                            {appt.doctorSpecialization && (
+                                <Badge variant="outline" className="mt-2 text-xs">
+                                    {appt.doctorSpecialization}
+                                </Badge>
+                            )}
+                        </div>
                         <FloatingAvatar
                           name={appt.doctorName}
                           id={appt.doctorId}
