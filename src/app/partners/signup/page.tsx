@@ -23,9 +23,9 @@ export default function PartnerAuthPage() {
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"></div>
         <div className="container relative z-10 w-full max-w-md p-4">
           <div className="mb-8 text-center">
-            <h1 className="text-2xl font-bold font-headline">Partner Registration</h1>
+            <h1 className="text-2xl font-bold font-headline">Partner Portal</h1>
             <p className="text-foreground/60">
-              Create an account to join our network
+              Sign in or create an account to join our network
             </p>
           </div>
           <PartnerAuthForm />
