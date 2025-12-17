@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { updateProfile as updateAuthProfile } from 'firebase/auth';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase/firebase';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -37,25 +37,25 @@ export function UpdateProfileForm({ user, onUpdate }: { user: User, onUpdate?: (
         // 1. Update Firebase Auth record
         await updateAuthProfile(auth.currentUser, { displayName, photoURL });
 
-        // 2. Update Firestore document
+        // 2. Update Firestore 'users' collection
         const userRef = doc(db, 'users', user.uid);
-        const dataToUpdate: any = { displayName, photoURL };
+        const userUpdateData: any = { displayName, photoURL };
+        await updateDoc(userRef, userUpdateData);
 
-        // For partners, we also need to update the nested profile.name
-        const docSnap = (await import('firebase/firestore')).getDoc(userRef);
-        const role = (await docSnap).data()?.role;
+        // 3. For partners, also update the 'partners' collection
+        const docSnap = await getDoc(userRef);
+        const role = docSnap.data()?.role;
         if(role === 'partner') {
-          dataToUpdate['profile.name'] = displayName;
+          const partnerRef = doc(db, 'partners', user.uid);
+          const partnerUpdateData: any = { name: displayName };
+          await updateDoc(partnerRef, partnerUpdateData);
         }
-
-        await updateDoc(userRef, dataToUpdate);
         
         toast({
             title: 'Success!',
             description: 'Your profile has been updated.',
         });
         
-        // Use the callback if provided, otherwise refresh the router
         if (onUpdate) {
             onUpdate();
         }
@@ -119,3 +119,5 @@ export function UpdateProfileForm({ user, onUpdate }: { user: User, onUpdate?: (
     </form>
   );
 }
+
+    

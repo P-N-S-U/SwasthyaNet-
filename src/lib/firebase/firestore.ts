@@ -1,38 +1,58 @@
 
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, collection } from 'firebase/firestore';
 import { db } from './firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { User } from 'firebase/auth';
 
 
-export async function createUserInFirestore(user, additionalData = {}) {
+export async function createUserInFirestore(user: User, additionalData = {}) {
   const userRef = doc(db, 'users', user.uid);
-  const docSnap = await getDoc(userRef).catch(serverError => {
-      const permissionError = new FirestorePermissionError({ path: userRef.path, operation: 'get' });
-      errorEmitter.emit('permission-error', permissionError);
-      throw permissionError;
-  });
-
-  if (!docSnap.exists()) {
-    const { email, photoURL } = user;
-    
-    const dataToCreate = {
-        uid: user.uid,
-        displayName: additionalData.displayName || user.displayName,
-        email,
-        photoURL,
-        createdAt: serverTimestamp(),
-        role: additionalData.role || 'patient', // Default role to patient
-        ...additionalData
-    }
-
-    try {
+  try {
+    const docSnap = await getDoc(userRef);
+    if (!docSnap.exists()) {
+      const { email, photoURL, displayName } = user;
+      
+      const dataToCreate = {
+          uid: user.uid,
+          displayName: additionalData.displayName || displayName,
+          email,
+          photoURL,
+          createdAt: serverTimestamp(),
+          role: 'patient', // Default role
+          ...additionalData
+      }
+  
       await setDoc(userRef, dataToCreate, { merge: true });
-    } catch (error) {
-      console.error('Error creating user document:', error);
-      const permissionError = new FirestorePermissionError({ path: userRef.path, operation: 'create', requestResourceData: dataToCreate });
-      errorEmitter.emit('permission-error', permissionError);
-      throw permissionError;
     }
+  } catch (serverError) {
+    const permissionError = new FirestorePermissionError({ path: userRef.path, operation: 'get' });
+    errorEmitter.emit('permission-error', permissionError);
+    throw permissionError;
   }
 }
+
+export async function createPartnerInFirestore(user: User, partnerData: any) {
+    const partnerRef = doc(db, 'partners', user.uid);
+    try {
+        const docSnap = await getDoc(partnerRef);
+        if (!docSnap.exists()) {
+            const dataToCreate = {
+                ...partnerData,
+                ownerUID: user.uid,
+                createdAt: serverTimestamp(),
+            };
+            await setDoc(partnerRef, dataToCreate);
+        }
+    } catch (serverError) {
+        const permissionError = new FirestorePermissionError({
+            path: partnerRef.path,
+            operation: 'create',
+            requestResourceData: partnerData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        throw permissionError;
+    }
+}
+
+    

@@ -141,19 +141,31 @@ export function PartnerAuthForm() {
 
     const fullAddress = `${values.street}, ${values.city}, ${values.state} ${values.postalCode}, ${values.country}`;
 
-    const { error } = await signUpWithEmail(values.email, values.password, {
-      displayName: values.businessName,
+    // Additional data for the 'users' collection
+    const userDocData = {
+      displayName: values.businessName, // Or a personal name if you collect that
       role: 'partner',
+    };
+    
+    // Additional data for the new 'partners' collection
+    const partnerDocData = {
+      name: values.businessName,
       partnerType: values.partnerType,
-      status: 'pending',
-      profile: {
-        name: values.businessName,
-        licenseNumber: '',
-        contact: '',
-        address: fullAddress,
-        location: null,
-      },
-    });
+      status: 'pending', // Initial status
+      address: fullAddress,
+      contact: '',
+      licenseNumber: '',
+      location: null, // To be filled later
+      ownerUID: '' // Will be set after user creation
+    };
+
+    const { error } = await signUpWithEmail(
+      values.email,
+      values.password,
+      userDocData,
+      partnerDocData,
+    );
+
 
     if (error) {
       toast({
@@ -173,11 +185,14 @@ export function PartnerAuthForm() {
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
-    const { error, user } = await signInWithGoogle({
-      role: 'partner',
-      partnerType: 'pharmacy', // Default for Google Sign in
-      status: 'pending',
-    });
+    const userDocData = { role: 'partner' };
+    const partnerDocData = { 
+        partnerType: 'pharmacy', 
+        status: 'pending' 
+    };
+
+    const { error } = await signInWithGoogle(userDocData, partnerDocData);
+
     if (error) {
       toast({
         title: 'Google Sign-In Failed',

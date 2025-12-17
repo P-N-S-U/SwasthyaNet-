@@ -158,8 +158,8 @@ const VerificationCard = ({ user, profile, mutate }) => {
     }
   };
 
-  const hasLocation = profile?.profile?.location;
-  const hasDocument = profile?.profile?.documents?.verification;
+  const hasLocation = profile?.partnerProfile?.location;
+  const hasDocument = profile?.partnerProfile?.documents?.verification;
   
   return (
     <Card className="border-border/30 bg-background">
@@ -202,7 +202,7 @@ const VerificationCard = ({ user, profile, mutate }) => {
                 </div>
                 <div className="mt-3 sm:mt-0 flex items-center gap-2">
                     <Input id="picture" type="file" onChange={handleFileChange} disabled={isUploading} className="w-full sm:w-auto" />
-                    <Button onClick={handleUpload} disabled={isUploading}>
+                    <Button onClick={handleUpload} disabled={isUploading || !selectedFile}>
                         {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
                         Upload
                     </Button>
@@ -258,7 +258,7 @@ export default function PartnerProfilePage() {
     return name.substring(0, 2).toUpperCase();
   };
 
-  const partnerProfile = profile?.profile || {};
+  const partnerProfile = profile?.partnerProfile || {};
 
   return (
     <div>
@@ -277,8 +277,8 @@ export default function PartnerProfilePage() {
                   {partnerProfile.name || user.displayName || 'Partner Profile'}
                 </CardTitle>
                 <div className="flex items-center gap-2 mt-2">
-                    <Badge variant="secondary">{profile?.partnerType}</Badge>
-                    <Badge variant={profile?.status === 'approved' ? 'default' : 'destructive'}>{profile?.status}</Badge>
+                    <Badge variant="secondary">{partnerProfile?.partnerType}</Badge>
+                    <Badge variant={partnerProfile?.status === 'approved' ? 'default' : 'destructive'}>{partnerProfile?.status}</Badge>
                 </div>
               </div>
               <Dialog>
@@ -309,7 +309,7 @@ export default function PartnerProfilePage() {
             </div>
           </CardHeader>
           <CardContent className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <ProfileDetailItem icon={<Mail className="h-5 w-5" />} label="Email" value={profile?.email} loading={isLoading} />
+            <ProfileDetailItem icon={<Mail className="h-5 w-5" />} label="Contact Email" value={profile?.email} loading={isLoading} />
             <ProfileDetailItem icon={<Building className="h-5 w-5" />} label="Business Name" value={partnerProfile.name || 'Not set'} loading={isLoading} />
           </CardContent>
         </Card>
@@ -368,3 +368,5 @@ export default function PartnerProfilePage() {
     </div>
   );
 }
+
+    

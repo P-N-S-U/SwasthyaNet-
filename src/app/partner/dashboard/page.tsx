@@ -29,15 +29,16 @@ export default function PartnerDashboardPage() {
     );
   }
 
-  const isProfileComplete = profile?.profile?.licenseNumber && profile?.profile?.address;
-  const isApproved = profile?.status === 'approved';
+  const partnerProfile = profile?.partnerProfile;
+  const isProfileComplete = partnerProfile?.licenseNumber && partnerProfile?.address;
+  const isApproved = partnerProfile?.status === 'approved';
 
   return (
     <div className="space-y-8">
       <div className="mb-10">
         <h1 className="text-4xl font-bold font-headline">Partner Dashboard</h1>
         <p className="mt-2 text-lg text-foreground/70">
-          Welcome, {profile?.profile?.name || user.displayName || 'Partner'}!
+          Welcome, {partnerProfile?.name || user.displayName || 'Partner'}!
         </p>
       </div>
 
@@ -96,9 +97,11 @@ export default function PartnerDashboardPage() {
              <p className="text-muted-foreground">
                 Upload your business license and other documents for verification.
              </p>
-            <Button size="sm" variant="outline" className="mt-4">
+            <Button asChild size="sm" variant="outline" className="mt-4">
+              <Link href="/partner/profile">
                 <FileText className="mr-2 h-4 w-4" />
-                Upload Documents
+                Manage Documents
+              </Link>
             </Button>
           </CardContent>
         </Card>
@@ -107,3 +110,5 @@ export default function PartnerDashboardPage() {
     </div>
   );
 }
+
+    

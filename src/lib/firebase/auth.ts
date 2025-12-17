@@ -13,7 +13,7 @@ import {
   User,
 } from 'firebase/auth';
 import { auth } from './firebase';
-import { createUserInFirestore } from './firestore';
+import { createUserInFirestore, createPartnerInFirestore } from './firestore';
 
 const actionCodeSettings = {
   url:
@@ -56,7 +56,12 @@ async function createServerSession(user: User) {
   }
 }
 
-export async function signUpWithEmail(email, password, additionalData) {
+export async function signUpWithEmail(
+  email,
+  password,
+  userDocData,
+  partnerDocData = null
+) {
   try {
     const userCredential = await createUserWithEmailAndPassword(
       auth,
@@ -66,10 +71,16 @@ export async function signUpWithEmail(email, password, additionalData) {
     const user = userCredential.user;
 
     await updateProfile(user, {
-      displayName: additionalData.displayName,
+      displayName: userDocData.displayName,
     });
 
-    await createUserInFirestore(user, additionalData);
+    await createUserInFirestore(user, userDocData);
+
+    // If it's a partner, create the partner document as well
+    if (userDocData.role === 'partner' && partnerDocData) {
+      await createPartnerInFirestore(user, partnerDocData);
+    }
+    
     await createServerSession(user);
 
     return { user, error: null };
@@ -131,14 +142,27 @@ export async function completeSignInWithLink(link: string) {
   }
 }
 
-export async function signInWithGoogle(defaultData = {}) {
+export async function signInWithGoogle(userDocData = {}, partnerDocData = null) {
   const provider = new GoogleAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
 
-    const additionalData = { role: 'patient', ...defaultData };
-    await createUserInFirestore(user, additionalData);
+    const finalUserDocData = { role: 'patient', ...userDocData };
+    await createUserInFirestore(user, finalUserDocData);
+    
+    // If it's a partner, create the partner document as well
+    if (finalUserDocData.role === 'partner' && partnerDocData) {
+      // Set name from Google profile if not provided
+      const finalPartnerDocData = {
+          ...partnerDocData,
+          name: partnerDocData.name || user.displayName,
+          address: partnerDocData.address || '',
+      };
+      await createPartnerInFirestore(user, finalPartnerDocData);
+    }
+
+
     await createServerSession(user);
 
     return { user, error: null };
@@ -173,3 +197,5 @@ export async function signOut() {
     return { success: false, error };
   }
 }
+
+    

@@ -4,9 +4,6 @@
 import { revalidatePath } from 'next/cache';
 import { adminDb } from '@/lib/firebase/server-auth';
 import { getSession } from '@/lib/firebase/server-auth';
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { initializeApp, getApps } from 'firebase/app';
-
 
 export async function updateDoctorProfile(prevState: any, formData: FormData) {
   const session = await getSession();
@@ -72,22 +69,22 @@ export async function updatePartnerProfile(prevState: any, formData: FormData) {
   const postalCode = formData.get('postalCode') as string;
   const country = formData.get('country') as string;
 
-  // Construct the full address string from the form parts
   const address = `${street}, ${city}, ${state} ${postalCode}, ${country}`;
 
   try {
-    const userRef = adminDb.collection('users').doc(session.uid);
+    // Partner details are now stored in the 'partners' collection
+    const partnerRef = adminDb.collection('partners').doc(session.uid);
     
-    const profileUpdate: any = {};
-    if (licenseNumber) profileUpdate['profile.licenseNumber'] = licenseNumber;
-    if (contact) profileUpdate['profile.contact'] = contact;
+    const dataToUpdate: any = {};
+    if (licenseNumber) dataToUpdate.licenseNumber = licenseNumber;
+    if (contact) dataToUpdate.contact = contact;
     
     if (street && city && state && postalCode && country) {
-      profileUpdate['profile.address'] = address;
+      dataToUpdate.address = address;
     }
     
-    if (Object.keys(profileUpdate).length > 0) {
-      await userRef.update(profileUpdate);
+    if (Object.keys(dataToUpdate).length > 0) {
+      await partnerRef.update(dataToUpdate);
     }
     
     revalidatePath('/partner/profile');
@@ -116,14 +113,9 @@ export async function savePartnerLocation(location: { lat: number; lng: number }
     }
 
     try {
-        const userRef = adminDb.collection('users').doc(session.uid);
-        // Save the location both at the top level for querying and nested for organization
-        await userRef.update({
-            'profile.location': {
-              lat: location.lat,
-              lng: location.lng
-            },
-            'location': { // New top-level field for querying
+        const partnerRef = adminDb.collection('partners').doc(session.uid);
+        await partnerRef.update({
+            location: {
               lat: location.lat,
               lng: location.lng
             }
@@ -150,10 +142,10 @@ export async function saveDocumentUrl(url: string) {
     }
 
     try {
-        const userRef = adminDb.collection('users').doc(session.uid);
+        const partnerRef = adminDb.collection('partners').doc(session.uid);
         // Save under a `documents` map in the profile
-        await userRef.update({
-            'profile.documents.verification': url
+        await partnerRef.update({
+            'documents.verification': url
         });
 
         revalidatePath('/partner/profile');
@@ -163,3 +155,5 @@ export async function saveDocumentUrl(url: string) {
         return { error: 'Failed to save document URL.' };
     }
 }
+
+    

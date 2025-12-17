@@ -36,12 +36,12 @@ const parseAddress = (fullAddress) => {
     const parts = fullAddress.split(',').map(p => p.trim());
     
     // This is a simple parser and might need to be more robust for real-world addresses
-    const country = parts[parts.length - 1] || '';
-    const stateAndZip = (parts[parts.length - 2] || '').split(' ');
+    const country = parts.length > 1 ? parts[parts.length - 1] : '';
+    const stateAndZip = (parts.length > 2 ? parts[parts.length - 2] : '').split(' ');
     const postalCode = stateAndZip.pop() || '';
     const state = stateAndZip.join(' ');
-    const city = parts[parts.length - 3] || '';
-    const street = parts.slice(0, parts.length - 3).join(', ');
+    const city = parts.length > 3 ? parts[parts.length - 3] : '';
+    const street = parts.slice(0, parts.length - (country ? 3 : 2)).join(', ');
 
     return { street, city, state, postalCode, country };
 }
@@ -75,7 +75,7 @@ export function PartnerProfileForm({ profile, onUpdate }: { profile: any, onUpda
     }
   }, [state, toast, router, onUpdate]);
   
-  const partnerProfile = profile?.profile || {};
+  const partnerProfile = profile?.partnerProfile || {};
   const parsedAddress = parseAddress(partnerProfile.address);
 
   return (
@@ -143,3 +143,5 @@ export function PartnerProfileForm({ profile, onUpdate }: { profile: any, onUpda
     </form>
   );
 }
+
+    
