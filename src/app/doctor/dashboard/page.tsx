@@ -16,6 +16,7 @@ import {
   CheckCircle,
   ChevronDown,
   User,
+  FileText,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
@@ -141,6 +142,8 @@ export default function DoctorDashboardPage() {
       mutate(); // Revert to original data from server
     } else {
       mutate(); // Re-fetch to ensure consistency
+      // Redirect to prescription page
+      router.push(`/doctor/prescriptions/new?appointmentId=${appointmentId}`);
     }
   };
 
@@ -293,6 +296,12 @@ export default function DoctorDashboardPage() {
                         <Link href={`/doctor/patients/${nextAppointment.patientId}`}>
                           <User className="mr-2 h-4 w-4" />
                           View Patient Profile
+                        </Link>
+                      </DropdownMenuItem>
+                       <DropdownMenuItem asChild>
+                        <Link href={`/doctor/prescriptions/new?appointmentId=${nextAppointment.id}`}>
+                          <FileText className="mr-2 h-4 w-4" />
+                          Write Prescription
                         </Link>
                       </DropdownMenuItem>
                     </DropdownMenuContent>

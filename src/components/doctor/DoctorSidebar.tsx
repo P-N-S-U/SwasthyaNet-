@@ -11,6 +11,7 @@ import {
   Stethoscope,
   Users,
   Menu,
+  FileText,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -42,9 +43,9 @@ const getInitials = (name: string | null | undefined) => {
   return name.substring(0, 2).toUpperCase();
 };
 
-const NavLink = ({ href, children, icon: Icon, onClick }) => {
+const NavLink = ({ href, children, icon: Icon, onClick, exact = false }) => {
   const pathname = usePathname();
-  const isActive = pathname === href;
+  const isActive = exact ? pathname === href : pathname.startsWith(href);
 
   return (
     <Link href={href} passHref>
@@ -80,14 +81,17 @@ const NavContent = ({ user, onLinkClick }) => {
         </div>
 
         <nav className="flex-1 space-y-2 overflow-y-auto p-4">
-            <NavLink href="/doctor/dashboard" icon={LayoutDashboard} onClick={onLinkClick}>
-            Dashboard
+            <NavLink href="/doctor/dashboard" icon={LayoutDashboard} onClick={onLinkClick} exact>
+                Dashboard
             </NavLink>
             <NavLink href="/doctor/schedule" icon={Calendar} onClick={onLinkClick}>
-            My Schedule
+                My Schedule
             </NavLink>
             <NavLink href="/doctor/patients" icon={Users} onClick={onLinkClick}>
-            Patients
+                Patients
+            </NavLink>
+            <NavLink href="/doctor/prescriptions/new" icon={FileText} onClick={onLinkClick}>
+                Prescriptions
             </NavLink>
         </nav>
 

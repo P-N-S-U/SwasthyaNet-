@@ -15,7 +15,8 @@ service cloud.firestore {
         && (request.auth.uid == resource.data.patientId 
         || request.auth.uid == resource.data.doctorId);
       allow create: if request.auth != null;
-      allow update, delete: if false;
+      allow update: if request.auth.uid == resource.data.doctorId;
+      allow delete: if false;
     }
     
     match /calls/{callId} {
@@ -24,6 +25,15 @@ service cloud.firestore {
 
     match /calls/{callId}/{subcollection}/{document=**} {
       allow read, write: if request.auth != null;
+    }
+
+    match /prescriptions/{prescriptionId} {
+      allow read: if request.auth != null 
+        && (request.auth.uid == resource.data.patientId 
+        || request.auth.uid == resource.data.doctorId);
+      allow list: if request.auth != null && request.auth.uid == resource.data.doctorId;
+      allow create, update: if request.auth != null && request.auth.uid == request.resource.data.doctorId;
+      allow delete: if false;
     }
   }
 }

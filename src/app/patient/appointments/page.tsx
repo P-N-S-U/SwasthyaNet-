@@ -43,6 +43,7 @@ interface Appointment {
   doctorSpecialization: string;
   appointmentDate: Timestamp;
   status: 'Confirmed' | 'Completed' | 'Cancelled';
+  hasPrescription?: boolean;
 }
 
 const fetcher = async ([path, uid]) => {
@@ -121,9 +122,13 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
         )}
         {appointment.status === 'Completed' && (
           <div className="flex flex-col sm:flex-row gap-2">
-            <Button size="sm" variant="outline" disabled className="w-full sm:w-auto">
-              <FileText className="mr-2 h-4 w-4" /> View Prescription
-            </Button>
+             {appointment.hasPrescription && (
+                 <Button asChild size="sm" variant="default">
+                    <Link href={`/patient/prescriptions/${appointment.id}`}>
+                        <FileText className="mr-2 h-4 w-4" /> View Prescription
+                    </Link>
+                 </Button>
+            )}
             <Button size="sm" variant="outline" disabled className="w-full sm:w-auto">
               <User className="mr-2 h-4 w-4" /> View Doctor's Profile
             </Button>
