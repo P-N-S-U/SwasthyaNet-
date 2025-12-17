@@ -8,12 +8,19 @@ import {
 } from '@/components/ui/card';
 import { adminDb } from '@/lib/firebase/server-auth';
 import { Users, Stethoscope, Building, Calendar } from 'lucide-react';
+import type { Timestamp } from 'firebase-admin/firestore';
+import { AppointmentChart } from '@/components/admin/AppointmentChart';
 
-async function getStats() {
+interface Appointment {
+  id: string;
+  appointmentDate: Timestamp;
+}
+
+async function getDashboardData() {
   const usersPromise = adminDb.collection('users').count().get();
   const doctorsPromise = adminDb.collection('users').where('role', '==', 'doctor').count().get();
   const partnersPromise = adminDb.collection('partners').count().get();
-  const appointmentsPromise = adminDb.collection('appointments').count().get();
+  const appointmentsPromise = adminDb.collection('appointments').get();
 
   const [
     usersSnapshot,
@@ -26,14 +33,46 @@ async function getStats() {
     partnersPromise,
     appointmentsPromise,
   ]);
+  
+  const appointments = appointmentsSnapshot.docs.map(doc => ({
+    id: doc.id,
+    appointmentDate: doc.data().appointmentDate as Timestamp,
+  }));
 
   return {
     totalUsers: usersSnapshot.data().count,
     totalDoctors: doctorsSnapshot.data().count,
     totalPartners: partnersSnapshot.data().count,
-    totalAppointments: appointmentsSnapshot.data().count,
+    totalAppointments: appointments.length,
+    appointments,
   };
 }
+
+const getWeeklyChartData = (appointments: Appointment[] = []) => {
+  const dateRange = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+
+  const dayStrings = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  return dateRange.map(date => {
+    const day = dayStrings[date.getDay()];
+    const appointmentsOnDay = (appointments || []).filter(appt => {
+      if (!appt.appointmentDate) return false;
+      const apptDate = appt.appointmentDate.toDate();
+      return (
+        apptDate.getFullYear() === date.getFullYear() &&
+        apptDate.getMonth() === date.getMonth() &&
+        apptDate.getDate() === date.getDate()
+      );
+    }).length;
+
+    return { day, appointments: appointmentsOnDay };
+  });
+};
+
 
 const StatCard = ({ title, value, icon: Icon }) => (
   <Card className="border-red-500/20 bg-gray-800">
@@ -48,7 +87,8 @@ const StatCard = ({ title, value, icon: Icon }) => (
 );
 
 export default async function AdminDashboardPage() {
-  const stats = await getStats();
+  const data = await getDashboardData();
+  const weeklyChartData = getWeeklyChartData(data.appointments);
 
   return (
     <div className="space-y-8">
@@ -57,29 +97,26 @@ export default async function AdminDashboardPage() {
           Admin Dashboard
         </h1>
         <p className="mt-2 text-lg text-gray-400">
-          An overview of the SwasthyaNet platform.
+          An overview of the SwasthyaNet platform's activity and key metrics.
         </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Total Users" value={stats.totalUsers} icon={Users} />
-        <StatCard title="Total Doctors" value={stats.totalDoctors} icon={Stethoscope} />
-        <StatCard title="Total Partners" value={stats.totalPartners} icon={Building} />
-        <StatCard title="Total Appointments" value={stats.totalAppointments} icon={Calendar} />
+        <StatCard title="Total Users" value={data.totalUsers} icon={Users} />
+        <StatCard title="Total Doctors" value={data.totalDoctors} icon={Stethoscope} />
+        <StatCard title="Total Partners" value={data.totalPartners} icon={Building} />
+        <StatCard title="Total Appointments" value={data.totalAppointments} icon={Calendar} />
       </div>
 
       <Card className="border-red-500/20 bg-gray-800">
         <CardHeader>
-          <CardTitle>Welcome</CardTitle>
+          <CardTitle>Weekly Activity</CardTitle>
           <CardDescription>
-            You are logged in as an administrator.
+            A forecast of scheduled appointments for the upcoming week.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <p>
-            From here, you can manage users, approve partners, and monitor platform activity.
-            Use the sidebar to navigate to different management sections.
-          </p>
+          <AppointmentChart data={weeklyChartData} />
         </CardContent>
       </Card>
     </div>
