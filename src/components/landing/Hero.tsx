@@ -41,7 +41,7 @@ export const Hero = () => {
           <Button asChild size="lg" variant="outline">
             <Link href="/symptom-checker">Check Symptoms</Link>
           </Button>
-           <Button asChild size="lg" variant="secondary" className="hover:bg-secondary/80">
+           <Button asChild size="lg" variant="secondary" className="hover:bg-destructive hover:text-destructive-foreground">
             <Link href="/partners">Join as Healthcare Partner</Link>
           </Button>
         </div>
