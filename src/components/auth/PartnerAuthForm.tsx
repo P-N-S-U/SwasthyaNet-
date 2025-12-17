@@ -66,6 +66,7 @@ const signInSchema = z.object({
 
 const partnerSignUpSchema = z.object({
   businessName: z.string().min(3, { message: 'Business name is required.' }),
+  personalName: z.string().min(3, { message: 'Your full name is required.'}),
   email: z.string().email({ message: 'Invalid email address.' }),
   password: z
     .string()
@@ -106,6 +107,7 @@ export function PartnerAuthForm() {
     resolver: zodResolver(partnerSignUpSchema),
     defaultValues: {
       businessName: '',
+      personalName: '',
       email: '',
       password: '',
       partnerType: 'pharmacy',
@@ -143,7 +145,7 @@ export function PartnerAuthForm() {
 
     // Additional data for the 'users' collection
     const userDocData = {
-      displayName: values.businessName, // Or a personal name if you collect that
+      displayName: values.personalName,
       role: 'partner',
     };
     
@@ -291,24 +293,42 @@ export function PartnerAuthForm() {
           <Form {...signUpForm}>
             <form onSubmit={signUpForm.handleSubmit(handleSignUp)}>
               <CardContent className="space-y-4">
-                
-                <FormField
-                  control={signUpForm.control}
-                  name="businessName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Business Name</FormLabel>
-                      <FormControl>
-                        <Input
-                          placeholder="e.g., City Pharmacy"
-                          {...field}
-                          disabled={isLoading}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                    control={signUpForm.control}
+                    name="businessName"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Business Name</FormLabel>
+                        <FormControl>
+                            <Input
+                            placeholder="e.g., City Pharmacy"
+                            {...field}
+                            disabled={isLoading}
+                            />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                    <FormField
+                    control={signUpForm.control}
+                    name="personalName"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Your Full Name</FormLabel>
+                        <FormControl>
+                            <Input
+                            placeholder="e.g., Ravi Kumar"
+                            {...field}
+                            disabled={isLoading}
+                            />
+                        </FormControl>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                    />
+                </div>
                 <FormField
                   control={signUpForm.control}
                   name="email"
@@ -462,5 +482,3 @@ export function PartnerAuthForm() {
     </Tabs>
   );
 }
-
-    
