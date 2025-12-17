@@ -9,11 +9,11 @@ export const runtime = 'nodejs';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Protect all routes under /admin
-  if (pathname.startsWith('/admin')) {
+  // Protect all routes under /obviouslynotadmins
+  if (pathname.startsWith('/obviouslynotadmins')) {
     const session = await getSession();
     if (!session) {
-      const loginUrl = new URL('/auth', request.url);
+      const loginUrl = new URL('/admin-auth', request.url);
       // Pass the original URL as a 'next' query parameter for redirection after login
       loginUrl.searchParams.set('next', pathname);
       return NextResponse.redirect(loginUrl);
@@ -25,6 +25,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Match all routes under /admin, including the root /admin page
-  matcher: ['/admin/:path*'],
+  // Match all routes under /obviouslynotadmins, including the root /obviouslynotadmins page
+  matcher: ['/obviouslynotadmins/:path*'],
 };

@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -64,14 +65,14 @@ const NavContent = ({ user, onLinkClick }) => {
   return (
     <>
       <div className="flex h-16 items-center border-b border-border/60 px-6">
-        <Link href="/admin/partners" className="flex items-center gap-2">
+        <Link href="/obviouslynotadmins/partners" className="flex items-center gap-2">
           <Stethoscope className="h-6 w-6 text-primary" />
           <span className="font-bold">Admin Panel</span>
         </Link>
       </div>
 
       <nav className="flex-1 space-y-2 overflow-y-auto p-4">
-        <NavLink href="/admin/partners" icon={Building} onClick={onLinkClick}>
+        <NavLink href="/obviouslynotadmins/partners" icon={Building} onClick={onLinkClick}>
           Partners
         </NavLink>
         <NavLink href="#" icon={Users} onClick={onLinkClick}>
