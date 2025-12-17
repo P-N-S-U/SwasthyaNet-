@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Building, TestTube, Truck, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import Image from 'next/image';
 
 const benefits = [
   {
@@ -30,8 +31,18 @@ export default function PartnersPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <PartnerHeader />
       <main className="flex-grow">
-        <section className="bg-secondary/30 py-20 md:py-32">
-          <div className="container text-center">
+        <section className="relative bg-secondary/30 py-20 md:py-32">
+           <div className="absolute inset-0">
+            <Image
+              src="https://images.unsplash.com/photo-1576671081833-0935a4a7543a?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+              alt="A modern pharmacy"
+              fill
+              className="object-cover"
+              data-ai-hint="modern pharmacy"
+            />
+            <div className="absolute inset-0 bg-black/60" />
+          </div>
+          <div className="container relative text-center">
             <h1 className="text-4xl font-bold tracking-tighter text-primary font-headline md:text-5xl">
               Partner with SwasthyaNet
             </h1>
