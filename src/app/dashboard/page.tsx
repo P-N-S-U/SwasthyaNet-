@@ -25,7 +25,11 @@ export default function DashboardRedirectPage() {
       if (role === 'doctor') {
         setStatus('Redirecting to doctor dashboard...');
         router.replace('/doctor/dashboard');
-      } else {
+      } else if (role === 'partner') {
+        setStatus('Redirecting to partner dashboard...');
+        router.replace('/partner/dashboard');
+      }
+      else {
         setStatus('Redirecting to patient dashboard...');
         router.replace('/patient/dashboard');
       }

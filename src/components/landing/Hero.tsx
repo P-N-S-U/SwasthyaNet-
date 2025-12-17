@@ -30,7 +30,7 @@ export const Hero = () => {
           at your fingertips. Connect with top doctors, get instant
           consultations, and manage your health journey with ease.
         </p>
-        <div className="mt-8 flex justify-center gap-4">
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
           <Button
             asChild
             size="lg"
@@ -40,6 +40,9 @@ export const Hero = () => {
           </Button>
           <Button asChild size="lg" variant="outline">
             <Link href="/symptom-checker">Check Symptoms</Link>
+          </Button>
+           <Button asChild size="lg" variant="secondary">
+            <Link href="/partners">Join as Healthcare Partner</Link>
           </Button>
         </div>
         <div className="mt-16 md:mt-24">

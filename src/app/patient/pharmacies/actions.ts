@@ -1,4 +1,5 @@
 'use server';
+import { adminDb } from '@/lib/firebase/server-auth';
 
 interface Location {
   lat: number;
@@ -10,36 +11,31 @@ export async function findNearbyPharmacies(location: Location | null) {
     return { error: 'User location is not available.' };
   }
 
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  if (!apiKey) {
-    console.error('[Google Places API] API key is missing.');
-    return { error: 'Google Maps API key is missing on the server.' };
-  }
-
-  const { lat, lng } = location;
-  const radius = 5000; // 5km
-  const type = 'pharmacy';
-  
-  const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radius}&type=${type}&key=${apiKey}`;
-
   try {
-    const response = await fetch(url);
-    const data = await response.json();
+    const partnersRef = adminDb.collection('users');
+    const q = partnersRef
+      .where('role', '==', 'partner')
+      .where('partnerType', '==', 'pharmacy')
+      .where('status', '==', 'approved');
     
-    if (data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
-        console.error('[Google Places API Error]', data);
-        throw new Error(data.error_message || `Google Places API returned status: ${data.status}`);
+    const snapshot = await q.get();
+
+    if (snapshot.empty) {
+      return { data: [] };
     }
-    
-    const pharmacies = (data.results || []).map((p: any) => ({
-        id: p.place_id,
-        name: p.name,
-        lat: p.geometry.location.lat,
-        lng: p.geometry.location.lng,
-        address: p.vicinity,
-    }));
-    
-    console.log(`[Server Action] Found ${pharmacies.length} pharmacies.`);
+
+    const pharmacies = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.profile?.name || 'Unnamed Pharmacy',
+        lat: data.profile?.location?.lat || 0,
+        lng: data.profile?.location?.lng || 0,
+        address: data.profile?.address || 'Address not available',
+      };
+    }).filter(p => p.lat !== 0 && p.lng !== 0); // Filter out pharmacies without a location
+
+    console.log(`[Server Action] Found ${pharmacies.length} approved pharmacies.`);
     return { data: pharmacies };
 
   } catch (e: any) {

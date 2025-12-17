@@ -14,7 +14,7 @@ import type { User } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
 
-export function UpdateProfileForm({ user }: { user: User }) {
+export function UpdateProfileForm({ user, onUpdate }: { user: User, onUpdate?: () => void }) {
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -39,15 +39,28 @@ export function UpdateProfileForm({ user }: { user: User }) {
 
         // 2. Update Firestore document
         const userRef = doc(db, 'users', user.uid);
-        await updateDoc(userRef, { displayName, photoURL });
+        const dataToUpdate: any = { displayName, photoURL };
+
+        // For partners, we also need to update the nested profile.name
+        const docSnap = (await import('firebase/firestore')).getDoc(userRef);
+        const role = (await docSnap).data()?.role;
+        if(role === 'partner') {
+          dataToUpdate['profile.name'] = displayName;
+        }
+
+        await updateDoc(userRef, dataToUpdate);
         
         toast({
             title: 'Success!',
             description: 'Your profile has been updated.',
         });
         
-        // Refresh the page to show new details
+        // Use the callback if provided, otherwise refresh the router
+        if (onUpdate) {
+            onUpdate();
+        }
         router.refresh();
+
 
         // Close the dialog by finding a close button and clicking it
         const closeButton = document.querySelector('[data-radix-dialog-close]') as HTMLElement | null;
@@ -71,7 +84,7 @@ export function UpdateProfileForm({ user }: { user: User }) {
     <form onSubmit={handleSubmit}>
       <div className="space-y-6 py-4">
         <div className="space-y-2">
-          <Label htmlFor="displayName">Full Name</Label>
+          <Label htmlFor="displayName">Full Name / Business Name</Label>
           <Input
             id="displayName"
             name="displayName"

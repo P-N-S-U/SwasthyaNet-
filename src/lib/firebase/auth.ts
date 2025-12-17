@@ -131,13 +131,13 @@ export async function completeSignInWithLink(link: string) {
   }
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(defaultData = {}) {
   const provider = new GoogleAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
 
-    const additionalData = { role: 'patient' };
+    const additionalData = { role: 'patient', ...defaultData };
     await createUserInFirestore(user, additionalData);
     await createServerSession(user);
 
