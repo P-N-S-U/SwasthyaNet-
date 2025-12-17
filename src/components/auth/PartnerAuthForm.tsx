@@ -40,6 +40,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { Textarea } from '../ui/textarea';
 
 const GoogleIcon = () => (
   <svg
@@ -75,6 +76,7 @@ const partnerSignUpSchema = z.object({
   partnerType: z.enum(['pharmacy', 'diagnostic_lab', 'home_care'], {
     required_error: 'You need to select a business type.',
   }),
+  address: z.string().min(10, { message: 'A full address is required.' }),
 });
 
 export function PartnerAuthForm() {
@@ -104,6 +106,7 @@ export function PartnerAuthForm() {
       email: '',
       password: '',
       partnerType: 'pharmacy',
+      address: '',
     },
   });
 
@@ -137,7 +140,7 @@ export function PartnerAuthForm() {
         name: values.businessName,
         licenseNumber: '',
         contact: '',
-        address: '',
+        address: values.address,
         location: null
       }
     });
@@ -349,6 +352,24 @@ export function PartnerAuthForm() {
                     <FormMessage />
                     </FormItem>
                 )}
+                />
+                 <FormField
+                  control={signUpForm.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full Business Address</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Enter the full address of your business"
+                          className="resize-none"
+                          {...field}
+                          disabled={isLoading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
             </CardContent>
             <CardFooter>
