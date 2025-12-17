@@ -32,7 +32,7 @@ export default async function AdminLayout({
 }) {
   const session = await getSession();
   if (!session) {
-    redirect('/auth?next=/admin');
+    redirect('/admin-auth?next=/obviouslynotadmins');
   }
 
   const isAdmin = await verifyAdminAccess();
