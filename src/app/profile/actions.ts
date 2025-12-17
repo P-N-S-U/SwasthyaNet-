@@ -117,9 +117,10 @@ export async function savePartnerLocation(location: { lat: number; lng: number }
     try {
         const userRef = adminDb.collection('users').doc(session.uid);
         await userRef.update({
-            'profile.location': new FieldValue.serverTimestamp(), // Using FieldValue for geopoint
-            'profile.location.lat': location.lat,
-            'profile.location.lng': location.lng
+            'profile.location': {
+              lat: location.lat,
+              lng: location.lng
+            }
         });
         
         revalidatePath('/partner/profile');
