@@ -1,6 +1,4 @@
 // /src/lib/firebase/server-auth.ts
-'use server';
-
 import 'server-only';
 import { cookies } from 'next/headers';
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
