@@ -1,3 +1,4 @@
+
 import {
   Table,
   TableBody,
@@ -9,7 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { adminDb } from '@/lib/firebase/server-auth';
-import { collection, getDocs, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, orderBy, Timestamp, query } from 'firebase/firestore';
 import {
   FileBadge,
   CheckCircle,
@@ -101,7 +102,7 @@ export default async function AdminPartnersPage() {
                   <TableRow key={partner.id}>
                     <TableCell className="font-medium">{partner.name}</TableCell>
                     <TableCell className="capitalize">
-                      {partner.partnerType.replace('_', ' ')}
+                      {partner.partnerType ? partner.partnerType.replace('_', ' ') : 'N/A'}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">

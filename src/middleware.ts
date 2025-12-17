@@ -1,3 +1,4 @@
+
 // src/middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
@@ -17,6 +18,7 @@ export async function middleware(request: NextRequest) {
       loginUrl.searchParams.set('next', pathname);
       return NextResponse.redirect(loginUrl);
     }
+    // The role-based check is now handled in the AdminLayout
   }
 
   return NextResponse.next();
