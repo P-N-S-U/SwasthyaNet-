@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -81,7 +80,6 @@ export function PharmacyFinder() {
               }))
               .sort((a, b) => (a.distance || 0) - (b.distance || 0));
             
-            console.log("[PharmacyFinder] Final processed data for rendering:", locationsWithDistance);
             setPharmacies(locationsWithDistance);
         }
         setIsFetchingPharmacies(false);
@@ -120,14 +118,14 @@ export function PharmacyFinder() {
           <MapWrapper userLocation={userLocation} pharmacies={pharmacies} />
           
           {loadingLocation && (
-             <div className="absolute inset-0 z-10 flex h-full items-center justify-center bg-background/70 backdrop-blur-sm">
+             <div className="absolute inset-0 z-20 flex h-full items-center justify-center bg-background/70 backdrop-blur-sm">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="ml-2">Getting your location...</p>
               </div>
           )}
 
           {!loadingLocation && error && !userLocation && (
-             <div className="absolute inset-0 z-10 flex h-full items-center justify-center bg-background/70 backdrop-blur-sm p-4">
+             <div className="absolute inset-0 z-20 flex h-full items-center justify-center bg-background/70 backdrop-blur-sm p-4">
                 <Alert variant="destructive">
                 <AlertTitle>Location Error</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
@@ -178,7 +176,7 @@ export function PharmacyFinder() {
               </ul>
             ) : (
                 <p className="pt-10 text-center text-sm text-muted-foreground">
-                    {error ? error : !userLocation && !loadingLocation ? "Cannot search for pharmacies without your location." : "No pharmacies found nearby."}
+                    {error ? error : !userLocation && !loadingLocation ? "Cannot search for pharmacies without your location." : "No approved pharmacies found nearby."}
                 </p>
             )}
           </CardContent>

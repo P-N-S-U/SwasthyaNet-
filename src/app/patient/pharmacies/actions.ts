@@ -35,10 +35,9 @@ export async function findNearbyPharmacies(location: Location | null) {
       };
     }).filter(p => p.lat !== 0 && p.lng !== 0); // Filter out pharmacies without a location
 
-    console.log(`[Server Action] Found ${pharmacies.length} approved pharmacies.`);
     return { data: pharmacies };
 
-  } catch (e: any) {
+  } catch (e: any) => {
     console.error('Error in findNearbyPharmacies action:', e);
     return { error: 'Could not fetch location data. Please try again later.' };
   }
