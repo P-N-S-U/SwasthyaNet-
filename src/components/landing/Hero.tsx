@@ -46,7 +46,7 @@ export const Hero = () => {
           </div>
           <div className="mt-4">
              <Link href="/partners" className="group inline-flex items-center text-sm text-muted-foreground transition-colors hover:text-foreground">
-                Are you a healthcare provider? Join our network <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+                Are you a Pharmacy or Lab? Join our network <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
              </Link>
           </div>
         </div>
