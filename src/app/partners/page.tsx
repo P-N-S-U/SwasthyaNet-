@@ -34,7 +34,11 @@ export default function PartnersPage() {
         <section className="relative bg-secondary/30 py-20 md:py-32">
            <div className="absolute inset-0 h-full w-full bg-background [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"></div>
            <div className="absolute inset-0 h-full w-full bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-          <div className="container relative z-10 text-center">
+            <div
+              className="absolute inset-x-0 top-1/2 z-0 h-64 -translate-y-1/2 opacity-25 [mask-image:radial-gradient(50%_50%_at_50%_50%,#007BFF_0%,transparent_100%)]"
+              style={{ background: 'radial-gradient(circle, hsl(var(--primary)), transparent 60%)' }}
+            ></div>
+           <div className="container relative z-10 text-center">
             <h1 className="text-4xl font-bold tracking-tighter text-foreground font-headline md:text-5xl">
               Partner with SwasthyaNet
             </h1>
