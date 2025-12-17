@@ -17,7 +17,9 @@ export async function findNearbyPharmacies(location: Location | null) {
       .where('role', '==', 'partner')
       .where('partnerType', '==', 'pharmacy')
       .where('status', '==', 'approved')
-      .where('location', '!=', null); // Query for the existence of the top-level location field
+      // This is a standard Firestore workaround to check if a map field exists.
+      // We are querying for documents where the location map is greater than a very small value.
+      .where('location', '>', { lat: -Infinity, lng: -Infinity });
     
     const snapshot = await q.get();
 
@@ -30,16 +32,16 @@ export async function findNearbyPharmacies(location: Location | null) {
       return {
         id: doc.id,
         name: data.profile?.name || 'Unnamed Pharmacy',
-        // Use the top-level location for consistency, with fallback to nested
-        lat: data.location?.lat || data.profile?.location?.lat || 0,
-        lng: data.location?.lng || data.profile?.location?.lng || 0,
+        // Use the top-level location for consistency
+        lat: data.location?.lat || 0,
+        lng: data.location?.lng || 0,
         address: data.profile?.address || 'Address not available',
       };
     }).filter(p => p.lat !== 0 && p.lng !== 0); // Filter out pharmacies without a valid location
 
     return { data: pharmacies };
 
-  } catch (e) {
+  } catch (e: any) {
     console.error('Error in findNearbyPharmacies action:', e);
     return { error: 'Could not fetch location data. Please try again later.' };
   }
