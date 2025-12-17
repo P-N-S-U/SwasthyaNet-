@@ -10,9 +10,9 @@ async function geocodeAddress(address: string): Promise<{ lat: number; lng: numb
   console.log(`[Geocoding Placeholder] "Geocoding" address: ${address}`);
   // This is a placeholder. In a real application, you would use an API 
   // to convert the address string into latitude and longitude.
-  // For now, we'll return a fixed location for demonstration purposes if the address is "123 Main St".
+  // For now, we'll return a fixed location for demonstration purposes if the address contains '123 Main St'.
   if (address.toLowerCase().includes('123 main st')) {
-    console.log('[Geocoding Placeholder] Matched placeholder address. Returning fixed coordinates.');
+    console.log('[Geocoding Placeholder] Matched placeholder address. Returning fixed coordinates for LA.');
     return { lat: 34.0522, lng: -118.2437 }; // Example: Los Angeles City Hall
   }
 
@@ -98,7 +98,14 @@ export async function updatePartnerProfile(prevState: any, formData: FormData) {
   
   const licenseNumber = formData.get('licenseNumber') as string;
   const contact = formData.get('contact') as string;
-  const address = formData.get('address') as string;
+  const street = formData.get('street') as string;
+  const city = formData.get('city') as string;
+  const state = formData.get('state') as string;
+  const postalCode = formData.get('postalCode') as string;
+  const country = formData.get('country') as string;
+
+  // Construct the full address string from the form parts
+  const address = `${street}, ${city}, ${state} ${postalCode}, ${country}`;
 
   try {
     const userRef = adminDb.collection('users').doc(session.uid);
@@ -109,7 +116,7 @@ export async function updatePartnerProfile(prevState: any, formData: FormData) {
     
     if (address) {
       profileUpdate['profile.address'] = address;
-      // Geocode the address to get lat/lng
+      // Geocode the full address string to get lat/lng
       const location = await geocodeAddress(address);
       if (location) {
         profileUpdate['profile.location'] = location;

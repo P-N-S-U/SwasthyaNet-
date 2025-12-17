@@ -40,7 +40,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { Textarea } from '../ui/textarea';
 
 const GoogleIcon = () => (
   <svg
@@ -62,9 +61,7 @@ const GoogleIcon = () => (
 
 const signInSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
-  password: z
-    .string()
-    .min(1, { message: 'Password is required.' }),
+  password: z.string().min(1, { message: 'Password is required.' }),
 });
 
 const partnerSignUpSchema = z.object({
@@ -76,7 +73,11 @@ const partnerSignUpSchema = z.object({
   partnerType: z.enum(['pharmacy', 'diagnostic_lab', 'home_care'], {
     required_error: 'You need to select a business type.',
   }),
-  address: z.string().min(10, { message: 'A full address is required.' }),
+  street: z.string().min(3, { message: 'Street address is required.' }),
+  city: z.string().min(2, { message: 'City is required.' }),
+  state: z.string().min(2, { message: 'State or province is required.' }),
+  postalCode: z.string().min(3, { message: 'Postal code is required.' }),
+  country: z.string().min(2, { message: 'Country is required.' }),
 });
 
 export function PartnerAuthForm() {
@@ -85,7 +86,9 @@ export function PartnerAuthForm() {
   const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = React.useState(false);
 
-  const [activeTab, setActiveTab] = useState(searchParams.get('action') || 'signin');
+  const [activeTab, setActiveTab] = useState(
+    searchParams.get('action') || 'signin'
+  );
 
   useEffect(() => {
     const action = searchParams.get('action');
@@ -98,7 +101,7 @@ export function PartnerAuthForm() {
     resolver: zodResolver(signInSchema),
     defaultValues: { email: '', password: '' },
   });
-  
+
   const signUpForm = useForm<z.infer<typeof partnerSignUpSchema>>({
     resolver: zodResolver(partnerSignUpSchema),
     defaultValues: {
@@ -106,7 +109,11 @@ export function PartnerAuthForm() {
       email: '',
       password: '',
       partnerType: 'pharmacy',
-      address: '',
+      street: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      country: '',
     },
   });
 
@@ -122,7 +129,7 @@ export function PartnerAuthForm() {
     } else {
       toast({
         title: 'Signed In Successfully',
-        description: "Welcome back!",
+        description: 'Welcome back!',
       });
       router.push('/dashboard');
     }
@@ -131,6 +138,9 @@ export function PartnerAuthForm() {
 
   const handleSignUp = async (values: z.infer<typeof partnerSignUpSchema>) => {
     setIsLoading(true);
+
+    const fullAddress = `${values.street}, ${values.city}, ${values.state} ${values.postalCode}, ${values.country}`;
+
     const { error } = await signUpWithEmail(values.email, values.password, {
       displayName: values.businessName,
       role: 'partner',
@@ -140,9 +150,9 @@ export function PartnerAuthForm() {
         name: values.businessName,
         licenseNumber: '',
         contact: '',
-        address: values.address,
-        location: null
-      }
+        address: fullAddress,
+        location: null,
+      },
     });
 
     if (error) {
@@ -154,7 +164,7 @@ export function PartnerAuthForm() {
     } else {
       toast({
         title: 'Account Created',
-        description: "Welcome! Your account is pending approval.",
+        description: 'Welcome! Your account is pending approval.',
       });
       router.push('/dashboard');
     }
@@ -164,9 +174,9 @@ export function PartnerAuthForm() {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     const { error, user } = await signInWithGoogle({
-        role: 'partner',
-        partnerType: 'pharmacy', // Default for Google Sign in
-        status: 'pending'
+      role: 'partner',
+      partnerType: 'pharmacy', // Default for Google Sign in
+      status: 'pending',
     });
     if (error) {
       toast({
@@ -177,13 +187,13 @@ export function PartnerAuthForm() {
     } else {
       toast({
         title: 'Account Created',
-        description: "Welcome! Your account is pending approval.",
+        description: 'Welcome! Your account is pending approval.',
       });
       router.push('/dashboard');
     }
     setIsLoading(false);
   };
-  
+
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <TabsList className="grid w-full grid-cols-2">
@@ -243,7 +253,9 @@ export function PartnerAuthForm() {
                   type="submit"
                   disabled={isLoading}
                 >
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isLoading && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
                   Sign In
                 </Button>
               </CardFooter>
@@ -253,116 +265,51 @@ export function PartnerAuthForm() {
       </TabsContent>
       <TabsContent value="signup">
         <Card className="border-none bg-secondary/50">
-        <CardHeader>
-            <CardTitle className="font-headline">Create a Partner Account</CardTitle>
-            <CardDescription>Join the SwasthyaNet network to reach more patients.</CardDescription>
-        </CardHeader>
-        <Form {...signUpForm}>
+          <CardHeader>
+            <CardTitle className="font-headline">
+              Create a Partner Account
+            </CardTitle>
+            <CardDescription>
+              Join the SwasthyaNet network to reach more patients.
+            </CardDescription>
+          </CardHeader>
+          <Form {...signUpForm}>
             <form onSubmit={signUpForm.handleSubmit(handleSignUp)}>
-            <CardContent className="space-y-4">
+              <CardContent className="space-y-4">
                 <Button
-                variant="outline"
-                className="w-full"
-                onClick={handleGoogleSignIn}
-                disabled={isLoading}
-                type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleGoogleSignIn}
+                  disabled={isLoading}
+                  type="button"
                 >
-                {isLoading ? <Loader2 className="animate-spin" /> : <><GoogleIcon /> Sign up with Google</>}
+                  {isLoading ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <>
+                      <GoogleIcon /> Sign up with Google
+                    </>
+                  )}
                 </Button>
                 <div className="relative">
-                <div className="absolute inset-0 flex items-center">
+                  <div className="absolute inset-0 flex items-center">
                     <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
                     <span className="bg-secondary/50 px-2 text-muted-foreground">
-                    Or continue with
+                      Or continue with
                     </span>
+                  </div>
                 </div>
-                </div>
                 <FormField
-                control={signUpForm.control}
-                name="businessName"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Business Name</FormLabel>
-                    <FormControl>
-                        <Input
-                        placeholder="e.g., City Pharmacy"
-                        {...field}
-                        disabled={isLoading}
-                        />
-                    </FormControl>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-                <FormField
-                control={signUpForm.control}
-                name="email"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Business Email</FormLabel>
-                    <FormControl>
-                        <Input
-                        type="email"
-                        placeholder="contact@mypharmacy.com"
-                        {...field}
-                        disabled={isLoading}
-                        />
-                    </FormControl>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-                <FormField
-                control={signUpForm.control}
-                name="password"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                        <Input
-                        type="password"
-                        {...field}
-                        disabled={isLoading}
-                        />
-                    </FormControl>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-                <FormField
-                control={signUpForm.control}
-                name="partnerType"
-                render={({ field }) => (
-                    <FormItem>
-                    <FormLabel>Business Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isLoading}>
-                        <FormControl>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select your business type" />
-                        </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                        <SelectItem value="pharmacy">Pharmacy</SelectItem>
-                        <SelectItem value="diagnostic_lab">Diagnostic Lab</SelectItem>
-                        <SelectItem value="home_care">Home Care Service</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <FormMessage />
-                    </FormItem>
-                )}
-                />
-                 <FormField
                   control={signUpForm.control}
-                  name="address"
+                  name="businessName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Full Business Address</FormLabel>
+                      <FormLabel>Business Name</FormLabel>
                       <FormControl>
-                        <Textarea
-                          placeholder="Enter the full address of your business"
-                          className="resize-none"
+                        <Input
+                          placeholder="e.g., City Pharmacy"
                           {...field}
                           disabled={isLoading}
                         />
@@ -371,19 +318,154 @@ export function PartnerAuthForm() {
                     </FormItem>
                   )}
                 />
-            </CardContent>
-            <CardFooter>
+                <FormField
+                  control={signUpForm.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Business Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="contact@mypharmacy.com"
+                          {...field}
+                          disabled={isLoading}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={signUpForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" {...field} disabled={isLoading} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={signUpForm.control}
+                  name="partnerType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Business Type</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        disabled={isLoading}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select your business type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="pharmacy">Pharmacy</SelectItem>
+                          <SelectItem value="diagnostic_lab">
+                            Diagnostic Lab
+                          </SelectItem>
+                          <SelectItem value="home_care">
+                            Home Care Service
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="space-y-2 rounded-lg border border-border bg-background/30 p-4">
+                  <h4 className="font-medium text-sm">Business Address</h4>
+                  <FormField
+                    control={signUpForm.control}
+                    name="street"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Street Address</FormLabel>
+                        <FormControl>
+                          <Input placeholder="123 Main St" {...field} disabled={isLoading} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={signUpForm.control}
+                      name="city"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>City</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Mumbai" {...field} disabled={isLoading} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={signUpForm.control}
+                      name="state"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>State / Province</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Maharashtra" {...field} disabled={isLoading} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                   <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={signUpForm.control}
+                      name="postalCode"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Postal Code</FormLabel>
+                          <FormControl>
+                            <Input placeholder="400001" {...field} disabled={isLoading} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                     <FormField
+                      control={signUpForm.control}
+                      name="country"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Country</FormLabel>
+                          <FormControl>
+                            <Input placeholder="India" {...field} disabled={isLoading} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter>
                 <Button
-                className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
-                type="submit"
-                disabled={isLoading}
+                  className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+                  type="submit"
+                  disabled={isLoading}
                 >
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Create Account
+                  {isLoading && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  Create Account
                 </Button>
-            </CardFooter>
+              </CardFooter>
             </form>
-        </Form>
+          </Form>
         </Card>
       </TabsContent>
     </Tabs>
