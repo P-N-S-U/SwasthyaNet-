@@ -148,14 +148,13 @@ const VerificationCard = ({ profile, mutate }) => {
                     <p className="text-sm text-muted-foreground">Upload a photo of your business license and shop front.</p>
                 </div>
                 <div className="mt-3 sm:mt-0 flex items-center gap-2">
-                    <Input id="picture" type="file" className="w-full sm:w-auto" disabled />
-                    <Button disabled>
+                    <Input id="picture" type="file" className="w-full sm:w-auto" />
+                    <Button>
                         <UploadCloud className="mr-2 h-4 w-4" />
                         Upload
                     </Button>
                  </div>
             </div>
-             <p className="text-xs text-muted-foreground mt-2">Note: File upload is for demonstration purposes and is currently disabled.</p>
         </div>
         
       </CardContent>
