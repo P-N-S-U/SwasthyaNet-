@@ -1,14 +1,18 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, List, Navigation } from 'lucide-react';
+import { Loader2, List, Navigation, Pill } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 import { findNearbyPharmacies } from '@/app/patient/pharmacies/actions';
 import { haversineDistance } from '@/lib/utils';
+import L from 'leaflet';
+import { renderToStaticMarkup } from 'react-dom/server';
+
 
 const MapWrapper = dynamic(() => import('./MapWrapper'), {
   ssr: false,
@@ -29,6 +33,21 @@ interface Location {
   lng: number;
 }
 
+const createPharmacyIcon = () => {
+  const iconMarkup = renderToStaticMarkup(
+     <div className="rounded-full bg-primary p-2 text-white shadow-lg">
+      <Pill className="h-5 w-5" />
+    </div>
+  );
+  return new L.DivIcon({
+    html: iconMarkup,
+    className: 'bg-transparent border-0',
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32],
+  });
+};
+
 
 export function PharmacyFinder() {
   const [userLocation, setUserLocation] = useState<Location | null>(null);
@@ -36,6 +55,30 @@ export function PharmacyFinder() {
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [isFetchingPharmacies, setIsFetchingPharmacies] = useState(false);
+  
+  const pharmacyIcon = createPharmacyIcon();
+
+  const fetchAndSetPharmacies = useCallback(async (location: Location) => {
+    setIsFetchingPharmacies(true);
+    setError(null);
+    
+    const result = await findNearbyPharmacies(location);
+
+    if (result.error) {
+        setError(result.error);
+        setPharmacies([]);
+    } else if (result.data) {
+        const locationsWithDistance = result.data
+          .map(p => ({
+              ...p,
+              distance: haversineDistance(location, { lat: p.lat, lng: p.lng }),
+          }))
+          .sort((a, b) => (a.distance || 0) - (b.distance || 0));
+        
+        setPharmacies(locationsWithDistance);
+    }
+    setIsFetchingPharmacies(false);
+  }, []);
 
   useEffect(() => {
     if ('geolocation' in navigator) {
@@ -47,6 +90,7 @@ export function PharmacyFinder() {
           };
           setUserLocation(location);
           setLoadingLocation(false);
+          fetchAndSetPharmacies(location);
         },
         err => {
           setError(
@@ -59,34 +103,8 @@ export function PharmacyFinder() {
       setError('Geolocation is not supported by your browser.');
       setLoadingLocation(false);
     }
-  }, []);
+  }, [fetchAndSetPharmacies]);
 
-  useEffect(() => {
-    if (userLocation) {
-      const fetchAndSetPharmacies = async () => {
-        setIsFetchingPharmacies(true);
-        setError(null);
-        
-        const result = await findNearbyPharmacies(userLocation);
-
-        if (result.error) {
-            setError(result.error);
-            setPharmacies([]);
-        } else if (result.data) {
-            const locationsWithDistance = result.data
-              .map(p => ({
-                  ...p,
-                  distance: haversineDistance(userLocation, { lat: p.lat, lng: p.lng }),
-              }))
-              .sort((a, b) => (a.distance || 0) - (b.distance || 0));
-            
-            setPharmacies(locationsWithDistance);
-        }
-        setIsFetchingPharmacies(false);
-      };
-      fetchAndSetPharmacies();
-    }
-  }, [userLocation]);
 
   const openInGoogleMaps = (lat: number, lng: number) => {
     window.open(
@@ -115,7 +133,7 @@ export function PharmacyFinder() {
   return (
     <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
       <div className="relative h-[400px] md:h-[500px] overflow-hidden rounded-lg border border-border/30 bg-background md:col-span-2">
-          <MapWrapper userLocation={userLocation} pharmacies={pharmacies} />
+          <MapWrapper userLocation={userLocation} pharmacies={pharmacies} pharmacyIcon={pharmacyIcon} />
           
           {loadingLocation && (
              <div className="absolute inset-0 z-20 flex h-full items-center justify-center bg-background/70 backdrop-blur-sm">

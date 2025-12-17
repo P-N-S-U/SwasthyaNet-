@@ -49,7 +49,7 @@ const UserMarker = ({ userLocation }: any) => {
     )
 }
 
-export default function MapWrapper({ userLocation, pharmacies }: any) {
+export default function MapWrapper({ userLocation, pharmacies, pharmacyIcon }: any) {
   return (
     <div id="map-container" className="h-full w-full rounded-md z-10">
       <MapContainer
@@ -62,7 +62,7 @@ export default function MapWrapper({ userLocation, pharmacies }: any) {
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <UserMarker userLocation={userLocation} />
         {pharmacies?.map((p: any) => (
-          <Marker key={p.id} position={[p.lat, p.lng]}>
+          <Marker key={p.id} position={[p.lat, p.lng]} icon={pharmacyIcon}>
             <Popup>
               <b>{p.name}</b>
               <br />
