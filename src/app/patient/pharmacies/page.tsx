@@ -7,26 +7,7 @@ import dynamic from 'next/dynamic';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-
-const PharmacyFinder = dynamic(
-  () =>
-    import('@/components/patient/PharmacyFinder').then(
-      mod => mod.PharmacyFinder
-    ),
-  {
-    loading: () => (
-      <div className="flex flex-col gap-8">
-        <Skeleton className="h-[300px] w-full md:h-[500px]" />
-        <div className="space-y-4">
-          <Skeleton className="h-20 w-full" />
-          <Skeleton className="h-20 w-full" />
-          <Skeleton className="h-20 w-full" />
-        </div>
-      </div>
-    ),
-    ssr: false,
-  }
-);
+import { PharmacyFinder } from '@/components/patient/PharmacyFinder';
 
 export default function PharmaciesPage() {
   return (

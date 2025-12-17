@@ -15,7 +15,7 @@ export async function findNearbyPharmacies(location: Location | null) {
     const partnersRef = adminDb.collection('users');
     const q = partnersRef
       .where('role', '==', 'partner')
-      .where('partnerType', '==', 'pharmacy')
+      .where('partnerType', '==', 'pharmacy') // Corrected to lowercase 'pharmacy'
       .where('status', '==', 'approved');
     
     const snapshot = await q.get();
