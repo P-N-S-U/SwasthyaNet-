@@ -34,8 +34,9 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Stethoscope, User } from 'lucide-react';
 import React from 'react';
+import { cn } from '@/lib/utils';
 
 const GoogleIcon = () => (
   <svg
@@ -352,24 +353,42 @@ export function AuthForm() {
                         <RadioGroup
                           onValueChange={field.onChange}
                           defaultValue={field.value}
-                          className="flex space-x-4"
+                          className="grid grid-cols-2 gap-4"
                           disabled={isLoading}
                         >
-                          <FormItem className="flex items-center space-x-2 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value="patient" />
-                            </FormControl>
-                            <FormLabel className="font-normal">
+                          <FormItem>
+                            <Label
+                              htmlFor="role-patient"
+                              className={cn(
+                                'flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary',
+                                'cursor-pointer'
+                              )}
+                            >
+                              <RadioGroupItem
+                                value="patient"
+                                id="role-patient"
+                                className="peer sr-only"
+                              />
+                              <User className="mb-3 h-6 w-6" />
                               Patient
-                            </FormLabel>
+                            </Label>
                           </FormItem>
-                          <FormItem className="flex items-center space-x-2 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value="doctor" />
-                            </FormControl>
-                            <FormLabel className="font-normal">
+                          <FormItem>
+                            <Label
+                              htmlFor="role-doctor"
+                              className={cn(
+                                'flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary',
+                                'cursor-pointer'
+                              )}
+                            >
+                              <RadioGroupItem
+                                value="doctor"
+                                id="role-doctor"
+                                className="peer sr-only"
+                              />
+                              <Stethoscope className="mb-3 h-6 w-6" />
                               Doctor
-                            </FormLabel>
+                            </Label>
                           </FormItem>
                         </RadioGroup>
                       </FormControl>
@@ -439,3 +458,5 @@ export function AuthForm() {
     </Tabs>
   );
 }
+
+    
