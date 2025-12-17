@@ -1,3 +1,4 @@
+
 'use server';
 import { adminDb } from '@/lib/firebase/server-auth';
 
@@ -16,10 +17,7 @@ export async function findNearbyPharmacies(location: Location | null) {
     const q = partnersRef
       .where('role', '==', 'partner')
       .where('partnerType', '==', 'pharmacy')
-      .where('status', '==', 'approved')
-      // This is a standard Firestore workaround to check if a map field exists.
-      // We are querying for documents where the location map is greater than a very small value.
-      .where('location', '>', { lat: -Infinity, lng: -Infinity });
+      .where('status', '==', 'approved');
     
     const snapshot = await q.get();
 
@@ -29,15 +27,18 @@ export async function findNearbyPharmacies(location: Location | null) {
 
     const pharmacies = snapshot.docs.map(doc => {
       const data = doc.data();
-      return {
-        id: doc.id,
-        name: data.profile?.name || 'Unnamed Pharmacy',
-        // Use the top-level location for consistency
-        lat: data.location?.lat || 0,
-        lng: data.location?.lng || 0,
-        address: data.profile?.address || 'Address not available',
-      };
-    }).filter(p => p.lat !== 0 && p.lng !== 0); // Filter out pharmacies without a valid location
+      // The location field must exist and have lat/lng for the pharmacy to be included
+      if (data.location && data.location.lat && data.location.lng) {
+        return {
+          id: doc.id,
+          name: data.profile?.name || 'Unnamed Pharmacy',
+          lat: data.location.lat,
+          lng: data.location.lng,
+          address: data.profile?.address || 'Address not available',
+        };
+      }
+      return null;
+    }).filter((p): p is NonNullable<typeof p> => p !== null); // Filter out any null entries
 
     return { data: pharmacies };
 
