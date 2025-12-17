@@ -50,9 +50,7 @@ export function PharmacyFinder() {
   
   const pharmacyIcon = createPharmacyIcon();
 
-  const fetchAndSetPharmacies = useCallback(async (location: Location | null) => {
-    if (!location) return;
-
+  const fetchAndSetPharmacies = useCallback(async (location: Location) => {
     setIsFetchingPharmacies(true);
     setError(null);
     
@@ -75,23 +73,23 @@ export function PharmacyFinder() {
   }, []);
 
   useEffect(() => {
-    if ('geolocation' in navigator) {
+    if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        position => {
+        (position) => {
           const location = {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           };
           setUserLocation(location);
           setLoadingLocation(false);
+          // Directly call fetchAndSetPharmacies here after location is confirmed
           fetchAndSetPharmacies(location);
         },
-        err => {
-          setError(
-            'Location access denied. Please enable location services in your browser.'
-          );
+        (err) => {
+          setError('Location access denied. Please enable location services in your browser to find nearby pharmacies.');
           setLoadingLocation(false);
-        }
+        },
+        { enableHighAccuracy: true }
       );
     } else {
       setError('Geolocation is not supported by your browser.');
@@ -136,7 +134,7 @@ export function PharmacyFinder() {
               </div>
           )}
 
-          {!loadingLocation && error && !userLocation && (
+          {!loadingLocation && error && (
              <div className="absolute inset-0 z-20 flex h-full items-center justify-center bg-background/70 backdrop-blur-sm p-4">
                 <Alert variant="destructive">
                 <AlertTitle>Location Error</AlertTitle>
@@ -155,7 +153,7 @@ export function PharmacyFinder() {
             </div>
           </CardHeader>
           <CardContent>
-            {isFetchingPharmacies ? (
+            {isFetchingPharmacies || loadingLocation ? (
               <PharmacyListSkeleton />
             ) : pharmacies.length > 0 ? (
               <ul className="space-y-4">
@@ -188,7 +186,7 @@ export function PharmacyFinder() {
               </ul>
             ) : (
                 <p className="pt-10 text-center text-sm text-muted-foreground">
-                    {error ? error : !userLocation && !loadingLocation ? "Cannot search for pharmacies without your location." : "No approved pharmacies found nearby."}
+                    {error ? error : "No approved pharmacies found nearby."}
                 </p>
             )}
           </CardContent>
