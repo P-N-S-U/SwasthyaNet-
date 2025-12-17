@@ -31,8 +31,10 @@ export default function PartnersPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <PartnerHeader />
       <main className="flex-grow">
-        <section className="bg-secondary/30 py-20 md:py-32">
-          <div className="container text-center">
+        <section className="relative bg-secondary/30 py-20 md:py-32">
+           <div className="absolute inset-0 h-full w-full bg-background [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"></div>
+           <div className="absolute inset-0 h-full w-full bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+          <div className="container relative z-10 text-center">
             <h1 className="text-4xl font-bold tracking-tighter text-foreground font-headline md:text-5xl">
               Partner with SwasthyaNet
             </h1>
