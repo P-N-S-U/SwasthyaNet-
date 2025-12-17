@@ -1,3 +1,4 @@
+
 // /src/lib/firebase/server-auth.ts
 import 'server-only';
 import { cookies } from 'next/headers';
@@ -53,9 +54,10 @@ export function clearSessionCookie(response: NextResponse) {
 }
 
 export async function getSession(): Promise<DecodedIdToken | null> {
+  const cookieStore = cookies();
   const app = initializeFirebaseAdmin();
   
-  const cookieValue = cookies().get(COOKIE_NAME)?.value;
+  const cookieValue = cookieStore.get(COOKIE_NAME)?.value;
   if (!cookieValue) {
     // console.log('[v3] [server-auth] Session cookie not found in request.');
     return null;
@@ -69,7 +71,7 @@ export async function getSession(): Promise<DecodedIdToken | null> {
   } catch (error: any) {
     console.error(`[v3] [server-auth] Error verifying session cookie: ${error.code} - ${error.message}`);
     // Manually clear the invalid cookie
-    cookies().delete(COOKIE_NAME);
+    cookieStore.delete(COOKIE_NAME);
     console.log('[v3] [server-auth] Deleted invalid session cookie.');
     return null;
   }
