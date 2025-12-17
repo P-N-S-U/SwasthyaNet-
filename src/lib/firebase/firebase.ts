@@ -2,6 +2,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
+import { getStorage } from "firebase/storage";
 import {
   getFirestore,
   initializeFirestore,
@@ -15,6 +16,7 @@ const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: 'studio-8903744107-21905.firebaseapp.com',
   messagingSenderId: '135620499940',
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
 };
 
 // Initialize Firebase for the CLIENT
@@ -24,6 +26,7 @@ const app =
     : initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
+export const storage = getStorage(app);
 
 // Enable Firestore persistent cache
 export const db = initializeFirestore(app, {

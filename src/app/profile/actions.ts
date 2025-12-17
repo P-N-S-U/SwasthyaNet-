@@ -4,7 +4,8 @@
 import { revalidatePath } from 'next/cache';
 import { adminDb } from '@/lib/firebase/server-auth';
 import { getSession } from '@/lib/firebase/server-auth';
-import { FieldValue } from 'firebase-admin/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { initializeApp, getApps } from 'firebase/app';
 
 
 export async function updateDoctorProfile(prevState: any, formData: FormData) {
@@ -129,5 +130,31 @@ export async function savePartnerLocation(location: { lat: number; lng: number }
     } catch (error) {
         console.error('Error saving partner location:', error);
         return { error: 'Failed to save location.' };
+    }
+}
+
+export async function saveDocumentUrl(url: string) {
+    const session = await getSession();
+
+    if (!session) {
+        return { error: 'You must be logged in to update your profile.' };
+    }
+    
+    if (!url) {
+        return { error: 'No URL provided.' };
+    }
+
+    try {
+        const userRef = adminDb.collection('users').doc(session.uid);
+        // Save under a `documents` map in the profile
+        await userRef.update({
+            'profile.documents.verification': url
+        });
+
+        revalidatePath('/partner/profile');
+        return { data: 'Document URL saved successfully.' };
+    } catch(e) {
+        console.error("Error saving document URL:", e);
+        return { error: 'Failed to save document URL.' };
     }
 }

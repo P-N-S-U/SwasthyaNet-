@@ -16,7 +16,8 @@ import {
   MapPin,
   UploadCloud,
   Map,
-  CheckCircle
+  CheckCircle,
+  FileText
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -35,8 +36,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
-import { savePartnerLocation } from '@/app/profile/actions';
+import { savePartnerLocation, saveDocumentUrl } from '@/app/profile/actions';
 import { useToast } from '@/hooks/use-toast';
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { storage } from '@/lib/firebase/firebase';
 
 
 const ProfileDetailItem = ({ icon, label, value, loading = false }) => {
@@ -59,9 +62,11 @@ const ProfileDetailItem = ({ icon, label, value, loading = false }) => {
   );
 };
 
-const VerificationCard = ({ profile, mutate }) => {
+const VerificationCard = ({ user, profile, mutate }) => {
   const { toast } = useToast();
   const [isVerifying, setIsVerifying] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
   const handleVerifyLocation = async () => {
     if (!navigator.geolocation) {
@@ -106,7 +111,55 @@ const VerificationCard = ({ profile, mutate }) => {
     );
   };
   
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      setSelectedFile(event.target.files[0]);
+    }
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+        toast({ title: "No file selected", description: "Please select a file to upload.", variant: "destructive" });
+        return;
+    }
+    if (!user?.uid) {
+        toast({ title: "Authentication Error", description: "Could not identify user.", variant: "destructive" });
+        return;
+    }
+    
+    setIsUploading(true);
+
+    try {
+        const fileRef = ref(storage, `partner-verification/${user.uid}/${selectedFile.name}`);
+        
+        await uploadBytes(fileRef, selectedFile);
+        const downloadURL = await getDownloadURL(fileRef);
+
+        const result = await saveDocumentUrl(downloadURL);
+
+        if (result.error) {
+           throw new Error(result.error);
+        }
+
+        toast({
+            title: 'Upload Successful',
+            description: 'Your verification document has been uploaded.',
+        });
+        mutate();
+        setSelectedFile(null);
+    } catch (err: any) {
+        toast({
+            title: 'Upload Failed',
+            description: err.message || "An error occurred during file upload.",
+            variant: 'destructive'
+        });
+    } finally {
+        setIsUploading(false);
+    }
+  };
+
   const hasLocation = profile?.profile?.location;
+  const hasDocument = profile?.profile?.documents?.verification;
   
   return (
     <Card className="border-border/30 bg-background">
@@ -145,16 +198,26 @@ const VerificationCard = ({ profile, mutate }) => {
              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                  <div>
                     <h4 className="font-semibold">Business Documents</h4>
-                    <p className="text-sm text-muted-foreground">Upload a photo of your business license and shop front.</p>
+                    <p className="text-sm text-muted-foreground">Upload a photo of your business license or shop front.</p>
                 </div>
                 <div className="mt-3 sm:mt-0 flex items-center gap-2">
-                    <Input id="picture" type="file" className="w-full sm:w-auto" />
-                    <Button>
-                        <UploadCloud className="mr-2 h-4 w-4" />
+                    <Input id="picture" type="file" onChange={handleFileChange} disabled={isUploading} className="w-full sm:w-auto" />
+                    <Button onClick={handleUpload} disabled={isUploading}>
+                        {isUploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UploadCloud className="mr-2 h-4 w-4" />}
                         Upload
                     </Button>
                  </div>
             </div>
+             {hasDocument && (
+              <Alert className="mt-4 border-green-500/50 text-green-400 [&>svg]:text-green-400">
+                <FileText className="h-4 w-4" />
+                <AlertTitle className="font-bold">Document Uploaded</AlertTitle>
+                <AlertDescription>
+                  <a href={hasDocument} target="_blank" rel="noopener noreferrer" className="underline">View your uploaded document.</a>
+                  <p>Your document is submitted for review.</p>
+                </AlertDescription>
+              </Alert>
+            )}
         </div>
         
       </CardContent>
@@ -300,7 +363,7 @@ export default function PartnerProfilePage() {
             </CardContent>
           </Card>
           
-          <VerificationCard profile={profile} mutate={mutate} />
+          <VerificationCard user={user} profile={profile} mutate={mutate} />
       </div>
     </div>
   );
