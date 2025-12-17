@@ -90,7 +90,7 @@ const NavContent = ({ user, onLinkClick }) => {
             <NavLink href="/doctor/patients" icon={Users} onClick={onLinkClick}>
                 Patients
             </NavLink>
-            <NavLink href="/doctor/prescriptions/new" icon={FileText} onClick={onLinkClick}>
+            <NavLink href="/doctor/prescriptions" icon={FileText} onClick={onLinkClick}>
                 Prescriptions
             </NavLink>
         </nav>
