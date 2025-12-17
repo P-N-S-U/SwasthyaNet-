@@ -60,7 +60,7 @@ const getInitials = (name: string | null | undefined) => {
   return name.substring(0, 2).toUpperCase();
 };
 
-const UserTable = ({ users }: { users: User[] }) => (
+const UserTable = ({ users, from }: { users: User[], from: 'patients' | 'doctors' }) => (
   <Table>
     <TableHeader>
       <TableRow className="border-red-500/30 hover:bg-gray-700/50">
@@ -96,7 +96,7 @@ const UserTable = ({ users }: { users: User[] }) => (
             </TableCell>
             <TableCell className="text-right">
                 <Button asChild variant="outline" size="sm" className="text-gray-300 hover:bg-red-500/10 hover:text-red-300">
-                    <Link href={`/obviouslynotadmin/users/${user.id}`}>
+                    <Link href={`/obviouslynotadmin/users/${user.id}?from=${from}`}>
                         <Eye className="mr-2 h-4 w-4" />
                         View
                     </Link>
@@ -115,10 +115,15 @@ const UserTable = ({ users }: { users: User[] }) => (
   </Table>
 );
 
-export default async function UsersPage() {
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams: { tab?: string };
+}) {
   const users = await getUsers();
   const patients = users.filter(user => user.role === 'patient');
   const doctors = users.filter(user => user.role === 'doctor');
+  const defaultTab = searchParams.tab === 'doctors' ? 'doctors' : 'patients';
 
   return (
     <div className="space-y-8">
@@ -142,16 +147,16 @@ export default async function UsersPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="patients" className="w-full">
+          <Tabs defaultValue={defaultTab} className="w-full">
             <TabsList className="mb-6 grid w-full grid-cols-2 md:w-fit">
               <TabsTrigger value="patients">Patients</TabsTrigger>
               <TabsTrigger value="doctors">Doctors</TabsTrigger>
             </TabsList>
             <TabsContent value="patients">
-              <UserTable users={patients} />
+              <UserTable users={patients} from="patients" />
             </TabsContent>
             <TabsContent value="doctors">
-              <UserTable users={doctors} />
+              <UserTable users={doctors} from="doctors" />
             </TabsContent>
           </Tabs>
         </CardContent>

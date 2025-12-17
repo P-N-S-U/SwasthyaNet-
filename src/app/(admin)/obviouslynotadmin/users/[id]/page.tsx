@@ -123,8 +123,10 @@ const ProfileDetailItem = ({ icon: Icon, label, value }) => {
 
 export default async function AdminUserDetailPage({
   params,
+  searchParams,
 }: {
   params: { id: string };
+  searchParams: { from?: string };
 }) {
   const user = await getUserData(params.id);
 
@@ -134,10 +136,14 @@ export default async function AdminUserDetailPage({
 
   const appointments = await getUserAppointments(params.id, user.role);
 
+  const backUrl = searchParams.from
+    ? `/obviouslynotadmin/users?tab=${searchParams.from}`
+    : '/obviouslynotadmin/users';
+
   return (
     <div className="space-y-8">
       <Button asChild variant="outline" size="sm" className="mb-6 text-gray-300 hover:bg-red-500/10 hover:text-red-300">
-        <Link href="/obviouslynotadmin/users">
+        <Link href={backUrl}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Users
         </Link>
