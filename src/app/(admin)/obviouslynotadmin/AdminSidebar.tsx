@@ -51,7 +51,7 @@ const NavContent = ({ onLinkClick }) => {
         <NavLink href="/obviouslynotadmin/partners" icon={Building} onClick={onLinkClick}>
           Partners
         </NavLink>
-        <NavLink href="#" icon={Users} onClick={onLinkClick}>
+        <NavLink href="/obviouslynotadmin/users" icon={Users} onClick={onLinkClick}>
           Users
         </NavLink>
       </nav>
