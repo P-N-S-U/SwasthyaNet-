@@ -113,10 +113,10 @@ export function AuthForm({ isAdminLogin = false }: { isAdminLogin?: boolean }) {
         description: "Welcome back!",
       });
       // Redirect based on whether it was an admin login
-      const nextUrl = new URLSearchParams(window.location.search).get('next');
       if (isAdminLogin) {
-        router.push(nextUrl || '/obviouslynotadmins');
+        router.push('/obviouslynotadmins');
       } else {
+        const nextUrl = new URLSearchParams(window.location.search).get('next');
         router.push(nextUrl || '/dashboard');
       }
     }
@@ -481,5 +481,3 @@ export function AuthForm({ isAdminLogin = false }: { isAdminLogin?: boolean }) {
     </Tabs>
   );
 }
-
-    
