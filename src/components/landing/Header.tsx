@@ -16,8 +16,6 @@ import {
   SheetContent,
   SheetHeader,
   SheetTitle,
-  SheetDescription,
-  SheetTrigger,
   SheetClose,
 } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -42,15 +40,21 @@ const UserMenu = ({ user }) => {
   const router = useRouter();
 
   const handleSignOut = () => {
-    // Don't await signOut(), just fire and forget.
-    // The onAuthStateChanged listener will handle UI updates.
     signOut();
     router.push('/');
   };
 
-  const getInitials = (email) => {
-    if (!email) return 'U';
-    return email.substring(0, 2).toUpperCase();
+  const getInitials = (nameOrEmail) => {
+    if (!nameOrEmail) return 'U';
+    const isEmail = nameOrEmail.includes('@');
+    if (isEmail) {
+        return nameOrEmail.substring(0, 2).toUpperCase();
+    }
+    const names = nameOrEmail.split(' ');
+    if (names.length > 1) {
+      return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+    }
+    return nameOrEmail.substring(0, 2).toUpperCase();
   };
 
   return (
@@ -58,8 +62,8 @@ const UserMenu = ({ user }) => {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-9 w-9">
-            <AvatarImage src={user.photoURL} alt={user.email} />
-            <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
+            <AvatarImage src={user.photoURL} alt={user.displayName || user.email} />
+            <AvatarFallback>{getInitials(user.displayName || user.email)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
@@ -126,7 +130,7 @@ export const Header = () => {
           <span className="text-lg font-bold font-headline">SwasthyaNet</span>
         </Link>
         <nav className="hidden items-center gap-6 text-sm md:flex">
-          {(!user || role === 'patient') && (
+          {(!user || (role && role !== 'doctor' && role !== 'partner')) && (
             <>
               <Link
                 href="/symptom-checker"
@@ -161,18 +165,18 @@ export const Header = () => {
               </SheetTrigger>
               <SheetContent side="right" className="flex flex-col">
                 <SheetHeader className="text-left">
-                  <SheetTitle>
+                  <SheetClose asChild>
                     <Link href="/" className="flex items-center gap-2">
                       <Stethoscope className="h-6 w-6 text-primary" />
                       <span className="text-lg font-bold font-headline">
                         SwasthyaNet
                       </span>
                     </Link>
-                  </SheetTitle>
+                  </SheetClose>
                 </SheetHeader>
                 <div className="flex-grow py-6">
                   <nav className="flex flex-col gap-2">
-                    {user && role === 'patient' ? (
+                    {user && (role && role !== 'doctor' && role !== 'partner') ? (
                       <>
                         <MobileNavLink href="/patient/dashboard" icon={LayoutDashboard}>
                           Dashboard
@@ -208,7 +212,7 @@ export const Header = () => {
                     )}
                   </nav>
                 </div>
-                {user && (
+                {user ? (
                     <>
                     <Separator className="my-4"/>
                     <SheetClose asChild>
@@ -217,6 +221,15 @@ export const Header = () => {
                             Sign Out
                          </Button>
                     </SheetClose>
+                    </>
+                ) : (
+                    <>
+                     <Separator className="my-4"/>
+                      <SheetClose asChild>
+                         <Button asChild className="w-full">
+                           <Link href="/auth">Sign In / Sign Up</Link>
+                         </Button>
+                     </SheetClose>
                     </>
                 )}
               </SheetContent>

@@ -1,5 +1,5 @@
-import { Header } from '@/components/landing/Header';
-import { Footer } from '@/components/landing/Footer';
+import { PartnerHeader } from '@/components/partner/PartnerHeader';
+import { PartnerFooter } from '@/components/partner/PartnerFooter';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Building, TestTube, Truck, CheckCircle } from 'lucide-react';
@@ -28,7 +28,7 @@ const benefits = [
 export default function PartnersPage() {
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Header />
+      <PartnerHeader />
       <main className="flex-grow">
         <section className="bg-secondary/30 py-20 md:py-32">
           <div className="container text-center">
@@ -118,7 +118,7 @@ export default function PartnersPage() {
         </section>
 
       </main>
-      <Footer />
+      <PartnerFooter />
     </div>
   );
 }
