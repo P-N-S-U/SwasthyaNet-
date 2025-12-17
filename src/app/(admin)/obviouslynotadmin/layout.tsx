@@ -9,21 +9,23 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const session = await getAdminSession();
-  const pathname = headers().get('next-url') || '';
+  const headersList = headers();
+  const pathname = headersList.get('x-next-pathname') || headersList.get('next-url') || '';
 
-  // If there's no admin session AND the user is not already on the login page,
-  // redirect them to the login page. This prevents the redirect loop.
-  if (!session?.isAdmin && !pathname.includes('/login')) {
+  // If there's no admin session AND the user is trying to access a page
+  // that is NOT the login page, redirect them.
+  if (!session?.isAdmin && !pathname.endsWith('/obviouslynotadmin/login')) {
     redirect('/obviouslynotadmin/login');
   }
-
-  // If the user IS an admin but tries to access the login page, redirect them to the dashboard.
-  if (session?.isAdmin && pathname.includes('/login')) {
+  
+  // If the user IS an admin and tries to access the login page,
+  // redirect them to the main admin dashboard.
+  if (session?.isAdmin && pathname.endsWith('/obviouslynotadmin/login')) {
     redirect('/obviouslynotadmin');
   }
 
-  // If the user is not an admin, we don't want to render the sidebar or main content,
-  // we just let the login page child render.
+  // If the user is not an admin and is accessing the login page,
+  // just render the children (the login page).
   if (!session?.isAdmin) {
     return <div className="bg-gray-900">{children}</div>;
   }
