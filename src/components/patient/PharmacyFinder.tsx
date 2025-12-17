@@ -6,13 +6,11 @@ import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, List, Navigation, Pill } from 'lucide-react';
+import { Loader2, List, Navigation } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 import { findNearbyPharmacies } from '@/app/patient/pharmacies/actions';
 import { haversineDistance } from '@/lib/utils';
 import L from 'leaflet';
-import { renderToStaticMarkup } from 'react-dom/server';
-
 
 const MapWrapper = dynamic(() => import('./MapWrapper'), {
   ssr: false,
@@ -34,17 +32,11 @@ interface Location {
 }
 
 const createPharmacyIcon = () => {
-  const iconMarkup = renderToStaticMarkup(
-     <div className="rounded-full bg-primary p-2 text-white shadow-lg">
-      <Pill className="h-5 w-5" />
-    </div>
-  );
   return new L.DivIcon({
-    html: iconMarkup,
+    html: `<div class="w-6 h-6 rounded-full bg-blue-500 border-2 border-white shadow-md"></div>`,
     className: 'bg-transparent border-0',
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-    popupAnchor: [0, -32],
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
   });
 };
 
@@ -58,7 +50,9 @@ export function PharmacyFinder() {
   
   const pharmacyIcon = createPharmacyIcon();
 
-  const fetchAndSetPharmacies = useCallback(async (location: Location) => {
+  const fetchAndSetPharmacies = useCallback(async (location: Location | null) => {
+    if (!location) return;
+
     setIsFetchingPharmacies(true);
     setError(null);
     
