@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import data from '@/lib/placeholder-images.json';
+import { ArrowRight } from 'lucide-react';
 
 export const Hero = () => {
   const heroImage = data.placeholderImages.find(
@@ -30,20 +31,24 @@ export const Hero = () => {
           at your fingertips. Connect with top doctors, get instant
           consultations, and manage your health journey with ease.
         </p>
-        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Button
-            asChild
-            size="lg"
-            className="bg-accent text-accent-foreground shadow-lg shadow-accent/20 hover:bg-accent/90"
-          >
-            <Link href="/auth">Book an Appointment</Link>
-          </Button>
-          <Button asChild size="lg" variant="outline">
-            <Link href="/symptom-checker">Check Symptoms</Link>
-          </Button>
-           <Button asChild size="lg" variant="secondary" className="hover:bg-destructive hover:text-destructive-foreground">
-            <Link href="/partners">Join as Healthcare Partner</Link>
-          </Button>
+        <div className="mt-8 flex flex-col items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Button
+              asChild
+              size="lg"
+              className="bg-accent text-accent-foreground shadow-lg shadow-accent/20 hover:bg-accent/90"
+            >
+              <Link href="/auth">Book an Appointment</Link>
+            </Button>
+            <Button asChild size="lg" variant="outline">
+              <Link href="/symptom-checker">Check Symptoms</Link>
+            </Button>
+          </div>
+          <div className="mt-4">
+             <Link href="/partners" className="group inline-flex items-center text-sm text-muted-foreground transition-colors hover:text-foreground">
+                Are you a healthcare provider? Join our network <ArrowRight className="ml-1 h-4 w-4 transition-transform group-hover:translate-x-1" />
+             </Link>
+          </div>
         </div>
         <div className="mt-16 md:mt-24">
           {heroImage && (
