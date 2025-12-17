@@ -15,7 +15,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Users } from 'lucide-react';
+import { Users, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { Timestamp } from 'firebase-admin/firestore';
@@ -25,6 +25,8 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 interface User {
   id: string;
@@ -65,6 +67,7 @@ const UserTable = ({ users }: { users: User[] }) => (
         <TableHead>User</TableHead>
         <TableHead>Email</TableHead>
         <TableHead>Member Since</TableHead>
+        <TableHead className="text-right">Actions</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -91,11 +94,19 @@ const UserTable = ({ users }: { users: User[] }) => (
                 ? user.createdAt.toDate().toLocaleDateString()
                 : 'N/A'}
             </TableCell>
+            <TableCell className="text-right">
+                <Button asChild variant="outline" size="sm" className="text-gray-300 hover:bg-red-500/10 hover:text-red-300">
+                    <Link href={`/obviouslynotadmin/users/${user.id}`}>
+                        <Eye className="mr-2 h-4 w-4" />
+                        View
+                    </Link>
+                </Button>
+            </TableCell>
           </TableRow>
         ))
       ) : (
         <TableRow>
-          <TableCell colSpan={3} className="h-24 text-center">
+          <TableCell colSpan={4} className="h-24 text-center">
             No users found in this category.
           </TableCell>
         </TableRow>
