@@ -10,7 +10,7 @@ import {
   signInWithGoogle,
 } from '@/lib/firebase/auth';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -39,7 +39,7 @@ import {
 } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 const GoogleIcon = () => (
   <svg
@@ -80,7 +80,17 @@ const partnerSignUpSchema = z.object({
 export function PartnerAuthForm() {
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isLoading, setIsLoading] = React.useState(false);
+
+  const [activeTab, setActiveTab] = useState(searchParams.get('action') || 'signin');
+
+  useEffect(() => {
+    const action = searchParams.get('action');
+    if (action === 'signup' || action === 'signin') {
+      setActiveTab(action);
+    }
+  }, [searchParams]);
 
   const signInForm = useForm<z.infer<typeof signInSchema>>({
     resolver: zodResolver(signInSchema),
@@ -172,7 +182,7 @@ export function PartnerAuthForm() {
   };
   
   return (
-    <Tabs defaultValue="signin" className="w-full">
+    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <TabsList className="grid w-full grid-cols-2">
         <TabsTrigger value="signin">Sign In</TabsTrigger>
         <TabsTrigger value="signup">Sign Up</TabsTrigger>

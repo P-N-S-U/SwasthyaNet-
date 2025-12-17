@@ -26,7 +26,7 @@ export const PartnerHeader = () => {
                 variant="outline"
                 className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
               >
-                <Link href="/partners/signup">Join the Network</Link>
+                <Link href="/partners/signup?action=signup">Join the Network</Link>
             </Button>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { PartnerAuthForm } from '@/components/auth/PartnerAuthForm';
 import { PartnerHeader } from '@/components/partner/PartnerHeader';
 import { PartnerFooter } from '@/components/partner/PartnerFooter';
 import { Plus_Jakarta_Sans, DM_Sans } from 'next/font/google';
+import { Suspense } from 'react';
 
 const headlineFont = Plus_Jakarta_Sans({
   subsets: ['latin'],
@@ -14,6 +15,10 @@ const bodyFont = DM_Sans({
   weight: ['400', '500', '700'],
   variable: '--font-body-partner',
 });
+
+function AuthFormFallback() {
+  return <div>Loading...</div>;
+}
 
 export default function PartnerAuthPage() {
   return (
@@ -28,7 +33,9 @@ export default function PartnerAuthPage() {
               Sign in or create an account to join our network
             </p>
           </div>
-          <PartnerAuthForm />
+          <Suspense fallback={<AuthFormFallback />}>
+            <PartnerAuthForm />
+          </Suspense>
         </div>
       </main>
       <PartnerFooter />
