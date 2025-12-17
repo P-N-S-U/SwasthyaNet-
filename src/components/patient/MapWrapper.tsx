@@ -49,10 +49,10 @@ const UserMarker = ({ userLocation }: any) => {
     )
 }
 
-export default function MapWrapper({ userLocation, pharmacies, pharmacyIcon }: any) {
+export default function MapWrapper({ userLocation, pharmacies }: any) {
   const initialCenter: [number, number] = userLocation 
     ? [userLocation.lat, userLocation.lng] 
-    : [20.5937, 78.9629];
+    : [20.5937, 78.9629]; // Default to center of India
 
   return (
     <div id="map-container" className="h-full w-full rounded-md z-10">
@@ -66,7 +66,7 @@ export default function MapWrapper({ userLocation, pharmacies, pharmacyIcon }: a
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <UserMarker userLocation={userLocation} />
         {pharmacies?.map((p: any) => (
-          <Marker key={p.id} position={[p.lat, p.lng]} icon={pharmacyIcon}>
+          <Marker key={p.id} position={[p.lat, p.lng]}>
             <Popup>
               <b>{p.name}</b>
               <br />
