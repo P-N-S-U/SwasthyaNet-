@@ -117,8 +117,13 @@ export async function savePartnerLocation(location: { lat: number; lng: number }
 
     try {
         const userRef = adminDb.collection('users').doc(session.uid);
+        // Save the location both at the top level for querying and nested for organization
         await userRef.update({
             'profile.location': {
+              lat: location.lat,
+              lng: location.lng
+            },
+            'location': { // New top-level field for querying
               lat: location.lat,
               lng: location.lng
             }

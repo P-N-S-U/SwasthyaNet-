@@ -15,8 +15,9 @@ export async function findNearbyPharmacies(location: Location | null) {
     const partnersRef = adminDb.collection('users');
     const q = partnersRef
       .where('role', '==', 'partner')
-      .where('partnerType', '==', 'pharmacy') // Corrected to lowercase 'pharmacy'
-      .where('status', '==', 'approved');
+      .where('partnerType', '==', 'pharmacy')
+      .where('status', '==', 'approved')
+      .where('location', '!=', null); // Query for the existence of the top-level location field
     
     const snapshot = await q.get();
 
@@ -29,15 +30,16 @@ export async function findNearbyPharmacies(location: Location | null) {
       return {
         id: doc.id,
         name: data.profile?.name || 'Unnamed Pharmacy',
-        lat: data.profile?.location?.lat || 0,
-        lng: data.profile?.location?.lng || 0,
+        // Use the top-level location for consistency, with fallback to nested
+        lat: data.location?.lat || data.profile?.location?.lat || 0,
+        lng: data.location?.lng || data.profile?.location?.lng || 0,
         address: data.profile?.address || 'Address not available',
       };
-    }).filter(p => p.lat !== 0 && p.lng !== 0); // Filter out pharmacies without a location
+    }).filter(p => p.lat !== 0 && p.lng !== 0); // Filter out pharmacies without a valid location
 
     return { data: pharmacies };
 
-  } catch (e: any) {
+  } catch (e) {
     console.error('Error in findNearbyPharmacies action:', e);
     return { error: 'Could not fetch location data. Please try again later.' };
   }
