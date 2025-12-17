@@ -94,37 +94,14 @@ export function PartnerProfileForm({ profile, onUpdate }: { profile: any, onUpda
             id="address"
             name="address"
             defaultValue={partnerProfile.address || ''}
-            placeholder="Your full business address"
+            placeholder="Your full business address. This will be used to show your location on the map."
             className="bg-secondary/50"
             rows={3}
             required
           />
-        </div>
-         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            <div className="space-y-2">
-                <Label htmlFor="latitude">Latitude</Label>
-                <Input
-                id="latitude"
-                name="latitude"
-                type="number"
-                step="any"
-                defaultValue={partnerProfile.location?.lat || ''}
-                placeholder="e.g., 28.6139"
-                className="bg-secondary/50"
-                />
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="longitude">Longitude</Label>
-                <Input
-                id="longitude"
-                name="longitude"
-                type="number"
-                step="any"
-                defaultValue={partnerProfile.location?.lng || ''}
-                placeholder="e.g., 77.2090"
-                className="bg-secondary/50"
-                />
-            </div>
+           <p className="text-xs text-muted-foreground">
+             Tip: For demonstration, try an address like "123 Main St"
+           </p>
         </div>
         <p className="text-xs text-muted-foreground">* Required fields</p>
       </div>
