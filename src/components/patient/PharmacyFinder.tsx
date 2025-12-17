@@ -10,7 +10,6 @@ import { Loader2, List, Navigation } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 import { findNearbyPharmacies } from '@/app/patient/pharmacies/actions';
 import { haversineDistance } from '@/lib/utils';
-import L from 'leaflet';
 
 const MapWrapper = dynamic(() => import('./MapWrapper'), {
   ssr: false,
@@ -37,31 +36,36 @@ export function PharmacyFinder() {
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [pharmacies, setPharmacies] = useState<Pharmacy[]>([]);
   const [isFetchingPharmacies, setIsFetchingPharmacies] = useState(false);
-  
+
   const fetchAndSetPharmacies = useCallback(async (location: Location) => {
     setIsFetchingPharmacies(true);
     setError(null);
+    console.log('[DEBUG] Calling findNearbyPharmacies with location:', location);
     
     const result = await findNearbyPharmacies(location);
+    console.log('[DEBUG] Raw data from findNearbyPharmacies action:', result);
+
 
     if (result.error) {
-        setError(result.error);
-        setPharmacies([]);
+      setError(result.error);
+      setPharmacies([]);
     } else if (result.data) {
-        const locationsWithDistance = result.data
-          .map(p => ({
-              ...p,
-              distance: haversineDistance(location, { lat: p.lat, lng: p.lng }),
-          }))
-          .sort((a, b) => (a.distance || 0) - (b.distance || 0));
-        
-        setPharmacies(locationsWithDistance);
+      const locationsWithDistance = result.data
+        .map(p => ({
+          ...p,
+          distance: haversineDistance(location, { lat: p.lat, lng: p.lng }),
+        }))
+        .sort((a, b) => (a.distance || 0) - (b.distance || 0));
+
+      console.log('[DEBUG] Processed and sorted pharmacies with distance:', locationsWithDistance);
+      setPharmacies(locationsWithDistance);
     }
     setIsFetchingPharmacies(false);
   }, []);
 
   useEffect(() => {
     setLoadingLocation(true);
+    console.log('[DEBUG] Kicking off location search...');
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -69,26 +73,27 @@ export function PharmacyFinder() {
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           };
+          console.log('[DEBUG] Geolocation success:', location);
           setUserLocation(location);
           setLoadingLocation(false);
+          // Only fetch pharmacies AFTER location is confirmed.
           fetchAndSetPharmacies(location);
         },
         (err) => {
-          setError('Location access denied. Please enable location services in your browser to find nearby pharmacies.');
+          console.error('[DEBUG] Geolocation error:', err);
+          setError(
+            'Location access denied. Please enable location services to find nearby pharmacies.'
+          );
           setLoadingLocation(false);
-          // Also fetch pharmacies without a location to show a general list
-          findNearbyPharmacies(null).then(result => {
-             if (result.data) setPharmacies(result.data);
-          });
+          setIsFetchingPharmacies(false); // Stop loading if location fails
         },
         { enableHighAccuracy: true }
       );
     } else {
+      console.log('[DEBUG] Geolocation not supported by browser.');
       setError('Geolocation is not supported by your browser.');
       setLoadingLocation(false);
-       findNearbyPharmacies(null).then(result => {
-        if (result.data) setPharmacies(result.data);
-      });
+      setIsFetchingPharmacies(false);
     }
   }, [fetchAndSetPharmacies]);
 
@@ -152,34 +157,37 @@ export function PharmacyFinder() {
               <PharmacyListSkeleton />
             ) : pharmacies.length > 0 ? (
               <ul className="space-y-4">
-                {pharmacies.map(pharmacy => (
-                  <li
-                    key={pharmacy.id}
-                    className="flex items-center justify-between rounded-lg bg-secondary/50 p-3"
-                  >
-                    <div className="max-w-[calc(100%-80px)]">
-                      <p
-                        className="truncate font-semibold"
-                        title={pharmacy.name}
-                      >
-                        {pharmacy.name}
-                      </p>
-                      {userLocation && pharmacy.distance && (
-                         <p className="text-sm text-muted-foreground">
-                            {pharmacy.distance?.toFixed(2)} km away
-                         </p>
-                      )}
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openInGoogleMaps(pharmacy.lat, pharmacy.lng)}
+                {pharmacies.map(pharmacy => {
+                  console.log('[DEBUG] Rendering pharmacy in list:', pharmacy.name);
+                  return (
+                    <li
+                      key={pharmacy.id}
+                      className="flex items-center justify-between rounded-lg bg-secondary/50 p-3"
                     >
-                      <Navigation className="mr-2 h-4 w-4" />
-                      Visit
-                    </Button>
-                  </li>
-                ))}
+                      <div className="max-w-[calc(100%-80px)]">
+                        <p
+                          className="truncate font-semibold"
+                          title={pharmacy.name}
+                        >
+                          {pharmacy.name}
+                        </p>
+                        {userLocation && pharmacy.distance && (
+                           <p className="text-sm text-muted-foreground">
+                              {pharmacy.distance?.toFixed(2)} km away
+                           </p>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openInGoogleMaps(pharmacy.lat, pharmacy.lng)}
+                      >
+                        <Navigation className="mr-2 h-4 w-4" />
+                        Visit
+                      </Button>
+                    </li>
+                  )
+                })}
               </ul>
             ) : (
                 <p className="pt-10 text-center text-sm text-muted-foreground">
