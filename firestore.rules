@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -30,8 +31,8 @@ service cloud.firestore {
     match /partners/{partnerId} {
       // Public data like name, address, type can be read by any authenticated user
       allow read: if request.auth != null;
-      // Only the partner owner can create or update their own document
-      allow create: if request.auth.uid == partnerId;
+      // Only the authenticated user can create their own partner document.
+      allow create: if request.auth.uid == request.resource.data.ownerUID;
       allow update: if request.auth.uid == resource.data.ownerUID;
       // No one can delete partner documents through the client
       allow delete: if false;

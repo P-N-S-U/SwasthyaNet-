@@ -49,7 +49,7 @@ async function createServerSession(user: User) {
     console.log('[v3] [auth.ts] Server session created successfully.');
     return { success: true };
   } catch (error: any) {
-    console.error('[v3] [auth.ts] Error in createServerSession:', error.message);
+    console.error('[v3] [auth.ts] Error in createServerSession:', error.message, error);
     // Even if server session fails, the user is logged in client-side.
     // We can decide how to handle this - for now, we'll log it and proceed.
     return { success: false, error: error.message };
@@ -78,7 +78,8 @@ export async function signUpWithEmail(
 
     // If it's a partner, create the partner document as well
     if (userDocData.role === 'partner' && partnerDocData) {
-      await createPartnerInFirestore(user, partnerDocData);
+      const finalPartnerData = { ...partnerDocData, ownerUID: user.uid };
+      await createPartnerInFirestore(user, finalPartnerData);
     }
     
     await createServerSession(user);
@@ -158,6 +159,7 @@ export async function signInWithGoogle(userDocData = {}, partnerDocData = null) 
           ...partnerDocData,
           name: partnerDocData.name || user.displayName,
           address: partnerDocData.address || '',
+          ownerUID: user.uid,
       };
       await createPartnerInFirestore(user, finalPartnerDocData);
     }
@@ -197,5 +199,3 @@ export async function signOut() {
     return { success: false, error };
   }
 }
-
-    

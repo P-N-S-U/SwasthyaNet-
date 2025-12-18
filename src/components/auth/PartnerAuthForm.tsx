@@ -161,7 +161,7 @@ export function PartnerAuthForm() {
       ownerUID: '' // Will be set after user creation
     };
 
-    const { error } = await signUpWithEmail(
+    const { user, error } = await signUpWithEmail(
       values.email,
       values.password,
       userDocData,
