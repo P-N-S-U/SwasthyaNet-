@@ -54,6 +54,18 @@ const prescriptionFormSchema = z.object({
 
 type PrescriptionFormValues = z.infer<typeof prescriptionFormSchema>;
 
+function GenerateButton() {
+    const { pending } = useFormStatus();
+    const diagnosis = useForm().watch('diagnosis');
+
+    return (
+        <Button type="submit" variant="outline" disabled={pending || !diagnosis} size="sm">
+            {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4" />}
+            Generate Suggestions with AI
+        </Button>
+    )
+}
+
 export function PrescriptionForm({ appointment, existingPrescription }) {
   const { toast } = useToast();
   const router = useRouter();
@@ -75,7 +87,7 @@ export function PrescriptionForm({ appointment, existingPrescription }) {
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [aiState, generateAction] = useActionState(generatePrescription, { data: null, error: null });
+  const [aiState, generateAction, isGenerating] = useActionState(generatePrescription, { data: null, error: null });
 
   useEffect(() => {
       if (aiState.data) {
@@ -120,8 +132,6 @@ export function PrescriptionForm({ appointment, existingPrescription }) {
     setIsSubmitting(false);
   };
   
-  const { pending: isGenerating } = useFormStatus();
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
@@ -159,14 +169,16 @@ export function PrescriptionForm({ appointment, existingPrescription }) {
                 </FormItem>
               )}
             />
-             <form action={generateAction}>
-                <input type="hidden" name="diagnosis" value={form.watch('diagnosis')} />
-                <input type="hidden" name="notes" value={form.watch('notes')} />
-                <Button type="submit" variant="outline" disabled={isGenerating || !form.watch('diagnosis')} size="sm">
-                    {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4" />}
-                    Generate Suggestions with AI
-                </Button>
-            </form>
+            <Button
+                type="submit"
+                formAction={generateAction}
+                variant="outline"
+                disabled={isGenerating || !form.watch('diagnosis')}
+                size="sm"
+            >
+                {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4" />}
+                Generate Suggestions with AI
+            </Button>
           </CardContent>
         </Card>
 
