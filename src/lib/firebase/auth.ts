@@ -56,7 +56,7 @@ async function createServerSession(user: User) {
   }
 }
 
-export async function signUpWithEmail(email, password, profileData) {
+export async function signUpWithEmail(email: string, password: string, displayName: string) {
   try {
     const userCredential = await createUserWithEmailAndPassword(
       auth,
@@ -65,16 +65,12 @@ export async function signUpWithEmail(email, password, profileData) {
     );
     const user = userCredential.user;
 
-    // This is the critical step to ensure the backend knows about the user
-    // before we proceed with database operations.
-    await user.getIdToken(true);
-
     // Update the Firebase Auth user profile (displayName, photoURL, etc.)
-    await updateProfile(user, {
-      displayName: profileData.displayName,
-    });
+    await updateProfile(user, { displayName });
     
-    // This function now ONLY creates the user in Auth. Firestore writes are handled by the calling component.
+    // This function now ONLY creates the user in Auth. 
+    // Firestore writes are handled by the calling component after auth state is confirmed.
+    await createServerSession(user);
 
     return { user, error: null };
   } catch (error) {
@@ -135,7 +131,7 @@ export async function completeSignInWithLink(link: string) {
   }
 }
 
-export async function signInWithGoogle(userDocData = { role: 'patient' }) {
+export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
@@ -143,12 +139,8 @@ export async function signInWithGoogle(userDocData = { role: 'patient' }) {
 
     await user.getIdToken(true);
 
-    const isPartner = userDocData.role === 'partner';
-    
-    // Only create the user document if they are not a partner
-    if (!isPartner) {
-        await createUserInFirestore(user, userDocData);
-    }
+    // For Google Sign In, we assume they are a patient and create the user doc.
+    await createUserInFirestore(user, { role: 'patient' });
 
     await createServerSession(user);
 

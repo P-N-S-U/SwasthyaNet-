@@ -8,7 +8,7 @@ import {
   signUpWithEmail,
   signInWithEmail,
 } from '@/lib/firebase/auth';
-import { createUserInFirestore, createPartnerInFirestore } from '@/lib/firebase/firestore';
+import { createPartnerInFirestore } from '@/lib/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -127,7 +127,7 @@ export function PartnerAuthForm() {
     const { user, error: authError } = await signUpWithEmail(
       values.email,
       values.password,
-      { displayName: values.personalName } // Pass only displayName
+      values.personalName // Pass only displayName
     );
 
     if (authError || !user) {
@@ -140,17 +140,13 @@ export function PartnerAuthForm() {
       return;
     }
 
-    // Step 1.5: Force token refresh to ensure auth state is propagated
-    await user.getIdToken(true);
-
     try {
+      // Step 2: Force token refresh to ensure auth state is propagated for security rules
+      await user.getIdToken(true);
+
       const fullAddress = `${values.street}, ${values.city}, ${values.state} ${values.postalCode}, ${values.country}`;
       
-      // Step 2: Create the user document in 'users' collection
-      const userDocData = { role: 'partner', displayName: values.personalName };
-      await createUserInFirestore(user, userDocData);
-
-      // Step 3: Create the partner document in 'partners' collection
+      // Step 3: Create the partner document ONLY in the 'partners' collection
       const partnerDocData = {
         name: values.businessName,
         partnerType: values.partnerType,
