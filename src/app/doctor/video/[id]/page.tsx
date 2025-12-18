@@ -283,16 +283,16 @@ export default function DoctorVideoCallPage() {
                     Choose how you want to end this session. You can complete the appointment now, or complete and proceed to write a prescription.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter className="sm:flex-col sm:space-x-0 sm:gap-2 md:flex-row md:space-x-2">
-                    <AlertDialogAction onClick={handleCompleteAndPrescribe} className="w-full md:w-auto">
-                        <FileText className="mr-2 h-4 w-4" />
-                        Complete &amp; Write Prescription
-                    </AlertDialogAction>
-                    <AlertDialogAction variant="secondary" onClick={handleCompleteOnly} className="w-full md:w-auto">
+                <AlertDialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:space-x-2">
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction variant="secondary" onClick={handleCompleteOnly}>
                         <CheckCircle className="mr-2 h-4 w-4" />
-                        Complete Appointment Only
+                        Complete Only
                     </AlertDialogAction>
-                    <AlertDialogCancel className="w-full mt-2 md:mt-0 md:w-auto">Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleCompleteAndPrescribe}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Complete & Prescribe
+                    </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
