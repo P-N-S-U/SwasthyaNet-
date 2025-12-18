@@ -39,8 +39,11 @@ service cloud.firestore {
         && request.resource.data.ownerUID == request.auth.uid
         && request.resource.data.status == "pending";
 
-      // A partner can update their own document. Admin can update any.
-      allow update: if request.auth != null && request.auth.uid == partnerId;
+      // A partner can update their own document, but CANNOT change their status.
+      allow update: if request.auth != null 
+        && request.auth.uid == partnerId
+        && resource.data.status == "pending"
+        && request.resource.data.status == "pending";
       
       // No one can delete partner documents through the client
       allow delete: if false;
