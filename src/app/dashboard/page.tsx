@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -12,35 +11,41 @@ export default function DashboardRedirectPage() {
   const [status, setStatus] = useState('Checking authentication...');
 
   useEffect(() => {
-    // Don't do anything until loading is false
+    // Wait until the initial authentication check is complete.
     if (loading) {
       return;
     }
 
-    // If loading is done and there's no user, send to login
+    // If auth check is done and there's no user, redirect to login.
     if (!user) {
       router.replace('/auth');
       return;
     }
 
-    // If we have a user and a role, redirect them
-    if (role) {
-      if (role === 'doctor') {
-        setStatus('Redirecting to doctor dashboard...');
-        router.replace('/doctor/dashboard');
-      } else if (role === 'partner') {
-        setStatus('Redirecting to partner dashboard...');
-        router.replace('/partner/dashboard');
-      } else { // 'patient'
-        setStatus('Redirecting to patient dashboard...');
-        router.replace('/patient/dashboard');
-      }
-    } else {
-      // This state can happen briefly while the role is being fetched by useUserProfile.
-      // We show a message and the hook will eventually provide the role, triggering a re-render and the redirect.
+    // If we have a user, but are still waiting for their role to be determined.
+    if (user && !role) {
       setStatus('Verifying user role...');
+      return; // IMPORTANT: Wait for the role to be loaded.
     }
-    
+
+    // Once we have the role, we can perform the correct redirect.
+    if (role) {
+      switch (role) {
+        case 'doctor':
+          setStatus('Redirecting to doctor dashboard...');
+          router.replace('/doctor/dashboard');
+          break;
+        case 'partner':
+          setStatus('Redirecting to partner dashboard...');
+          router.replace('/partner/dashboard');
+          break;
+        case 'patient':
+        default:
+          setStatus('Redirecting to patient dashboard...');
+          router.replace('/patient/dashboard');
+          break;
+      }
+    }
   }, [user, role, loading, router]);
 
   return (
