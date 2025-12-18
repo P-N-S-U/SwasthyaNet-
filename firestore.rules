@@ -29,11 +29,19 @@ service cloud.firestore {
     }
     
     match /partners/{partnerId} {
-      // Public data like name, address, type can be read by any authenticated user
-      allow read: if request.auth != null;
-      // Only the authenticated user can create their own partner document.
-      allow create: if request.auth.uid == partnerId;
-      allow update: if request.auth.uid == resource.data.ownerUID;
+      // Public data like name, address, type can be read by any authenticated user if approved.
+      // A partner can always read their own data.
+      allow read: if request.auth != null && (resource.data.status == 'approved' || request.auth.uid == partnerId);
+      
+      // Allow authenticated users to CREATE their own partner document
+      allow create: if request.auth != null
+        && request.auth.uid == partnerId
+        && request.resource.data.ownerUID == request.auth.uid
+        && request.resource.data.status == "pending";
+
+      // A partner can update their own document. Admin can update any.
+      allow update: if request.auth != null && request.auth.uid == partnerId;
+      
       // No one can delete partner documents through the client
       allow delete: if false;
     }
