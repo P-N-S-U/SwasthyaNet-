@@ -40,7 +40,6 @@ export async function createPartnerInFirestore(user: User, partnerData: any) {
         
         const dataToCreate = {
             ...partnerData,
-            ownerUID: user.uid,
             createdAt: serverTimestamp(),
         };
         await setDoc(partnerRef, dataToCreate);

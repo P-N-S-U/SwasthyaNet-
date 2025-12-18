@@ -4,10 +4,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import {
-  signUpWithEmail,
-  signInWithEmail,
-} from '@/lib/firebase/auth';
+import { signUpWithEmail } from '@/lib/firebase/auth';
 import { createPartnerInFirestore } from '@/lib/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -48,7 +45,7 @@ const signInSchema = z.object({
 
 const partnerSignUpSchema = z.object({
   businessName: z.string().min(3, { message: 'Business name is required.' }),
-  personalName: z.string().min(3, { message: 'Your full name is required.'}),
+  personalName: z.string().min(3, { message: 'Your full name is required.' }),
   email: z.string().email({ message: 'Invalid email address.' }),
   password: z
     .string()
@@ -103,6 +100,7 @@ export function PartnerAuthForm() {
 
   const handleSignIn = async (values: z.infer<typeof signInSchema>) => {
     setIsLoading(true);
+    // The signInWithEmail function should handle session creation now.
     const { error } = await signInWithEmail(values.email, values.password);
     if (error) {
       toast({
@@ -127,13 +125,14 @@ export function PartnerAuthForm() {
     const { user, error: authError } = await signUpWithEmail(
       values.email,
       values.password,
-      values.personalName // Pass only displayName
+      values.personalName
     );
 
     if (authError || !user) {
       toast({
         title: 'Sign Up Failed',
-        description: authError?.message || 'An unknown authentication error occurred.',
+        description:
+          authError?.message || 'An unknown authentication error occurred.',
         variant: 'destructive',
       });
       setIsLoading(false);
@@ -145,10 +144,11 @@ export function PartnerAuthForm() {
       await user.getIdToken(true);
 
       const fullAddress = `${values.street}, ${values.city}, ${values.state} ${values.postalCode}, ${values.country}`;
-      
-      // Step 3: Create the partner document ONLY in the 'partners' collection
+
+      // Step 3: Create the partner document payload, now including ownerUID
       const partnerDocData = {
         name: values.businessName,
+        ownerUID: user.uid, // This is the crucial fix
         partnerType: values.partnerType,
         status: 'pending',
         address: fullAddress,
@@ -156,16 +156,17 @@ export function PartnerAuthForm() {
         licenseNumber: '',
         location: null,
       };
+
+      // Step 4: Create the document in the 'partners' collection
       await createPartnerInFirestore(user, partnerDocData);
-      
+
       toast({
         title: 'Account Created',
         description: 'Welcome! Your account is pending approval.',
       });
       router.push('/dashboard');
-
     } catch (dbError: any) {
-       toast({
+      toast({
         title: 'Registration Failed',
         description: dbError.message || 'Failed to save business details.',
         variant: 'destructive',
@@ -258,40 +259,40 @@ export function PartnerAuthForm() {
             <form onSubmit={signUpForm.handleSubmit(handleSignUp)}>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
-                    <FormField
+                  <FormField
                     control={signUpForm.control}
                     name="businessName"
                     render={({ field }) => (
-                        <FormItem>
+                      <FormItem>
                         <FormLabel>Business Name</FormLabel>
                         <FormControl>
-                            <Input
+                          <Input
                             placeholder="e.g., City Pharmacy"
                             {...field}
                             disabled={isLoading}
-                            />
+                          />
                         </FormControl>
                         <FormMessage />
-                        </FormItem>
+                      </FormItem>
                     )}
-                    />
-                    <FormField
+                  />
+                  <FormField
                     control={signUpForm.control}
                     name="personalName"
                     render={({ field }) => (
-                        <FormItem>
+                      <FormItem>
                         <FormLabel>Your Full Name</FormLabel>
                         <FormControl>
-                            <Input
+                          <Input
                             placeholder="e.g., Ravi Kumar"
                             {...field}
                             disabled={isLoading}
-                            />
+                          />
                         </FormControl>
                         <FormMessage />
-                        </FormItem>
+                      </FormItem>
                     )}
-                    />
+                  />
                 </div>
                 <FormField
                   control={signUpForm.control}
@@ -318,7 +319,11 @@ export function PartnerAuthForm() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input type="password" {...field} disabled={isLoading} />
+                        <Input
+                          type="password"
+                          {...field}
+                          disabled={isLoading}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -355,7 +360,7 @@ export function PartnerAuthForm() {
                   )}
                 />
                 <div className="space-y-2 rounded-lg border border-border bg-background/30 p-4">
-                  <h4 className="font-medium text-sm">Business Address</h4>
+                  <h4 className="text-sm font-medium">Business Address</h4>
                   <FormField
                     control={signUpForm.control}
                     name="street"
@@ -363,7 +368,11 @@ export function PartnerAuthForm() {
                       <FormItem>
                         <FormLabel>Street Address</FormLabel>
                         <FormControl>
-                          <Input placeholder="123 Main St" {...field} disabled={isLoading} />
+                          <Input
+                            placeholder="123 Main St"
+                            {...field}
+                            disabled={isLoading}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -377,7 +386,11 @@ export function PartnerAuthForm() {
                         <FormItem>
                           <FormLabel>City</FormLabel>
                           <FormControl>
-                            <Input placeholder="Mumbai" {...field} disabled={isLoading} />
+                            <Input
+                              placeholder="Mumbai"
+                              {...field}
+                              disabled={isLoading}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -390,14 +403,18 @@ export function PartnerAuthForm() {
                         <FormItem>
                           <FormLabel>State / Province</FormLabel>
                           <FormControl>
-                            <Input placeholder="Maharashtra" {...field} disabled={isLoading} />
+                            <Input
+                              placeholder="Maharashtra"
+                              {...field}
+                              disabled={isLoading}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
                   </div>
-                   <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <FormField
                       control={signUpForm.control}
                       name="postalCode"
@@ -405,20 +422,28 @@ export function PartnerAuthForm() {
                         <FormItem>
                           <FormLabel>Postal Code</FormLabel>
                           <FormControl>
-                            <Input placeholder="400001" {...field} disabled={isLoading} />
+                            <Input
+                              placeholder="400001"
+                              {...field}
+                              disabled={isLoading}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}
                     />
-                     <FormField
+                    <FormField
                       control={signUpForm.control}
                       name="country"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Country</FormLabel>
                           <FormControl>
-                            <Input placeholder="India" {...field} disabled={isLoading} />
+                            <Input
+                              placeholder="India"
+                              {...field}
+                              disabled={isLoading}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
