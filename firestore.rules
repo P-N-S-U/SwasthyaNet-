@@ -26,13 +26,31 @@ service cloud.firestore {
     match /calls/{callId}/{subcollection}/{document=**} {
       allow read, write: if request.auth != null;
     }
+    
+    match /partners/{partnerId} {
+      // Public data like name, address, type can be read by any authenticated user
+      allow read: if request.auth != null;
+      // Only the partner owner can create or update their own document
+      allow create: if request.auth.uid == partnerId;
+      allow update: if request.auth.uid == resource.data.ownerUID;
+      // No one can delete partner documents through the client
+      allow delete: if false;
+    }
 
     match /prescriptions/{prescriptionId} {
+      // A patient or a doctor can read a prescription they are part of.
       allow read: if request.auth != null 
-        && (request.auth.uid == resource.data.patientId 
-        || request.auth.uid == resource.data.doctorId);
-      allow list: if request.auth != null && request.auth.uid == resource.data.doctorId;
+        && (request.auth.uid == resource.data.patientId || request.auth.uid == resource.data.doctorId);
+      
+      // A patient can list their own prescriptions. A doctor can list prescriptions they've issued.
+      allow list: if request.auth != null 
+        && (request.auth.uid == request.query.filters[0][2] || request.auth.uid == request.query.filters[1][2]);
+
+      // Only the doctor who is creating the prescription can write it.
+      // The doctorId in the new document must match the authenticated user's UID.
       allow create, update: if request.auth != null && request.auth.uid == request.resource.data.doctorId;
+
+      // Prescriptions are part of the medical record and should not be deleted.
       allow delete: if false;
     }
   }
