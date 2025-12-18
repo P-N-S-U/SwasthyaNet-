@@ -22,6 +22,7 @@ import {
   Calendar,
   User,
   FileClock,
+  FileText,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,14 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import useSWR from 'swr';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface PatientProfile {
   uid: string;
@@ -45,6 +54,7 @@ interface Appointment {
   id: string;
   appointmentDate: Timestamp;
   status: 'Confirmed' | 'Completed' | 'Cancelled';
+  hasPrescription?: boolean;
 }
 
 const getInitials = (name: string | null | undefined) => {
@@ -234,17 +244,23 @@ export default function PatientRecordPage({ params }: { params: { id: string } }
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {appointmentsLoading ? (
-                [...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)
-              ) : (appointments || []).length > 0 ? (
-                (appointments || []).map(appt => (
-                  <div
-                    key={appt.id}
-                    className="flex items-center justify-between rounded-lg bg-secondary/50 p-4"
-                  >
-                    <div>
-                      <p className="font-semibold">
+            {appointmentsLoading ? (
+              <div className="space-y-4">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
+              </div>
+            ) : (appointments || []).length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date & Time</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(appointments || []).map(appt => (
+                    <TableRow key={appt.id}>
+                      <TableCell className="font-semibold">
                         {appt.appointmentDate
                           .toDate()
                           .toLocaleString(undefined, {
@@ -254,34 +270,52 @@ export default function PatientRecordPage({ params }: { params: { id: string } }
                             hour: '2-digit',
                             minute: '2-digit',
                           })}
-                      </p>
-                    </div>
-                    <Badge
-                      variant={
-                        appt.status === 'Confirmed'
-                          ? 'default'
-                          : appt.status === 'Completed'
-                          ? 'secondary'
-                          : 'destructive'
-                      }
-                    >
-                      {appt.status}
-                    </Badge>
-                  </div>
-                ))
-              ) : (
-                <div className="flex h-24 flex-col items-center justify-center text-center">
-                  <p className="text-muted-foreground">
-                    No appointment history found for this patient.
-                  </p>
-                </div>
-              )}
-            </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            appt.status === 'Confirmed'
+                              ? 'default'
+                              : appt.status === 'Completed'
+                              ? 'secondary'
+                              : 'destructive'
+                          }
+                        >
+                          {appt.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {appt.status === 'Completed' && !appt.hasPrescription && (
+                          <Button asChild variant="outline" size="sm">
+                            <Link href={`/doctor/prescriptions/new?appointmentId=${appt.id}`}>
+                              <FileText className="mr-2 h-4 w-4" />
+                              Write Prescription
+                            </Link>
+                          </Button>
+                        )}
+                        {appt.hasPrescription && (
+                           <Button asChild variant="secondary" size="sm">
+                            <Link href={`/patient/prescriptions/${appt.id}`}>
+                              <FileText className="mr-2 h-4 w-4" />
+                              View Prescription
+                            </Link>
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="flex h-24 flex-col items-center justify-center text-center">
+                <p className="text-muted-foreground">
+                  No appointment history found for this patient.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
     </div>
   );
 }
-
-    
