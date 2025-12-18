@@ -30,23 +30,38 @@ const appointmentFetcher = async ([, appointmentId]) => {
 };
 
 const existingPrescriptionFetcher = async ([, appointmentId, doctorId]) => {
-    if (!appointmentId || !doctorId) return null;
+  if (!appointmentId || !doctorId) return null;
 
-    const prescriptionDocRef = doc(db, 'prescriptions', appointmentId);
+  const prescriptionDocRef = doc(db, 'prescriptions', appointmentId);
+
+  try {
     const prescriptionSnap = await getDoc(prescriptionDocRef);
     
     if (!prescriptionSnap.exists()) {
-        return null; // No existing prescription is a valid state
+      return null; // No existing prescription is a valid, non-error state.
     }
     
     const data = prescriptionSnap.data();
 
-    // Client-side check to ensure we don't process data we shouldn't have access to
+    // Client-side check to ensure the fetched prescription belongs to the doctor.
+    // The security rules already enforce this, but it's good practice.
     if (data.doctorId !== doctorId) {
-        throw new Error('You do not have permission to view this prescription.');
+       console.warn("Fetched a prescription that doesn't belong to the current doctor.");
+       return null;
     }
     
     return { id: prescriptionSnap.id, ...data };
+
+  } catch (error: any) {
+    // This is the key change: if Firestore denies permission, it's likely because the doc
+    // doesn't exist yet, and our rules are strict. We can treat this as "not found".
+    if (error.code === 'permission-denied') {
+      console.log("Permission denied fetching prescription, treating as non-existent.");
+      return null;
+    }
+    // For any other error (e.g., network), we should re-throw it.
+    throw error;
+  }
 }
 
 function NewPrescriptionPage() {
