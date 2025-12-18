@@ -30,8 +30,8 @@ const ForPartnersSection = () => {
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
           <Card className="text-center border-border/30 bg-background/50">
             <CardHeader>
-              <div className="mx-auto mb-4 inline-block rounded-lg bg-primary/10 p-4">
-                <Building className="h-10 w-10 text-primary" />
+              <div className="mx-auto mb-4 inline-block rounded-lg bg-blue-500/10 p-4">
+                <Building className="h-10 w-10 text-blue-400" />
               </div>
               <CardTitle>Pharmacies</CardTitle>
             </CardHeader>
@@ -43,8 +43,8 @@ const ForPartnersSection = () => {
           </Card>
           <Card className="text-center border-border/30 bg-background/50">
             <CardHeader>
-              <div className="mx-auto mb-4 inline-block rounded-lg bg-primary/10 p-4">
-                <TestTube className="h-10 w-10 text-primary" />
+              <div className="mx-auto mb-4 inline-block rounded-lg bg-blue-500/10 p-4">
+                <TestTube className="h-10 w-10 text-blue-400" />
               </div>
               <CardTitle>Diagnostic Labs</CardTitle>
             </CardHeader>
@@ -57,8 +57,8 @@ const ForPartnersSection = () => {
           </Card>
           <Card className="text-center border-border/30 bg-background/50">
             <CardHeader>
-              <div className="mx-auto mb-4 inline-block rounded-lg bg-primary/10 p-4">
-                <Truck className="h-10 w-10 text-primary" />
+              <div className="mx-auto mb-4 inline-block rounded-lg bg-blue-500/10 p-4">
+                <Truck className="h-10 w-10 text-blue-400" />
               </div>
               <CardTitle>Home Care Services</CardTitle>
             </CardHeader>
@@ -70,7 +70,7 @@ const ForPartnersSection = () => {
           </Card>
         </div>
         <div className="mt-12 text-center">
-          <Button asChild size="lg" variant="outline" className="border-primary text-primary hover:bg-primary hover:text-primary-foreground">
+          <Button asChild size="lg" className="bg-blue-600 text-white hover:bg-blue-700">
             <Link href="/partners">Join the Network</Link>
           </Button>
         </div>
