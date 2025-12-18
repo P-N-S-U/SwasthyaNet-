@@ -119,11 +119,12 @@ export default function DoctorDashboardPage() {
     }
   }, [user, authLoading, role, router]);
 
-  const handleCompleteAppointment = async (appointmentId: string) => {
+  const handleCompleteAppointment = async (appointmentId: string, redirectToPrescription: boolean = false) => {
     const optimisticData = allAppointments?.map(appt => 
         appt.id === appointmentId ? { ...appt, status: 'Completed' } : appt
-    ).filter(appt => appt.id !== appointmentId);
+    );
     
+    // Optimistically update the UI to show the change immediately
     mutate(optimisticData, { revalidate: false });
 
     toast({
@@ -131,6 +132,7 @@ export default function DoctorDashboardPage() {
       description: 'Appointment marked as completed.',
     });
 
+    // Make the actual API call
     const result = await completeAppointment(appointmentId);
     
     if (result.error) {
@@ -139,11 +141,13 @@ export default function DoctorDashboardPage() {
         description: result.error,
         variant: 'destructive',
       });
-      mutate(); // Revert to original data from server
+      mutate(); // Revert to original data from server on error
     } else {
-      mutate(); // Re-fetch to ensure consistency
-      // Redirect to prescription page
-      router.push(`/doctor/prescriptions/new?appointmentId=${appointmentId}`);
+      mutate(); // Re-fetch to ensure consistency with the server
+      if (redirectToPrescription) {
+        // Redirect to prescription page if requested
+        router.push(`/doctor/prescriptions/new?appointmentId=${appointmentId}`);
+      }
     }
   };
 
@@ -293,15 +297,15 @@ export default function DoctorDashboardPage() {
                         Mark as Complete
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link href={`/doctor/patients/${nextAppointment.patientId}`}>
-                          <User className="mr-2 h-4 w-4" />
-                          View Patient Profile
-                        </Link>
-                      </DropdownMenuItem>
-                       <DropdownMenuItem asChild>
                         <Link href={`/doctor/prescriptions/new?appointmentId=${nextAppointment.id}`}>
                           <FileText className="mr-2 h-4 w-4" />
                           Write Prescription
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href={`/doctor/patients/${nextAppointment.patientId}`}>
+                          <User className="mr-2 h-4 w-4" />
+                          View Patient Profile
                         </Link>
                       </DropdownMenuItem>
                     </DropdownMenuContent>

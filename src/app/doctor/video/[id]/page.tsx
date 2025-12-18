@@ -10,6 +10,7 @@ import {
   VideoOff,
   Loader2,
   CheckCircle,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useRouter, useParams } from 'next/navigation';
@@ -137,27 +138,43 @@ export default function DoctorVideoCallPage() {
     router.push('/doctor/dashboard');
   };
 
-  const handleCompleteAppointment = async () => {
+  const handleCompleteAndPrescribe = async () => {
+    await handleAppointmentCompletion(true);
+  };
+  
+  const handleCompleteOnly = async () => {
+    await handleAppointmentCompletion(false);
+  };
+
+  const handleAppointmentCompletion = async (redirectToPrescription: boolean) => {
     await endCall(pcRef.current, callId);
-    pcRef.current = null;
+    pcRef.current = null; // Ensure peer connection is cleared
+    
     toast({
-        title: 'Completing Appointment...',
-        description: 'Please wait while we finalize everything.',
+      title: 'Completing Appointment...',
+      description: 'Please wait while we finalize everything.',
     });
+    
     const result = await completeAppointment(callId);
-    if(result.error) {
-        toast({
-            title: 'Error',
-            description: result.error,
-            variant: 'destructive'
-        });
-        router.push('/doctor/dashboard');
+    
+    if (result.error) {
+      toast({
+        title: 'Error',
+        description: result.error,
+        variant: 'destructive',
+      });
+      router.push('/doctor/dashboard');
     } else {
-        toast({
-            title: 'Appointment Completed',
-            description: 'The appointment has been successfully marked as complete.',
-        });
+      toast({
+        title: 'Appointment Completed',
+        description: 'The session has been marked as complete.',
+      });
+      
+      if (redirectToPrescription) {
+        router.push(`/doctor/prescriptions/new?appointmentId=${callId}`);
+      } else {
         router.push('/doctor/dashboard');
+      }
     }
   };
 
@@ -266,18 +283,21 @@ export default function DoctorVideoCallPage() {
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>End Call?</AlertDialogTitle>
+                  <AlertDialogTitle>End Consultation</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Do you want to leave the call or complete the appointment? Leaving allows you to rejoin. Completing will end the session for both you and the patient.
+                    Choose how you want to end this session. You can complete the appointment now, or complete and proceed to write a prescription.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                   <AlertDialogAction variant="outline" onClick={handleEndCall}>Leave Call</AlertDialogAction>
-                  <AlertDialogAction onClick={handleCompleteAppointment}>
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                    Complete Appointment
-                  </AlertDialogAction>
+                <AlertDialogFooter className="sm:flex-col sm:space-x-0 sm:gap-2">
+                    <AlertDialogAction onClick={handleCompleteAndPrescribe}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        Complete & Write Prescription
+                    </AlertDialogAction>
+                    <AlertDialogAction variant="secondary" onClick={handleCompleteOnly}>
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Complete Appointment Only
+                    </AlertDialogAction>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
