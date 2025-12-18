@@ -70,12 +70,14 @@ export async function signUpWithEmail(
     );
     const user = userCredential.user;
 
+    // THIS IS THE CRITICAL FIX: Force token refresh to ensure auth state is propagated.
+    await user.getIdToken(true);
+
     await updateProfile(user, {
       displayName: userDocData.displayName,
     });
     
-    // If it's a partner, only create the partner document.
-    // Otherwise, create a standard user document.
+    // Create the associated Firestore document.
     if (userDocData.role === 'partner' && partnerDocData) {
       const finalPartnerData = { ...partnerDocData, ownerUID: user.uid };
       await createPartnerInFirestore(user, finalPartnerData);
@@ -83,6 +85,7 @@ export async function signUpWithEmail(
       await createUserInFirestore(user, userDocData);
     }
     
+    // Create the server-side session cookie after all data is written.
     await createServerSession(user);
 
     return { user, error: null };
