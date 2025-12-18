@@ -17,14 +17,10 @@ export async function createUserInFirestore(user: User, additionalData = {}) {
           uid: user.uid,
           email,
           photoURL,
+          displayName,
           createdAt: serverTimestamp(),
           role: 'patient', // Default role
           ...additionalData
-      }
-      // Only set displayName if it's provided, otherwise let it be unset
-      // This is important for partners where the business name is separate
-      if (additionalData.displayName || displayName) {
-        dataToCreate.displayName = additionalData.displayName || displayName;
       }
   
       await setDoc(userRef, dataToCreate, { merge: true });
