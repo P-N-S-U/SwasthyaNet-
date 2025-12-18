@@ -133,11 +133,6 @@ export default function DoctorVideoCallPage() {
     toggleCamera(newCameraState, callId, 'doctor');
   };
 
-  const handleEndCall = async () => {
-    await endCall(pcRef.current, callId);
-    router.push('/doctor/dashboard');
-  };
-
   const handleCompleteAndPrescribe = async () => {
     await handleAppointmentCompletion(true);
   };
@@ -288,16 +283,16 @@ export default function DoctorVideoCallPage() {
                     Choose how you want to end this session. You can complete the appointment now, or complete and proceed to write a prescription.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
-                <AlertDialogFooter className="sm:flex-col sm:space-x-0 sm:gap-2">
-                    <AlertDialogAction onClick={handleCompleteAndPrescribe}>
+                <AlertDialogFooter className="sm:flex-col sm:space-x-0 sm:gap-2 md:flex-row md:space-x-2">
+                    <AlertDialogAction onClick={handleCompleteAndPrescribe} className="w-full md:w-auto">
                         <FileText className="mr-2 h-4 w-4" />
-                        Complete & Write Prescription
+                        Complete &amp; Write Prescription
                     </AlertDialogAction>
-                    <AlertDialogAction variant="secondary" onClick={handleCompleteOnly}>
+                    <AlertDialogAction variant="secondary" onClick={handleCompleteOnly} className="w-full md:w-auto">
                         <CheckCircle className="mr-2 h-4 w-4" />
                         Complete Appointment Only
                     </AlertDialogAction>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel className="w-full mt-2 md:mt-0 md:w-auto">Cancel</AlertDialogCancel>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>

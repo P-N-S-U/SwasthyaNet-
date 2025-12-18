@@ -115,41 +115,9 @@ export default function DoctorDashboardPage() {
       router.push('/auth');
     }
     if (!authLoading && role && role !== 'doctor') {
-      router.replace('/patient/dashboard');
+      router.replace('/dashboard');
     }
   }, [user, authLoading, role, router]);
-
-  const handleCompleteAppointment = async (appointmentId: string, redirectToPrescription: boolean = false) => {
-    const optimisticData = allAppointments?.map(appt => 
-        appt.id === appointmentId ? { ...appt, status: 'Completed' } : appt
-    );
-    
-    // Optimistically update the UI to show the change immediately
-    mutate(optimisticData, { revalidate: false });
-
-    toast({
-      title: 'Success',
-      description: 'Appointment marked as completed.',
-    });
-
-    // Make the actual API call
-    const result = await completeAppointment(appointmentId);
-    
-    if (result.error) {
-      toast({
-        title: 'Error',
-        description: result.error,
-        variant: 'destructive',
-      });
-      mutate(); // Revert to original data from server on error
-    } else {
-      mutate(); // Re-fetch to ensure consistency with the server
-      if (redirectToPrescription) {
-        // Redirect to prescription page if requested
-        router.push(`/doctor/prescriptions/new?appointmentId=${appointmentId}`);
-      }
-    }
-  };
 
   const pageIsLoading = authLoading || !user;
 
@@ -290,12 +258,6 @@ export default function DoctorDashboardPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onSelect={() => handleCompleteAppointment(nextAppointment.id)}
-                      >
-                        <CheckCircle className="mr-2 h-4 w-4" />
-                        Mark as Complete
-                      </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link href={`/doctor/prescriptions/new?appointmentId=${nextAppointment.id}`}>
                           <FileText className="mr-2 h-4 w-4" />
