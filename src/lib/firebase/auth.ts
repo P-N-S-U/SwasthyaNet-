@@ -73,13 +73,14 @@ export async function signUpWithEmail(
     await updateProfile(user, {
       displayName: userDocData.displayName,
     });
-
-    await createUserInFirestore(user, userDocData);
-
-    // If it's a partner, create the partner document as well
+    
+    // If it's a partner, only create the partner document.
+    // Otherwise, create a standard user document.
     if (userDocData.role === 'partner' && partnerDocData) {
       const finalPartnerData = { ...partnerDocData, ownerUID: user.uid };
       await createPartnerInFirestore(user, finalPartnerData);
+    } else {
+      await createUserInFirestore(user, userDocData);
     }
     
     await createServerSession(user);
@@ -149,21 +150,20 @@ export async function signInWithGoogle(userDocData = {}, partnerDocData = null) 
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
 
-    const finalUserDocData = { role: 'patient', ...userDocData };
-    await createUserInFirestore(user, finalUserDocData);
+    const isPartner = userDocData.role === 'partner';
     
-    // If it's a partner, create the partner document as well
-    if (finalUserDocData.role === 'partner' && partnerDocData) {
-      // Set name from Google profile if not provided
-      const finalPartnerDocData = {
-          ...partnerDocData,
-          name: partnerDocData.name || user.displayName,
-          address: partnerDocData.address || '',
-          ownerUID: user.uid,
-      };
-      await createPartnerInFirestore(user, finalPartnerDocData);
+    // Only create partner doc for partners, otherwise create user doc
+    if (isPartner) {
+        const finalPartnerData = {
+            ...(partnerDocData || {}),
+            name: partnerDocData?.name || user.displayName,
+            ownerUID: user.uid,
+        };
+        await createPartnerInFirestore(user, finalPartnerData);
+    } else {
+        const finalUserDocData = { role: 'patient', ...userDocData };
+        await createUserInFirestore(user, finalUserDocData);
     }
-
 
     await createServerSession(user);
 
