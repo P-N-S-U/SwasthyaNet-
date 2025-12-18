@@ -153,6 +153,9 @@ export async function signInWithGoogle(userDocData = {}, partnerDocData = null) 
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
 
+    // THIS IS THE CRITICAL FIX: Force token refresh to ensure auth state is propagated.
+    await user.getIdToken(true);
+
     const isPartner = userDocData.role === 'partner';
     
     // Only create partner doc for partners, otherwise create user doc
