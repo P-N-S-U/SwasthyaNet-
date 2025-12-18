@@ -44,22 +44,24 @@ const ProfileDetailItem = ({ icon, label, value, loading = false }) => {
 
 export default function ProfilePage() {
   const { user, loading: authLoading, role } = useAuthState();
-  const { profile, loading: profileLoading } = useUserProfile(user?.uid);
+  const { profile, loading: profileLoading, mutate } = useUserProfile(user?.uid);
   const router = useRouter();
 
   useEffect(() => {
     if (!authLoading) {
         if (!user) {
-            router.push('/auth');
+            router.replace('/auth');
         } else if (role === 'doctor') {
             router.replace('/doctor/profile');
+        } else if (role === 'partner') {
+            router.replace('/partner/profile');
         }
     }
   }, [user, authLoading, role, router]);
 
   const isLoading = authLoading || profileLoading;
 
-  if (isLoading || !user || role === 'doctor') {
+  if (isLoading || !user || role === 'doctor' || role === 'partner') {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -108,7 +110,7 @@ export default function ProfilePage() {
                            Update your name and profile picture.
                         </DialogDescription>
                       </DialogHeader>
-                      <UpdateProfileForm user={user} />
+                      <UpdateProfileForm user={user} onUpdate={mutate} />
                     </DialogContent>
                   </Dialog>
                 </div>

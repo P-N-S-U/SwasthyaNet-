@@ -12,15 +12,18 @@ export default function DashboardRedirectPage() {
   const [status, setStatus] = useState('Checking authentication...');
 
   useEffect(() => {
+    // Don't do anything until loading is false
     if (loading) {
       return;
     }
 
+    // If loading is done and there's no user, send to login
     if (!user) {
       router.replace('/auth');
       return;
     }
 
+    // If we have a user and a role, redirect them
     if (role) {
       if (role === 'doctor') {
         setStatus('Redirecting to doctor dashboard...');
@@ -28,14 +31,13 @@ export default function DashboardRedirectPage() {
       } else if (role === 'partner') {
         setStatus('Redirecting to partner dashboard...');
         router.replace('/partner/dashboard');
-      }
-      else {
+      } else { // 'patient'
         setStatus('Redirecting to patient dashboard...');
         router.replace('/patient/dashboard');
       }
     } else {
-      // Role is still loading or not found, show a message.
-      // useAuthState and useUserProfile will fetch it.
+      // This state can happen briefly while the role is being fetched by useUserProfile.
+      // We show a message and the hook will eventually provide the role, triggering a re-render and the redirect.
       setStatus('Verifying user role...');
     }
     

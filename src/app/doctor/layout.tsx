@@ -18,14 +18,18 @@ export default function DoctorLayout({
   useEffect(() => {
     if (!loading) {
       if (!user) {
-        router.replace('/auth');
-      } else if (role !== 'doctor') {
-        router.replace('/patient/dashboard');
+        // If not logged in, redirect to auth page
+        router.replace('/auth?next=/doctor/dashboard');
+      } else if (role && role !== 'doctor') {
+        // If logged in but not a doctor, redirect to their correct dashboard
+        router.replace('/dashboard');
       }
     }
   }, [user, loading, role, router]);
 
-  if (loading || !user || role !== 'doctor') {
+  // While loading or if the role isn't confirmed yet, show a loader.
+  // This prevents the content from flashing before the role check is complete.
+  if (loading || !user || !role) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -33,17 +37,30 @@ export default function DoctorLayout({
       </div>
     );
   }
-
-  return (
-    <div className="min-h-screen bg-secondary/30">
-      <DoctorSidebar user={user} />
-      <main className="md:pl-64">
-        <div className="p-4 sm:p-6 md:p-8">
-          <div className="mx-auto max-w-7xl">
-            {children}
+  
+  // If the role is confirmed to be 'doctor', render the layout.
+  // If the role check determined a non-doctor role, the useEffect will have already initiated a redirect.
+  // This check prevents a brief flash of the doctor UI for non-doctor users.
+  if (role === 'doctor') {
+    return (
+      <div className="min-h-screen bg-secondary/30">
+        <DoctorSidebar user={user} />
+        <main className="md:pl-64">
+          <div className="p-4 sm:p-6 md:p-8">
+            <div className="mx-auto max-w-7xl">
+              {children}
+            </div>
           </div>
-        </div>
-      </main>
-    </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Fallback loader while redirecting
+  return (
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <p className="ml-2">Redirecting...</p>
+      </div>
   );
 }
