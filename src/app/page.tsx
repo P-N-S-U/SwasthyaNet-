@@ -81,23 +81,26 @@ const ForPartnersSection = () => {
 
 
 export default function Home() {
-  const { role, loading } = useAuthState();
+  const { user, role, loading } = useAuthState();
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading && role === 'doctor') {
+    // If the role is loaded and it's a doctor, redirect them immediately.
+    if (!loading && user && role === 'doctor') {
       router.replace('/doctor/dashboard');
     }
-  }, [role, loading, router]);
-
-  if (loading || role === 'doctor') {
+  }, [user, role, loading, router]);
+  
+  // While loading or if the user is a doctor (and about to be redirected), show a loader.
+  if (loading || (user && role === 'doctor')) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
-
+  
+  // If the user is a patient or not logged in, show the landing page.
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
