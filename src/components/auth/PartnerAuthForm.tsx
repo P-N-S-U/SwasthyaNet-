@@ -8,6 +8,7 @@ import {
   signUpWithEmail,
   signInWithEmail,
 } from '@/lib/firebase/auth';
+import { createPartnerInFirestore } from '@/lib/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -122,47 +123,55 @@ export function PartnerAuthForm() {
   const handleSignUp = async (values: z.infer<typeof partnerSignUpSchema>) => {
     setIsLoading(true);
 
-    const fullAddress = `${values.street}, ${values.city}, ${values.state} ${values.postalCode}, ${values.country}`;
-
-    // Additional data for the 'users' collection
-    const userDocData = {
-      displayName: values.personalName,
-      role: 'partner',
-    };
-    
-    // Additional data for the new 'partners' collection
-    const partnerDocData = {
-      name: values.businessName,
-      partnerType: values.partnerType,
-      status: 'pending', // Initial status
-      address: fullAddress,
-      contact: '',
-      licenseNumber: '',
-      location: null, // To be filled later
-    };
-
-    const { error } = await signUpWithEmail(
+    // Step 1: Create the user in Firebase Auth
+    const { user, error: authError } = await signUpWithEmail(
       values.email,
       values.password,
-      userDocData,
-      partnerDocData,
+      { displayName: values.personalName, role: 'partner' }
     );
 
-
-    if (error) {
+    if (authError || !user) {
       toast({
         title: 'Sign Up Failed',
-        description: error.message,
+        description: authError?.message || 'An unknown authentication error occurred.',
         variant: 'destructive',
       });
-    } else {
+      setIsLoading(false);
+      return;
+    }
+
+    // If Auth user is created successfully, proceed to create the Firestore documents
+    try {
+      const fullAddress = `${values.street}, ${values.city}, ${values.state} ${values.postalCode}, ${values.country}`;
+      
+      const partnerDocData = {
+        name: values.businessName,
+        partnerType: values.partnerType,
+        status: 'pending',
+        address: fullAddress,
+        contact: '',
+        licenseNumber: '',
+        location: null,
+      };
+
+      // Step 2: Create the partner document in the 'partners' collection
+      await createPartnerInFirestore(user, partnerDocData);
+      
       toast({
         title: 'Account Created',
         description: 'Welcome! Your account is pending approval.',
       });
       router.push('/dashboard');
+
+    } catch (dbError: any) {
+       toast({
+        title: 'Registration Failed',
+        description: dbError.message || 'Failed to save business details.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   };
 
   return (

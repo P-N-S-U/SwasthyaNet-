@@ -35,15 +35,15 @@ export async function createUserInFirestore(user: User, additionalData = {}) {
 export async function createPartnerInFirestore(user: User, partnerData: any) {
     const partnerRef = doc(db, 'partners', user.uid);
     try {
-        const docSnap = await getDoc(partnerRef);
-        if (!docSnap.exists()) {
-            const dataToCreate = {
-                ...partnerData,
-                ownerUID: user.uid,
-                createdAt: serverTimestamp(),
-            };
-            await setDoc(partnerRef, dataToCreate);
-        }
+        // Ensure user is fully authenticated before write
+        await user.getIdToken(true);
+        
+        const dataToCreate = {
+            ...partnerData,
+            ownerUID: user.uid,
+            createdAt: serverTimestamp(),
+        };
+        await setDoc(partnerRef, dataToCreate);
     } catch (serverError) {
         const permissionError = new FirestorePermissionError({
             path: partnerRef.path,
@@ -51,6 +51,7 @@ export async function createPartnerInFirestore(user: User, partnerData: any) {
             requestResourceData: partnerData,
         });
         errorEmitter.emit('permission-error', permissionError);
-        throw permissionError;
+        // Re-throw the original error to be caught by the calling function
+        throw serverError;
     }
 }

@@ -56,12 +56,7 @@ async function createServerSession(user: User) {
   }
 }
 
-export async function signUpWithEmail(
-  email,
-  password,
-  userDocData,
-  partnerDocData = null
-) {
+export async function signUpWithEmail(email, password, userDocData) {
   try {
     const userCredential = await createUserWithEmailAndPassword(
       auth,
@@ -70,21 +65,18 @@ export async function signUpWithEmail(
     );
     const user = userCredential.user;
 
-    // Force auth token refresh to ensure auth state is propagated before Firestore writes.
+    // This is the critical step to ensure the backend knows about the user
+    // before we proceed with database operations.
     await user.getIdToken(true);
 
+    // Update the Firebase Auth user profile (displayName, photoURL, etc.)
     await updateProfile(user, {
       displayName: userDocData.displayName,
     });
     
-    // Create the user document first in all cases.
+    // Create the user document in Firestore 'users' collection
     await createUserInFirestore(user, userDocData);
-    
-    // If it's a partner, ALSO create the partner document.
-    if (userDocData.role === 'partner' && partnerDocData) {
-      await createPartnerInFirestore(user, partnerDocData);
-    }
-    
+
     // Create the server-side session cookie after all data is written.
     await createServerSession(user);
 
@@ -147,24 +139,15 @@ export async function completeSignInWithLink(link: string) {
   }
 }
 
-export async function signInWithGoogle(userDocData = {}, partnerDocData = null) {
+export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
 
-    // THIS IS THE CRITICAL FIX: Force token refresh to ensure auth state is propagated.
     await user.getIdToken(true);
 
-    const isPartner = userDocData.role === 'partner';
-    
-    // Create the base user document.
-    await createUserInFirestore(user, { role: isPartner ? 'partner' : 'patient', ...userDocData });
-
-    // If it's a partner, create the partner-specific document.
-    if (isPartner && partnerDocData) {
-        await createPartnerInFirestore(user, partnerDocData);
-    }
+    await createUserInFirestore(user, { role: 'patient' });
 
     await createServerSession(user);
 
