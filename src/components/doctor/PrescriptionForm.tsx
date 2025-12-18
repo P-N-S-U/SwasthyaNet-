@@ -3,8 +3,7 @@
 import { useFieldArray, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useActionState, useEffect, useState } from 'react';
-import { useFormStatus } from 'react-dom';
+import { useEffect, useState, useTransition } from 'react';
 import {
   savePrescription,
   generatePrescription,
@@ -54,18 +53,6 @@ const prescriptionFormSchema = z.object({
 
 type PrescriptionFormValues = z.infer<typeof prescriptionFormSchema>;
 
-function GenerateButton() {
-    const { pending } = useFormStatus();
-    const diagnosis = useForm().watch('diagnosis');
-
-    return (
-        <Button type="submit" variant="outline" disabled={pending || !diagnosis} size="sm">
-            {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Sparkles className="mr-2 h-4 w-4" />}
-            Generate Suggestions with AI
-        </Button>
-    )
-}
-
 export function PrescriptionForm({ appointment, existingPrescription }) {
   const { toast } = useToast();
   const router = useRouter();
@@ -87,20 +74,38 @@ export function PrescriptionForm({ appointment, existingPrescription }) {
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [aiState, generateAction, isGenerating] = useActionState(generatePrescription, { data: null, error: null });
+  const [isGenerating, startTransition] = useTransition();
 
-  useEffect(() => {
-      if (aiState.data) {
-          const { medications, advice, followUp } = aiState.data;
-          form.setValue('medications', medications, { shouldValidate: true });
-          form.setValue('advice', advice, { shouldValidate: true });
-          form.setValue('followUp', followUp, { shouldValidate: true });
-          toast({ title: "AI suggestions applied."});
-      }
-      if (aiState.error) {
-          toast({ title: "AI Error", description: aiState.error, variant: 'destructive' });
-      }
-  }, [aiState, form, toast]);
+  const handleGenerate = () => {
+    const diagnosis = form.getValues('diagnosis');
+    const notes = form.getValues('notes');
+
+    if (!diagnosis) {
+        toast({ title: "Diagnosis Required", description: "Please enter a diagnosis before generating suggestions.", variant: "destructive" });
+        return;
+    }
+
+    startTransition(async () => {
+        const formData = new FormData();
+        formData.append('diagnosis', diagnosis);
+        if (notes) {
+            formData.append('notes', notes);
+        }
+
+        const result = await generatePrescription(null, formData);
+
+        if (result.data) {
+            const { medications, advice, followUp } = result.data;
+            form.setValue('medications', medications, { shouldValidate: true });
+            form.setValue('advice', advice, { shouldValidate: true });
+            form.setValue('followUp', followUp, { shouldValidate: true });
+            toast({ title: "AI suggestions applied."});
+        }
+        if (result.error) {
+            toast({ title: "AI Error", description: result.error, variant: 'destructive' });
+        }
+    });
+  };
 
 
   const onSubmit = async (values: PrescriptionFormValues) => {
@@ -170,8 +175,8 @@ export function PrescriptionForm({ appointment, existingPrescription }) {
               )}
             />
             <Button
-                type="submit"
-                formAction={generateAction}
+                type="button"
+                onClick={handleGenerate}
                 variant="outline"
                 disabled={isGenerating || !form.watch('diagnosis')}
                 size="sm"
