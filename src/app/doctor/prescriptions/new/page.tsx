@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense } from 'react';
@@ -16,6 +17,7 @@ import { Loader2, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { PrescriptionForm } from '@/components/doctor/PrescriptionForm';
+import { useAuthState } from '@/hooks/use-auth-state';
 
 const appointmentFetcher = async ([, appointmentId]) => {
   if (!appointmentId) return null;
@@ -27,17 +29,28 @@ const appointmentFetcher = async ([, appointmentId]) => {
   return { id: apptSnap.id, ...apptSnap.data() };
 };
 
-const existingPrescriptionFetcher = async ([, appointmentId]) => {
-    if (!appointmentId) return null;
+const existingPrescriptionFetcher = async ([, appointmentId, doctorId]) => {
+    if (!appointmentId || !doctorId) return null;
+
     const prescriptionDocRef = doc(db, 'prescriptions', appointmentId);
     const prescriptionSnap = await getDoc(prescriptionDocRef);
+    
     if (!prescriptionSnap.exists()) {
-        return null; // No existing prescription
+        return null; // No existing prescription is a valid state
     }
-    return { id: prescriptionSnap.id, ...prescriptionSnap.data() };
+    
+    const data = prescriptionSnap.data();
+
+    // Client-side check to ensure we don't process data we shouldn't have access to
+    if (data.doctorId !== doctorId) {
+        throw new Error('You do not have permission to view this prescription.');
+    }
+    
+    return { id: prescriptionSnap.id, ...data };
 }
 
 function NewPrescriptionPage() {
+  const { user } = useAuthState();
   const searchParams = useSearchParams();
   const appointmentId = searchParams.get('appointmentId');
 
@@ -55,7 +68,7 @@ function NewPrescriptionPage() {
       isLoading: prescriptionLoading,
       error: prescriptionError,
   } = useSWR(
-      appointmentId ? ['prescription', appointmentId] : null,
+      appointmentId && user?.uid ? ['prescription', appointmentId, user.uid] : null,
       existingPrescriptionFetcher
   );
 
