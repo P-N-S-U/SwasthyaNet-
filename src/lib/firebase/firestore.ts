@@ -35,9 +35,6 @@ export async function createUserInFirestore(user: User, additionalData = {}) {
 export async function createPartnerInFirestore(user: User, partnerData: any) {
     const partnerRef = doc(db, 'partners', user.uid);
     try {
-        // Ensure user is fully authenticated before write
-        await user.getIdToken(true);
-        
         const dataToCreate = {
             ...partnerData,
             createdAt: serverTimestamp(),

@@ -68,8 +68,7 @@ export async function signUpWithEmail(email: string, password: string, displayNa
     // Update the Firebase Auth user profile (displayName, photoURL, etc.)
     await updateProfile(user, { displayName });
     
-    // This function now ONLY creates the user in Auth. 
-    // Firestore writes are handled by the calling component after auth state is confirmed.
+    // Create server session after user creation and profile update
     await createServerSession(user);
 
     return { user, error: null };

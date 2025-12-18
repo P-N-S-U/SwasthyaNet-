@@ -37,6 +37,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
+import { signInWithEmail } from '@/lib/firebase/auth';
 
 const signInSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
@@ -120,55 +121,48 @@ export function PartnerAuthForm() {
 
   const handleSignUp = async (values: z.infer<typeof partnerSignUpSchema>) => {
     setIsLoading(true);
-
-    // Step 1: Create the user in Firebase Auth
-    const { user, error: authError } = await signUpWithEmail(
-      values.email,
-      values.password,
-      values.personalName
-    );
-
-    if (authError || !user) {
-      toast({
-        title: 'Sign Up Failed',
-        description:
-          authError?.message || 'An unknown authentication error occurred.',
-        variant: 'destructive',
-      });
-      setIsLoading(false);
-      return;
-    }
-
+  
     try {
-      // Step 2: Force token refresh to ensure auth state is propagated for security rules
+      // Step 1: Create user in Firebase Auth
+      const { user, error: authError } = await signUpWithEmail(
+        values.email,
+        values.password,
+        values.personalName
+      );
+  
+      if (authError || !user) {
+        throw authError || new Error('User creation failed.');
+      }
+  
+      // Step 2: Force token refresh
       await user.getIdToken(true);
-
+  
+      // Step 3: Prepare partner data for Firestore
       const fullAddress = `${values.street}, ${values.city}, ${values.state} ${values.postalCode}, ${values.country}`;
-
-      // Step 3: Create the partner document payload, now including ownerUID
       const partnerDocData = {
         name: values.businessName,
-        ownerUID: user.uid, // This is the crucial fix
         partnerType: values.partnerType,
-        status: 'pending',
+        status: 'pending' as const,
         address: fullAddress,
         contact: '',
         licenseNumber: '',
         location: null,
+        ownerUID: user.uid, // Add ownerUID here
       };
-
-      // Step 4: Create the document in the 'partners' collection
+  
+      // Step 4: Create document ONLY in 'partners' collection
       await createPartnerInFirestore(user, partnerDocData);
-
+  
       toast({
         title: 'Account Created',
         description: 'Welcome! Your account is pending approval.',
       });
       router.push('/dashboard');
-    } catch (dbError: any) {
+  
+    } catch (error: any) {
       toast({
-        title: 'Registration Failed',
-        description: dbError.message || 'Failed to save business details.',
+        title: 'Sign Up Failed',
+        description: error.message || 'An unexpected error occurred.',
         variant: 'destructive',
       });
     } finally {
