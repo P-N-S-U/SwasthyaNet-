@@ -25,8 +25,8 @@ const prescriptionFetcher = async ([, prescriptionId, userId]) => {
   
   const data = docSnap.data();
 
-  // Security check: ensure the user requesting is the patient on the prescription
-  if (data.patientId !== userId) {
+  // Security check: allow access if the user is either the patient or the doctor on the prescription
+  if (data.patientId !== userId && data.doctorId !== userId) {
       throw new Error('You do not have permission to view this prescription.');
   }
 
@@ -34,7 +34,7 @@ const prescriptionFetcher = async ([, prescriptionId, userId]) => {
 };
 
 export default function ViewPrescriptionPage({ params }: { params: { id: string } }) {
-  const { user, loading: authLoading } = useAuthState();
+  const { user, role, loading: authLoading } = useAuthState();
   const router = useRouter();
 
   const { data: prescription, isLoading, error } = useSWR(
@@ -48,6 +48,12 @@ export default function ViewPrescriptionPage({ params }: { params: { id: string 
     }
   }, [user, authLoading, router]);
 
+  const getBackLink = () => {
+      if (role === 'doctor') {
+          return '/doctor/prescriptions';
+      }
+      return '/patient/appointments';
+  }
 
   if (isLoading || authLoading) {
     return (
@@ -63,9 +69,9 @@ export default function ViewPrescriptionPage({ params }: { params: { id: string 
         <h1 className="text-2xl font-bold text-destructive">Error</h1>
         <p>{error.message}</p>
          <Button asChild variant="outline" size="sm" className="mt-6">
-            <Link href="/patient/appointments">
+            <Link href={getBackLink()}>
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Appointments
+                Back
             </Link>
         </Button>
       </div>
@@ -96,9 +102,9 @@ export default function ViewPrescriptionPage({ params }: { params: { id: string 
       <div className="container">
         <div className="flex justify-between items-center mb-8">
           <Button asChild variant="outline" size="sm">
-            <Link href="/patient/appointments">
+            <Link href={getBackLink()}>
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Appointments
+              Back
             </Link>
           </Button>
           <Button variant="default" disabled>
