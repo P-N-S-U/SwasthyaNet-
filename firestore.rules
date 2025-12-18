@@ -32,7 +32,7 @@ service cloud.firestore {
       // Public data like name, address, type can be read by any authenticated user
       allow read: if request.auth != null;
       // Only the authenticated user can create their own partner document.
-      allow create: if request.auth.uid == request.resource.data.ownerUID;
+      allow create: if request.auth.uid == partnerId;
       allow update: if request.auth.uid == resource.data.ownerUID;
       // No one can delete partner documents through the client
       allow delete: if false;
