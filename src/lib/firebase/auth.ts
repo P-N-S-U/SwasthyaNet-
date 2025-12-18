@@ -56,7 +56,7 @@ async function createServerSession(user: User) {
   }
 }
 
-export async function signUpWithEmail(email, password, userDocData) {
+export async function signUpWithEmail(email, password, profileData) {
   try {
     const userCredential = await createUserWithEmailAndPassword(
       auth,
@@ -71,14 +71,10 @@ export async function signUpWithEmail(email, password, userDocData) {
 
     // Update the Firebase Auth user profile (displayName, photoURL, etc.)
     await updateProfile(user, {
-      displayName: userDocData.displayName,
+      displayName: profileData.displayName,
     });
     
-    // Create the user document in Firestore 'users' collection
-    await createUserInFirestore(user, userDocData);
-
-    // Create the server-side session cookie after all data is written.
-    await createServerSession(user);
+    // This function now ONLY creates the user in Auth. Firestore writes are handled by the calling component.
 
     return { user, error: null };
   } catch (error) {
@@ -139,7 +135,7 @@ export async function completeSignInWithLink(link: string) {
   }
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(userDocData = { role: 'patient' }) {
   const provider = new GoogleAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
@@ -147,7 +143,12 @@ export async function signInWithGoogle() {
 
     await user.getIdToken(true);
 
-    await createUserInFirestore(user, { role: 'patient' });
+    const isPartner = userDocData.role === 'partner';
+    
+    // Only create the user document if they are not a partner
+    if (!isPartner) {
+        await createUserInFirestore(user, userDocData);
+    }
 
     await createServerSession(user);
 
