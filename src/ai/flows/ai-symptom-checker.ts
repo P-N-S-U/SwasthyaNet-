@@ -1,4 +1,3 @@
-// Symptom checker flow provides potential conditions and recommended actions based on symptoms.
 'use server';
 
 import {ai} from '@/ai/genkit';
@@ -7,7 +6,7 @@ import {z} from 'genkit';
 const SymptomCheckerInputSchema = z.object({
   symptoms: z
     .string()
-    .describe('A detailed description of the patient\'s symptoms.'),
+    .describe("A detailed description of the patient's symptoms."),
 });
 
 export type SymptomCheckerInput = z.infer<typeof SymptomCheckerInputSchema>;

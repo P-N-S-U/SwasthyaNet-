@@ -7,8 +7,7 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { revalidatePath } from 'next/cache';
 import {
   generatePrescription as generatePrescriptionFlow,
-  PrescriptionGeneratorInputSchema,
-  PrescriptionGeneratorOutputSchema
+  type PrescriptionGeneratorInput,
 } from '@/ai/flows/prescription-generator';
 
 
@@ -82,23 +81,23 @@ export async function savePrescription(prevState: any, formData: FormData) {
   }
 }
 
+const PrescriptionGeneratorServerInputSchema = z.object({
+    diagnosis: z.string(),
+    notes: z.string().optional(),
+})
 
-export async function generatePrescription(prevState: any, formData: FormData) {
+export async function generatePrescription(input: PrescriptionGeneratorInput) {
   const session = await getSession();
   if (!session) {
     return { data: null, error: 'Authentication required.' };
   }
 
-  const validatedFields = PrescriptionGeneratorInputSchema.safeParse({
-    diagnosis: formData.get('diagnosis'),
-    notes: formData.get('notes'),
-  });
+  const validatedFields = PrescriptionGeneratorServerInputSchema.safeParse(input);
 
   if (!validatedFields.success) {
     return {
       data: null,
       error: 'Invalid input for AI generation.',
-      errors: validatedFields.error.flatten().fieldErrors,
     };
   }
 

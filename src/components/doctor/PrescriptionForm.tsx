@@ -86,13 +86,7 @@ export function PrescriptionForm({ appointment, existingPrescription }) {
     }
 
     startTransition(async () => {
-        const formData = new FormData();
-        formData.append('diagnosis', diagnosis);
-        if (notes) {
-            formData.append('notes', notes);
-        }
-
-        const result = await generatePrescription(null, formData);
+        const result = await generatePrescription({ diagnosis, notes });
 
         if (result.data) {
             const { medications, advice, followUp } = result.data;

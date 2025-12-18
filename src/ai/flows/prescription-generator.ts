@@ -29,10 +29,10 @@ const MedicationSchema = z.object({
     .describe('Additional notes, e.g., "Take after meals".'),
 });
 
-export const PrescriptionGeneratorInputSchema = z.object({
+const PrescriptionGeneratorInputSchema = z.object({
   diagnosis: z
     .string()
-    .describe('The doctor\'s diagnosis or chief complaint of the patient.'),
+    .describe("The doctor's diagnosis or chief complaint of the patient."),
   notes: z
     .string()
     .optional()
@@ -42,7 +42,7 @@ export type PrescriptionGeneratorInput = z.infer<
   typeof PrescriptionGeneratorInputSchema
 >;
 
-export const PrescriptionGeneratorOutputSchema = z.object({
+const PrescriptionGeneratorOutputSchema = z.object({
   medications: z
     .array(MedicationSchema)
     .describe('A list of suggested medications.'),
