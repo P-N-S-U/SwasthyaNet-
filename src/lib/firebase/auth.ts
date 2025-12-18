@@ -70,19 +70,19 @@ export async function signUpWithEmail(
     );
     const user = userCredential.user;
 
-    // THIS IS THE CRITICAL FIX: Force token refresh to ensure auth state is propagated.
+    // Force auth token refresh to ensure auth state is propagated before Firestore writes.
     await user.getIdToken(true);
 
     await updateProfile(user, {
       displayName: userDocData.displayName,
     });
     
-    // Create the associated Firestore document.
+    // Create the user document first in all cases.
+    await createUserInFirestore(user, userDocData);
+    
+    // If it's a partner, ALSO create the partner document.
     if (userDocData.role === 'partner' && partnerDocData) {
-      const finalPartnerData = { ...partnerDocData, ownerUID: user.uid };
-      await createPartnerInFirestore(user, finalPartnerData);
-    } else {
-      await createUserInFirestore(user, userDocData);
+      await createPartnerInFirestore(user, partnerDocData);
     }
     
     // Create the server-side session cookie after all data is written.
@@ -158,17 +158,12 @@ export async function signInWithGoogle(userDocData = {}, partnerDocData = null) 
 
     const isPartner = userDocData.role === 'partner';
     
-    // Only create partner doc for partners, otherwise create user doc
-    if (isPartner) {
-        const finalPartnerData = {
-            ...(partnerDocData || {}),
-            name: partnerDocData?.name || user.displayName,
-            ownerUID: user.uid,
-        };
-        await createPartnerInFirestore(user, finalPartnerData);
-    } else {
-        const finalUserDocData = { role: 'patient', ...userDocData };
-        await createUserInFirestore(user, finalUserDocData);
+    // Create the base user document.
+    await createUserInFirestore(user, { role: isPartner ? 'partner' : 'patient', ...userDocData });
+
+    // If it's a partner, create the partner-specific document.
+    if (isPartner && partnerDocData) {
+        await createPartnerInFirestore(user, partnerDocData);
     }
 
     await createServerSession(user);

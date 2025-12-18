@@ -7,7 +7,6 @@ import * as z from 'zod';
 import {
   signUpWithEmail,
   signInWithEmail,
-  signInWithGoogle,
 } from '@/lib/firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -40,24 +39,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-
-const GoogleIcon = () => (
-  <svg
-    className="mr-2 h-4 w-4"
-    aria-hidden="true"
-    focusable="false"
-    data-prefix="fab"
-    data-icon="google"
-    role="img"
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 488 512"
-  >
-    <path
-      fill="currentColor"
-      d="M488 261.8C488 403.3 381.5 512 244 512 111.3 512 0 400.7 0 264.1 0 127.6 111.3 16 244 16c73.4 0 135.3 30.1 181.4 78.4l-77 77.4C325.7 150.8 287.1 128 244 128c-66.2 0-120 53.8-120 120s53.8 120 120 120c72.6 0 106-44.5 110.3-66h-110.3v-91h214.1c1.9 11.2 3.1 22.8 3.1 34.9z"
-    ></path>
-  </svg>
-);
 
 const signInSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
@@ -158,10 +139,9 @@ export function PartnerAuthForm() {
       contact: '',
       licenseNumber: '',
       location: null, // To be filled later
-      ownerUID: '' // Will be set after user creation
     };
 
-    const { user, error } = await signUpWithEmail(
+    const { error } = await signUpWithEmail(
       values.email,
       values.password,
       userDocData,
@@ -172,32 +152,6 @@ export function PartnerAuthForm() {
     if (error) {
       toast({
         title: 'Sign Up Failed',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Account Created',
-        description: 'Welcome! Your account is pending approval.',
-      });
-      router.push('/dashboard');
-    }
-    setIsLoading(false);
-  };
-
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-    const userDocData = { role: 'partner' };
-    const partnerDocData = { 
-        partnerType: 'pharmacy', 
-        status: 'pending' 
-    };
-
-    const { error } = await signInWithGoogle(userDocData, partnerDocData);
-
-    if (error) {
-      toast({
-        title: 'Google Sign-In Failed',
         description: error.message,
         variant: 'destructive',
       });
