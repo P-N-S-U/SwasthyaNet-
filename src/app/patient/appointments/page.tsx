@@ -91,7 +91,7 @@ const AppointmentCard = ({ appointment }: { appointment: Appointment }) => {
                 ? 'secondary'
                 : 'destructive'
             }
-            className="w-fit"
+            className={`w-fit ${appointment.status === 'Completed' ? 'bg-green-600' : ''}`}
           >
             {appointment.status}
           </Badge>
