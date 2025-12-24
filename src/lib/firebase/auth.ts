@@ -1,4 +1,3 @@
-
 'use client';
 import {
   createUserWithEmailAndPassword,
@@ -26,10 +25,10 @@ const actionCodeSettings = {
 // This function is now the single source of truth for creating a server-side session.
 // It's called from all sign-in/sign-up methods.
 async function createServerSession(user: User) {
-  console.log('[v3] [auth.ts] Creating server session for user:', user.uid);
+  console.log('[API] Creating server session for user:', user.uid);
   try {
     const idToken = await user.getIdToken(true);
-    console.log('[v3] [auth.ts] ID token retrieved. Calling session API.');
+    console.log('[API] ID token retrieved. Calling session API.');
 
     const response = await fetch('/api/auth/session', {
       method: 'POST',
@@ -39,25 +38,22 @@ async function createServerSession(user: User) {
       body: JSON.stringify({ idToken }),
     });
 
-    console.log('[v3] [auth.ts] Session API response status:', response.status);
+    console.log('[API] Session API response status:', response.status);
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('[v3] [auth.ts] Session API responded with error:', errorData);
+      console.error('[API] Session API responded with error:', errorData);
       throw new Error(errorData.error || 'Failed to create session.');
     }
 
-    console.log('[v3] [auth.ts] Server session created successfully.');
+    console.log('[API] Server session created successfully.');
     return { success: true };
   } catch (error: any) {
-    console.error('[v3] [auth.ts] Error in createServerSession:', error.message, error);
-    // Even if server session fails, the user is logged in client-side.
-    // We can decide how to handle this - for now, we'll log it and proceed.
+    console.error('[API] Error in createServerSession:', error.message, error);
     return { success: false, error: error.message };
   }
 }
 
 export async function signUpWithEmail(email: string, password: string, displayName: string) {
-  console.log('[auth.ts] signUpWithEmail called for:', email);
   try {
     const userCredential = await createUserWithEmailAndPassword(
       auth,
@@ -65,19 +61,12 @@ export async function signUpWithEmail(email: string, password: string, displayNa
       password
     );
     const user = userCredential.user;
-    console.log('[auth.ts] Auth user created in Firebase Auth. UID:', user.uid);
-
-    // Update the Firebase Auth user profile (displayName, photoURL, etc.)
     await updateProfile(user, { displayName });
-    console.log('[auth.ts] Firebase Auth profile updated with displayName.');
     
-    // Create server session after user creation and profile update
-    await createServerSession(user);
-
-    console.log('[auth.ts] signUpWithEmail successful. Returning user object.');
+    // Server session is now created by the server action that calls this.
+    // We only return the user object.
     return { user, error: null };
   } catch (error) {
-    console.error('[v3] [auth.ts] Error during email sign-up:', error);
     return { user: null, error };
   }
 }
@@ -92,7 +81,7 @@ export async function signInWithEmail(email, password) {
     await createServerSession(userCredential.user);
     return { user: userCredential.user, error: null };
   } catch (error) {
-    console.error('[v3] [auth.ts] Error during email sign-in:', error);
+    console.error('[auth.ts] Error during email sign-in:', error);
     return { user: null, error };
   }
 }
@@ -103,7 +92,7 @@ export async function sendSignInLink(email: string) {
     window.localStorage.setItem('emailForSignIn', email);
     return { error: null };
   } catch (error) {
-    console.error('[v3] [auth.ts] Error sending sign-in link:', error);
+    console.error('[auth.ts] Error sending sign-in link:', error);
     return { error };
   }
 }
@@ -129,7 +118,7 @@ export async function completeSignInWithLink(link: string) {
 
     return { user, error: null };
   } catch (error) {
-    console.error('[v3] [auth.ts] Error completing sign-in with link:', error);
+    console.error('[auth.ts] Error completing sign-in with link:', error);
     return { user: null, error };
   }
 }
@@ -149,33 +138,31 @@ export async function signInWithGoogle() {
 
     return { user, error: null };
   } catch (error) {
-    console.error('[v3] [auth.ts] Error during Google sign-in:', error);
+    console.error('[auth.ts] Error during Google sign-in:', error);
     return { user: null, error };
   }
 }
 
 export async function signOut() {
   try {
-    // Immediately sign out on the client
     await firebaseSignOut(auth);
-    console.log('[v3] [auth.ts] Client-side sign out complete.');
-
+    
     // Fire-and-forget the server-side session clearing
     fetch('/api/auth/session', { method: 'DELETE' })
       .then(response => {
         if (!response.ok) {
-           console.error('[v3] [auth.ts] Failed to clear server session in background.');
+           console.error('[auth.ts] Failed to clear server session in background.');
         } else {
-           console.log('[v3] [auth.ts] Server session cleared in background.');
+           console.log('[auth.ts] Server session cleared in background.');
         }
       })
       .catch(error => {
-        console.error('[v3] Error clearing server session in background:', error);
+        console.error('Error clearing server session in background:', error);
       });
 
     return { success: true, error: null };
   } catch (error: any) {
-    console.error('[v3] Error signing out:', error.message, error);
+    console.error('Error signing out:', error.message, error);
     return { success: false, error };
   }
 }

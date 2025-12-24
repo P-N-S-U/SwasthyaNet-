@@ -1,10 +1,8 @@
-
 'use client';
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { createPartnerInFirestore } from '@/lib/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 
@@ -35,9 +33,10 @@ import {
 } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
-import { signInWithEmail, signUpWithEmail } from '@/lib/firebase/auth';
+import React, { useEffect, useState, useActionState } from 'react';
+import { signInWithEmail } from '@/lib/firebase/auth';
 import { auth } from '@/lib/firebase/firebase';
+import { signUpPartner, partnerSignIn } from '@/app/partners/actions';
 
 const signInSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
@@ -61,15 +60,24 @@ const partnerSignUpSchema = z.object({
   country: z.string().min(2, { message: 'Country is required.' }),
 });
 
+const initialActionState = {
+  error: null,
+  success: false,
+};
+
 export function PartnerAuthForm() {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [isLoading, setIsLoading] = React.useState(false);
 
   const [activeTab, setActiveTab] = useState(
     searchParams.get('action') || 'signin'
   );
+
+  const [signInState, signInAction, isSignInPending] = useActionState(partnerSignIn, initialActionState);
+  const [signUpState, signUpAction, isSignUpPending] = useActionState(signUpPartner, initialActionState);
+
+  const isLoading = isSignInPending || isSignUpPending;
 
   useEffect(() => {
     const action = searchParams.get('action');
@@ -77,6 +85,43 @@ export function PartnerAuthForm() {
       setActiveTab(action);
     }
   }, [searchParams]);
+
+  // Effect for Sign-In Action
+  useEffect(() => {
+    if (signInState.error) {
+      toast({
+        title: 'Sign In Failed',
+        description: signInState.error,
+        variant: 'destructive',
+      });
+    }
+    if (signInState.success) {
+      toast({
+        title: 'Signed In Successfully',
+        description: 'Welcome back!',
+      });
+      router.push('/dashboard');
+    }
+  }, [signInState, router, toast]);
+
+  // Effect for Sign-Up Action
+  useEffect(() => {
+    if (signUpState.error) {
+      toast({
+        title: 'Sign Up Failed',
+        description: signUpState.error,
+        variant: 'destructive',
+      });
+    }
+    if (signUpState.success) {
+      toast({
+        title: 'Account Created',
+        description: 'Welcome! Your account is pending approval.',
+      });
+      router.push('/dashboard');
+    }
+  }, [signUpState, router, toast]);
+
 
   const signInForm = useForm<z.infer<typeof signInSchema>>({
     resolver: zodResolver(signInSchema),
@@ -99,92 +144,6 @@ export function PartnerAuthForm() {
     },
   });
 
-  const handleSignIn = async (values: z.infer<typeof signInSchema>) => {
-    setIsLoading(true);
-    const { error } = await signInWithEmail(values.email, values.password);
-    if (error) {
-      toast({
-        title: 'Sign In Failed',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Signed In Successfully',
-        description: 'Welcome back!',
-      });
-      router.push('/dashboard');
-    }
-    setIsLoading(false);
-  };
-
-  const handleSignUp = async (values: z.infer<typeof partnerSignUpSchema>) => {
-    setIsLoading(true);
-    console.log('[PartnerAuthForm] Starting signup process with values:', values);
-  
-    try {
-      // Step 1: Create user in Firebase Auth
-      console.log('[PartnerAuthForm] Step 1: Calling signUpWithEmail...');
-      const { user, error: authError } = await signUpWithEmail(
-        values.email,
-        values.password,
-        values.personalName
-      );
-  
-      if (authError || !user) {
-        console.error('[PartnerAuthForm] Step 1 FAILED: Auth user creation error.', authError);
-        throw authError || new Error('User creation failed.');
-      }
-      console.log('[PartnerAuthForm] Step 1 SUCCESS: Auth user created with UID:', user.uid);
-      
-      // FIX #2: Guard partner creation with auth check
-      if (!auth.currentUser) {
-        console.error('[PartnerAuthForm] FATAL: auth.currentUser is null immediately after signup.');
-        throw new Error("Authentication state is not ready. Please try again.");
-      }
-      console.log('[PartnerAuthForm] Auth state guard passed. auth.currentUser.uid:', auth.currentUser.uid);
-
-      // Step 2: Force token refresh
-      console.log('[PartnerAuthForm] Step 2: Forcing ID token refresh...');
-      await user.getIdToken(true);
-      console.log('[PartnerAuthForm] Step 2 SUCCESS: ID token refreshed.');
-  
-      // Step 3: Prepare partner data for Firestore
-      const fullAddress = `${values.street}, ${values.city}, ${values.state} ${values.postalCode}, ${values.country}`;
-      const partnerDocData = {
-        name: values.businessName,
-        partnerType: values.partnerType,
-        address: fullAddress,
-        contact: '',
-        licenseNumber: '',
-        location: null,
-      };
-      console.log('[PartnerAuthForm] Step 3: Prepared partner document data:', partnerDocData);
-  
-      // Step 4: Create document in 'partners' collection and user in 'users' collection
-      console.log('[PartnerAuthForm] Step 4: Calling createPartnerInFirestore...');
-      await createPartnerInFirestore(user, partnerDocData);
-      console.log('[PartnerAuthForm] Step 4 SUCCESS: createPartnerInFirestore completed.');
-  
-      toast({
-        title: 'Account Created',
-        description: 'Welcome! Your account is pending approval.',
-      });
-      router.push('/dashboard');
-  
-    } catch (error: any) {
-      console.error('[PartnerAuthForm] Signup process failed in catch block:', error);
-      toast({
-        title: 'Sign Up Failed',
-        description: error.message || 'An unexpected error occurred.',
-        variant: 'destructive',
-      });
-    } finally {
-      console.log('[PartnerAuthForm] Signup process finished.');
-      setIsLoading(false);
-    }
-  };
-
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
       <TabsList className="grid w-full grid-cols-2">
@@ -200,7 +159,7 @@ export function PartnerAuthForm() {
             </CardDescription>
           </CardHeader>
           <Form {...signInForm}>
-            <form onSubmit={signInForm.handleSubmit(handleSignIn)}>
+            <form action={signInAction}>
               <CardContent className="space-y-4">
                 <FormField
                   control={signInForm.control}
@@ -214,6 +173,7 @@ export function PartnerAuthForm() {
                           placeholder="contact@mypharmacy.com"
                           {...field}
                           disabled={isLoading}
+                          name="email"
                         />
                       </FormControl>
                       <FormMessage />
@@ -231,6 +191,7 @@ export function PartnerAuthForm() {
                           type="password"
                           {...field}
                           disabled={isLoading}
+                          name="password"
                         />
                       </FormControl>
                       <FormMessage />
@@ -244,7 +205,7 @@ export function PartnerAuthForm() {
                   type="submit"
                   disabled={isLoading}
                 >
-                  {isLoading && (
+                  {isSignInPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   Sign In
@@ -265,7 +226,7 @@ export function PartnerAuthForm() {
             </CardDescription>
           </CardHeader>
           <Form {...signUpForm}>
-            <form onSubmit={signUpForm.handleSubmit(handleSignUp)}>
+             <form action={signUpAction}>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <FormField
@@ -279,6 +240,7 @@ export function PartnerAuthForm() {
                             placeholder="e.g., City Pharmacy"
                             {...field}
                             disabled={isLoading}
+                            name="businessName"
                           />
                         </FormControl>
                         <FormMessage />
@@ -296,6 +258,7 @@ export function PartnerAuthForm() {
                             placeholder="e.g., Ravi Kumar"
                             {...field}
                             disabled={isLoading}
+                            name="personalName"
                           />
                         </FormControl>
                         <FormMessage />
@@ -315,6 +278,7 @@ export function PartnerAuthForm() {
                           placeholder="contact@mypharmacy.com"
                           {...field}
                           disabled={isLoading}
+                           name="email"
                         />
                       </FormControl>
                       <FormMessage />
@@ -332,6 +296,7 @@ export function PartnerAuthForm() {
                           type="password"
                           {...field}
                           disabled={isLoading}
+                          name="password"
                         />
                       </FormControl>
                       <FormMessage />
@@ -348,6 +313,7 @@ export function PartnerAuthForm() {
                         onValueChange={field.onChange}
                         defaultValue={field.value}
                         disabled={isLoading}
+                        name="partnerType"
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -381,6 +347,7 @@ export function PartnerAuthForm() {
                             placeholder="123 Main St"
                             {...field}
                             disabled={isLoading}
+                            name="street"
                           />
                         </FormControl>
                         <FormMessage />
@@ -399,6 +366,7 @@ export function PartnerAuthForm() {
                               placeholder="Mumbai"
                               {...field}
                               disabled={isLoading}
+                              name="city"
                             />
                           </FormControl>
                           <FormMessage />
@@ -416,6 +384,7 @@ export function PartnerAuthForm() {
                               placeholder="Maharashtra"
                               {...field}
                               disabled={isLoading}
+                              name="state"
                             />
                           </FormControl>
                           <FormMessage />
@@ -435,6 +404,7 @@ export function PartnerAuthForm() {
                               placeholder="400001"
                               {...field}
                               disabled={isLoading}
+                              name="postalCode"
                             />
                           </FormControl>
                           <FormMessage />
@@ -452,6 +422,7 @@ export function PartnerAuthForm() {
                               placeholder="India"
                               {...field}
                               disabled={isLoading}
+                              name="country"
                             />
                           </FormControl>
                           <FormMessage />
@@ -467,7 +438,7 @@ export function PartnerAuthForm() {
                   type="submit"
                   disabled={isLoading}
                 >
-                  {isLoading && (
+                  {isSignUpPending && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   Create Account
