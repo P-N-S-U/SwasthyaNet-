@@ -35,7 +35,6 @@ export async function createUserInFirestore(user: User, additionalData = {}) {
 
 export async function createPartnerInFirestore(user: User, partnerData: any) {
   const partnerRef = doc(db, 'partners', user.uid);
-  const userRef = doc(db, 'users', user.uid);
 
   try {
     const dataToCreate = {
@@ -46,20 +45,17 @@ export async function createPartnerInFirestore(user: User, partnerData: any) {
       createdAt: serverTimestamp(),
     };
 
-    // Create the document in the 'partners' collection
     await setDoc(partnerRef, dataToCreate);
 
-    // CRITICAL: Also create/update the document in the 'users' collection
-    // to set the role correctly for auth state and routing.
+    // Also update the user's role in the 'users' collection for consistent role management
     await setDoc(
-      userRef,
-      { 
+      doc(db, 'users', user.uid),
+      { role: 'partner',
         uid: user.uid,
         email: user.email,
         displayName: user.displayName,
         photoURL: user.photoURL,
-        role: 'partner',
-        createdAt: serverTimestamp() // Ensure timestamp exists if it's a new user doc
+        createdAt: serverTimestamp()
       },
       { merge: true }
     );
