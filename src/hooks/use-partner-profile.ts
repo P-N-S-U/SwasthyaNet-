@@ -9,6 +9,8 @@ import { FirestorePermissionError } from '@/firebase/errors';
 // This fetcher is ONLY for partners from the 'partners' collection.
 const partnerProfileFetcher = async ([, uid]: [string, string | undefined]) => {
   if (!uid) return null;
+  
+  console.log(`[use-partner-profile] Fetching partner document for UID: ${uid}`);
 
   const partnerDocRef = doc(db, 'partners', uid);
   
@@ -17,6 +19,7 @@ const partnerProfileFetcher = async ([, uid]: [string, string | undefined]) => {
 
     if (partnerDocSnap.exists()) {
       const partnerData = partnerDocSnap.data();
+      console.log('[use-partner-profile] Found partner document:', partnerData);
       // Ensure the returned object has a consistent shape for the UI
       return {
         ...partnerData,
@@ -26,6 +29,7 @@ const partnerProfileFetcher = async ([, uid]: [string, string | undefined]) => {
       };
     }
     
+    console.log('[use-partner-profile] Partner document not found.');
     // If not found, the profile doesn't exist yet.
     return null;
 
