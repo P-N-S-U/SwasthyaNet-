@@ -6,66 +6,59 @@ import { db } from '@/lib/firebase/firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
-// This new fetcher is smarter. It first gets the role from the 'users' doc,
-// then decides if it needs to make a second fetch from the 'partners' doc.
-const profileFetcher = async ([, uid]) => {
+// This fetcher now sequentially checks 'users' then 'partners' to find the correct profile.
+const profileFetcher = async ([, uid]: [string, string | undefined]) => {
   if (!uid) return null;
 
   const userDocRef = doc(db, 'users', uid);
-  let userDoc;
+  
   try {
+    // 1. First, try to fetch from the 'users' collection.
     const userDocSnap = await getDoc(userDocRef);
     if (userDocSnap.exists()) {
-      userDoc = userDocSnap.data();
+      // If found, it's a patient or doctor. Return it.
+      return userDocSnap.data();
     }
-  } catch (serverError: any) {
-    // A permission error is a real error.
-    if (serverError.code === 'permission-denied') {
-        const permissionError = new FirestorePermissionError({ path: userDocRef.path, operation: 'get' });
-        errorEmitter.emit('permission-error', permissionError);
-        throw permissionError;
-    }
-    // For other errors, we can just log and continue, as the user might be a partner.
-    console.warn("Could not fetch from 'users' collection for UID:", uid, serverError);
-  }
-
-  // If the user document says the role is 'partner' OR if no user doc was found
-  // (which is the case for newly signed-up partners), we check the partners collection.
-  if (userDoc?.role === 'partner' || !userDoc) {
+    
+    // 2. If not found in 'users', it must be a partner. Try the 'partners' collection.
     const partnerDocRef = doc(db, 'partners', uid);
-    try {
-      const partnerDocSnap = await getDoc(partnerDocRef);
-      if (partnerDocSnap.exists()) {
-        const partnerData = partnerDocSnap.data();
-        // The role for a partner comes from the custom claim or the partners doc, not the users doc.
-        // We explicitly set it here to ensure correctness.
-        return {
-          ...userDoc, // includes uid, email, photoURL from the users collection if they exist
-          ...partnerData, // includes name, status, etc. from the partners collection
-          role: 'partner',
-          displayName: partnerData.name, // The business name is the main display name
-          partnerProfile: partnerData, // Keep nested structure for compatibility
-        };
-      }
-    } catch (serverError: any) {
-      // If we fail to read from the partners collection, it's a critical error.
-      const permissionError = new FirestorePermissionError({ path: partnerDocRef.path, operation: 'get' });
-      errorEmitter.emit('permission-error', permissionError);
-      throw permissionError;
+    const partnerDocSnap = await getDoc(partnerDocRef);
+
+    if (partnerDocSnap.exists()) {
+      // If found, it's a partner. Return it.
+      // The partner document should contain the `role: 'partner'` field.
+      const partnerData = partnerDocSnap.data();
+      return {
+        ...partnerData,
+        displayName: partnerData.name, // Ensure displayName is set to the business name
+        partnerProfile: partnerData, // Keep nested structure for compatibility
+      };
     }
+
+    // 3. If not found in either collection, return null.
+    return null;
+
+  } catch (serverError: any) {
+    console.error(`[use-user-profile] Firestore fetch failed for UID: ${uid}`, serverError);
+    // A permission error is a critical failure that should be reported.
+    if (serverError.code === 'permission-denied') {
+        const permissionError = new FirestorePermissionError({ path: `users/${uid} or partners/${uid}`, operation: 'get' });
+        errorEmitter.emit('permission-error', permissionError);
+    }
+    // Re-throw the error to be handled by SWR's error state.
+    throw serverError;
   }
-  
-  // If not a partner, just return the user document (or null if it didn't exist).
-  return userDoc || null;
 };
 
 
 export function useUserProfile(uid?: string | null) {
-  // The key now only depends on the UID, breaking the circular dependency.
   const { data, isLoading, error, mutate } = useSWR(
     uid ? ['user-profile', uid] : null,
     profileFetcher,
-    { revalidateOnFocus: true }
+    { 
+      revalidateOnFocus: true,
+      shouldRetryOnError: false, // Prevent retrying on permission errors
+    }
   );
 
   return { profile: data, loading: isLoading, error, mutate };
