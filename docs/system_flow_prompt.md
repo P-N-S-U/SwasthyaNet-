@@ -128,5 +128,3 @@ There are three primary user roles and one admin role:
 - **Security**: Firestore Security Rules define access control for all collections based on `request.auth` (user's UID and role).
 
 The diagram should clearly distinguish between client-side components, Next.js server actions, Firebase services, and Genkit flows.
-
-  
