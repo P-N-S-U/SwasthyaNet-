@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -36,7 +37,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { signInWithEmail, auth } from '@/lib/firebase/auth';
+import { signInWithEmail } from '@/lib/firebase/auth';
+import { auth } from '@/lib/firebase/firebase';
 
 const signInSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
