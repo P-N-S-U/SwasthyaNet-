@@ -37,19 +37,23 @@ export async function createPartnerInFirestore(user: User, partnerData: any) {
   const partnerRef = doc(db, 'partners', user.uid);
 
   try {
+    // FIX #1: Lock rule-critical fields LAST by spreading partnerData first.
     const dataToCreate = {
+      ...partnerData,
       uid: user.uid,
       ownerUID: user.uid, // ✅ REQUIRED BY RULES
       email: user.email,
       role: 'partner',
       status: 'pending', // ✅ REQUIRED BY RULES
-      ...partnerData,
       createdAt: serverTimestamp(),
     };
+    
+    console.log('Partner payload:', dataToCreate);
+    console.log('Auth UID:', user.uid);
 
     await setDoc(partnerRef, dataToCreate);
 
-    // Update user role
+    // Update user role in the 'users' collection
     await setDoc(
       doc(db, 'users', user.uid),
       {

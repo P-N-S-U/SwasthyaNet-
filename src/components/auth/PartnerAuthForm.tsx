@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -37,7 +36,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { signInWithEmail } from '@/lib/firebase/auth';
+import { signInWithEmail, auth } from '@/lib/firebase/auth';
 
 const signInSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
@@ -133,7 +132,12 @@ export function PartnerAuthForm() {
       if (authError || !user) {
         throw authError || new Error('User creation failed.');
       }
-  
+      
+      // FIX #2: Guard partner creation with auth check
+      if (!auth.currentUser) {
+        throw new Error("Authentication state is not ready. Please try again.");
+      }
+
       // Step 2: Force token refresh
       await user.getIdToken(true);
   
@@ -142,15 +146,13 @@ export function PartnerAuthForm() {
       const partnerDocData = {
         name: values.businessName,
         partnerType: values.partnerType,
-        status: 'pending' as const,
         address: fullAddress,
         contact: '',
         licenseNumber: '',
         location: null,
-        ownerUID: user.uid, // Add ownerUID here
       };
   
-      // Step 4: Create document ONLY in 'partners' collection
+      // Step 4: Create document in 'partners' collection
       await createPartnerInFirestore(user, partnerDocData);
   
       toast({
