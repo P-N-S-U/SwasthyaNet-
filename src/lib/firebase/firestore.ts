@@ -1,5 +1,5 @@
 
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { db } from './firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -25,7 +25,7 @@ export async function createUserInFirestore(user: User, additionalData = {}) {
   
       await setDoc(userRef, dataToCreate, { merge: true });
     }
-  } catch (serverError) {
+  } catch (serverError: any) {
     console.error('Firestore create user failed:', serverError);
     const permissionError = new FirestorePermissionError({ path: userRef.path, operation: 'get' });
     errorEmitter.emit('permission-error', permissionError);
@@ -34,12 +34,13 @@ export async function createUserInFirestore(user: User, additionalData = {}) {
 }
 
 export async function createPartnerInFirestore(user: User, partnerData: any) {
-  const partnerRef = doc(db, 'partners', user.uid);
-  const userRef = doc(db, 'users', user.uid);
+  // Use a batch to ensure atomic writes
+  const batch = writeBatch(db);
 
-  // 1. Prepare partner document data, ensuring required fields are locked.
-  const partnerDataToCreate = {
-    ...partnerData,
+  // 1. Reference to the document in the 'partners' collection
+  const partnerRef = doc(db, 'partners', user.uid);
+  const partnerPayload = {
+    ...partnerData, // Client-side data (name, type, address, etc.)
     uid: user.uid,
     ownerUID: user.uid,
     email: user.email,
@@ -47,9 +48,12 @@ export async function createPartnerInFirestore(user: User, partnerData: any) {
     status: 'pending',
     createdAt: serverTimestamp(),
   };
+  console.log('[firestore.ts] Staging write to partners collection with payload:', partnerPayload);
+  batch.set(partnerRef, partnerPayload);
 
-  // 2. Prepare user document data.
-  const userDataToCreate = {
+  // 2. Reference to the document in the 'users' collection
+  const userRef = doc(db, 'users', user.uid);
+  const userPayload = {
     role: 'partner',
     uid: user.uid,
     email: user.email,
@@ -57,26 +61,18 @@ export async function createPartnerInFirestore(user: User, partnerData: any) {
     photoURL: user.photoURL,
     createdAt: serverTimestamp(),
   };
+  console.log('[firestore.ts] Staging write to users collection with payload:', userPayload);
+  batch.set(userRef, userPayload, { merge: true });
 
-  // 3. Attempt to write to 'partners' collection
-  try {
-    console.log('[firestore.ts] Attempting to write to partners collection with payload:', partnerDataToCreate);
-    await setDoc(partnerRef, partnerDataToCreate);
-    console.log('[firestore.ts] Successfully wrote to partners collection.');
-  } catch (error) {
-    console.error('[firestore.ts] FAILED to write to partners collection:', error);
-    throw error; // Re-throw to be caught by the form handler
-  }
 
-  // 4. Attempt to write to 'users' collection
+  // 3. Commit the batch
   try {
-    console.log('[firestore.ts] Attempting to write to users collection with payload:', userDataToCreate);
-    await setDoc(userRef, userDataToCreate, { merge: true });
-    console.log('[firestore.ts] Successfully wrote to users collection.');
+    console.log('[firestore.ts] Committing batched write for partner and user...');
+    await batch.commit();
+    console.log('[firestore.ts] Batched write successful.');
   } catch (error) {
-    console.error('[firestore.ts] FAILED to write to users collection:', error);
-    // Note: At this point, the partner doc was created but the user doc failed.
-    // This could be handled with a compensating transaction (e.g., delete partner doc), but for now, we just log and throw.
+    console.error('[firestore.ts] FAILED to commit batched write:', error);
+    // Re-throw the error to be caught by the form handler
     throw error;
   }
 }
