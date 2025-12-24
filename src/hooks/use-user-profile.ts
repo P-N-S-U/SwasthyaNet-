@@ -13,29 +13,27 @@ const profileFetcher = async ([, uid]: [string, string | undefined]) => {
   const userDocRef = doc(db, 'users', uid);
   
   try {
-    // 1. First, try to fetch from the 'users' collection.
+    // 1. First, try to fetch from the 'users' collection for patients/doctors.
     const userDocSnap = await getDoc(userDocRef);
     if (userDocSnap.exists()) {
-      // If found, it's a patient or doctor. Return it.
       return userDocSnap.data();
     }
     
-    // 2. If not found in 'users', it must be a partner. Try the 'partners' collection.
+    // 2. If not in 'users', check the 'partners' collection.
     const partnerDocRef = doc(db, 'partners', uid);
     const partnerDocSnap = await getDoc(partnerDocRef);
 
     if (partnerDocSnap.exists()) {
-      // If found, it's a partner. Return it.
-      // The partner document should contain the `role: 'partner'` field.
       const partnerData = partnerDocSnap.data();
+      // Ensure the returned object has a consistent shape for the UI
       return {
         ...partnerData,
-        displayName: partnerData.name, // Ensure displayName is set to the business name
-        partnerProfile: partnerData, // Keep nested structure for compatibility
+        displayName: partnerData.name, // Map business name to displayName
+        partnerProfile: partnerData, // Keep nested for specific partner components
       };
     }
 
-    // 3. If not found in either collection, return null.
+    // 3. If not found in either collection, the profile doesn't exist yet.
     return null;
 
   } catch (serverError: any) {
