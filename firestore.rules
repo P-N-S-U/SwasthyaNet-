@@ -31,13 +31,13 @@ service cloud.firestore {
     }
     
     match /partners/{partnerId} {
-      // Public data like name, address, type can be read by any authenticated user if approved.
-      // A partner can always read their own data.
-      allow read: if request.auth != null && (resource.data.status == 'approved' || request.auth.uid == resource.data.ownerUID);
+      // A partner can always get their OWN document.
+      allow get: if request.auth != null && request.auth.uid == partnerId;
       
+      // Any authenticated user can LIST approved partners.
+      allow list: if request.auth != null && request.query.filters.size() > 0 && request.query.filters[0][0] == 'status' && request.query.filters[0][2] == 'approved';
+
       // Allow authenticated users to CREATE their own partner document.
-      // The `ownerUID` in the new document must match their own auth UID.
-      // The status must be 'pending' on creation.
       allow create: if request.auth != null
         && request.resource.data.ownerUID == request.auth.uid
         && request.resource.data.status == "pending";
