@@ -1,8 +1,6 @@
-
 'use client';
 
 import { useAuthState } from '@/hooks/use-auth-state';
-import { useUserProfile } from '@/hooks/use-user-profile';
 import {
   Loader2,
   AlertTriangle,
@@ -16,12 +14,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function PartnerDashboardPage() {
-  const { user, loading: authLoading } = useAuthState();
-  const { profile, loading: profileLoading } = useUserProfile(user?.uid);
+  const { user, profile, loading } = useAuthState();
 
-  const pageIsLoading = authLoading || profileLoading || !user;
-
-  if (pageIsLoading) {
+  if (loading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -38,7 +33,7 @@ export default function PartnerDashboardPage() {
       <div className="mb-10">
         <h1 className="text-4xl font-bold font-headline">Partner Dashboard</h1>
         <p className="mt-2 text-lg text-foreground/70">
-          Welcome, {partnerProfile?.name || user.displayName || 'Partner'}!
+          Welcome, {profile?.displayName || 'Partner'}!
         </p>
       </div>
 
@@ -83,7 +78,7 @@ export default function PartnerDashboardPage() {
             <CardTitle>Prescription Requests</CardTitle>
           </CardHeader>
           <CardContent>
-            {pageIsLoading ? <Skeleton className="h-10 w-1/2" /> : <p className="text-4xl font-bold">0</p>}
+            {loading ? <Skeleton className="h-10 w-1/2" /> : <p className="text-4xl font-bold">0</p>}
             <p className="text-muted-foreground">New pending prescriptions.</p>
             <Button size="sm" variant="outline" className="mt-4" disabled={!isApproved}>View Prescriptions</Button>
           </CardContent>
@@ -110,5 +105,3 @@ export default function PartnerDashboardPage() {
     </div>
   );
 }
-
-    

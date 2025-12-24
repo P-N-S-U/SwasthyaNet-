@@ -45,7 +45,11 @@ export default function DashboardRedirectPage() {
           router.replace('/patient/dashboard');
           break;
       }
+    } else if (!loading && user && !role) {
+        // Handle case where user exists but role couldn't be determined
+        setStatus('Could not verify user role. Please contact support.');
     }
+
   }, [user, role, loading, router]);
 
   return (

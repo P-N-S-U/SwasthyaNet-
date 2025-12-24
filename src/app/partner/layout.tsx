@@ -1,4 +1,3 @@
-
 'use client';
 
 import { PartnerSidebar } from '@/components/partner/PartnerSidebar';
@@ -39,7 +38,7 @@ export default function PartnerLayout({
     }
   }, [user, loading, role, router]);
 
-  if (loading || !user || role !== 'partner') {
+  if (loading || !user || !role) {
     return (
       <div className="flex h-screen w-full items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -48,16 +47,26 @@ export default function PartnerLayout({
     );
   }
 
+  if (role === 'partner') {
+    return (
+      <div
+        className={`min-h-screen bg-secondary/30 partner-theme ${headlineFont.variable} ${bodyFont.variable}`}
+      >
+        <PartnerSidebar user={user} />
+        <main className="md:pl-64">
+          <div className="p-4 sm:p-6 md:p-8">
+            <div className="mx-auto max-w-7xl">{children}</div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Fallback loader while redirecting
   return (
-    <div
-      className={`min-h-screen bg-secondary/30 partner-theme ${headlineFont.variable} ${bodyFont.variable}`}
-    >
-      <PartnerSidebar user={user} />
-      <main className="md:pl-64">
-        <div className="p-4 sm:p-6 md:p-8">
-          <div className="mx-auto max-w-7xl">{children}</div>
-        </div>
-      </main>
-    </div>
+      <div className="flex h-screen w-full items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <p className="ml-2">Redirecting...</p>
+      </div>
   );
 }

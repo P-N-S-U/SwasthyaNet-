@@ -1,10 +1,8 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthState } from '@/hooks/use-auth-state';
-import { useUserProfile } from '@/hooks/use-user-profile';
 import {
   Loader2,
   User,
@@ -40,6 +38,7 @@ import { savePartnerLocation, saveDocumentUrl } from '@/app/profile/actions';
 import { useToast } from '@/hooks/use-toast';
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { storage } from '@/lib/firebase/firebase';
+import { usePartnerProfile } from '@/hooks/use-partner-profile';
 
 
 const ProfileDetailItem = ({ icon, label, value, loading = false }) => {
@@ -227,7 +226,7 @@ const VerificationCard = ({ user, profile, mutate }) => {
 
 export default function PartnerProfilePage() {
   const { user, loading: authLoading, role } = useAuthState();
-  const { profile, loading: profileLoading, mutate } = useUserProfile(user?.uid);
+  const { profile, loading: profileLoading, mutate } = usePartnerProfile(user?.uid, role === 'partner');
   const router = useRouter();
 
   useEffect(() => {
@@ -368,5 +367,3 @@ export default function PartnerProfilePage() {
     </div>
   );
 }
-
-    
