@@ -4,7 +4,6 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { signUpWithEmail } from '@/lib/firebase/auth';
 import { createPartnerInFirestore } from '@/lib/firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -37,7 +36,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { signInWithEmail } from '@/lib/firebase/auth';
+import { signInWithEmail, signUpWithEmail } from '@/lib/firebase/auth';
 import { auth } from '@/lib/firebase/firebase';
 
 const signInSchema = z.object({
@@ -122,9 +121,11 @@ export function PartnerAuthForm() {
 
   const handleSignUp = async (values: z.infer<typeof partnerSignUpSchema>) => {
     setIsLoading(true);
+    console.log('[PartnerAuthForm] Starting signup process with values:', values);
   
     try {
       // Step 1: Create user in Firebase Auth
+      console.log('[PartnerAuthForm] Step 1: Calling signUpWithEmail...');
       const { user, error: authError } = await signUpWithEmail(
         values.email,
         values.password,
@@ -132,16 +133,22 @@ export function PartnerAuthForm() {
       );
   
       if (authError || !user) {
+        console.error('[PartnerAuthForm] Step 1 FAILED: Auth user creation error.', authError);
         throw authError || new Error('User creation failed.');
       }
+      console.log('[PartnerAuthForm] Step 1 SUCCESS: Auth user created with UID:', user.uid);
       
       // FIX #2: Guard partner creation with auth check
       if (!auth.currentUser) {
+        console.error('[PartnerAuthForm] FATAL: auth.currentUser is null immediately after signup.');
         throw new Error("Authentication state is not ready. Please try again.");
       }
+      console.log('[PartnerAuthForm] Auth state guard passed. auth.currentUser.uid:', auth.currentUser.uid);
 
       // Step 2: Force token refresh
+      console.log('[PartnerAuthForm] Step 2: Forcing ID token refresh...');
       await user.getIdToken(true);
+      console.log('[PartnerAuthForm] Step 2 SUCCESS: ID token refreshed.');
   
       // Step 3: Prepare partner data for Firestore
       const fullAddress = `${values.street}, ${values.city}, ${values.state} ${values.postalCode}, ${values.country}`;
@@ -153,9 +160,12 @@ export function PartnerAuthForm() {
         licenseNumber: '',
         location: null,
       };
+      console.log('[PartnerAuthForm] Step 3: Prepared partner document data:', partnerDocData);
   
       // Step 4: Create document in 'partners' collection
+      console.log('[PartnerAuthForm] Step 4: Calling createPartnerInFirestore...');
       await createPartnerInFirestore(user, partnerDocData);
+      console.log('[PartnerAuthForm] Step 4 SUCCESS: createPartnerInFirestore completed.');
   
       toast({
         title: 'Account Created',
@@ -164,12 +174,14 @@ export function PartnerAuthForm() {
       router.push('/dashboard');
   
     } catch (error: any) {
+      console.error('[PartnerAuthForm] Signup process failed in catch block:', error);
       toast({
         title: 'Sign Up Failed',
         description: error.message || 'An unexpected error occurred.',
         variant: 'destructive',
       });
     } finally {
+      console.log('[PartnerAuthForm] Signup process finished.');
       setIsLoading(false);
     }
   };

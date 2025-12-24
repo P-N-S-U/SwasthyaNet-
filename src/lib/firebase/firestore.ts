@@ -1,5 +1,5 @@
 
-import { doc, setDoc, getDoc, serverTimestamp, collection } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from './firebase';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -35,40 +35,48 @@ export async function createUserInFirestore(user: User, additionalData = {}) {
 
 export async function createPartnerInFirestore(user: User, partnerData: any) {
   const partnerRef = doc(db, 'partners', user.uid);
+  const userRef = doc(db, 'users', user.uid);
 
+  // 1. Prepare partner document data, ensuring required fields are locked.
+  const partnerDataToCreate = {
+    ...partnerData,
+    uid: user.uid,
+    ownerUID: user.uid,
+    email: user.email,
+    role: 'partner',
+    status: 'pending',
+    createdAt: serverTimestamp(),
+  };
+
+  // 2. Prepare user document data.
+  const userDataToCreate = {
+    role: 'partner',
+    uid: user.uid,
+    email: user.email,
+    displayName: user.displayName,
+    photoURL: user.photoURL,
+    createdAt: serverTimestamp(),
+  };
+
+  // 3. Attempt to write to 'partners' collection
   try {
-    // FIX #1: Lock rule-critical fields LAST by spreading partnerData first.
-    const dataToCreate = {
-      ...partnerData,
-      uid: user.uid,
-      ownerUID: user.uid, // ✅ REQUIRED BY RULES
-      email: user.email,
-      role: 'partner',
-      status: 'pending', // ✅ REQUIRED BY RULES
-      createdAt: serverTimestamp(),
-    };
-    
-    console.log('Partner payload:', dataToCreate);
-    console.log('Auth UID:', user.uid);
-
-    await setDoc(partnerRef, dataToCreate);
-
-    // Update user role in the 'users' collection
-    await setDoc(
-      doc(db, 'users', user.uid),
-      {
-        role: 'partner',
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoURL: user.photoURL,
-        createdAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
+    console.log('[firestore.ts] Attempting to write to partners collection with payload:', partnerDataToCreate);
+    await setDoc(partnerRef, partnerDataToCreate);
+    console.log('[firestore.ts] Successfully wrote to partners collection.');
   } catch (error) {
-    console.error('Partner creation failed:', error);
-    // Re-throw the original error for better debugging in the component.
+    console.error('[firestore.ts] FAILED to write to partners collection:', error);
+    throw error; // Re-throw to be caught by the form handler
+  }
+
+  // 4. Attempt to write to 'users' collection
+  try {
+    console.log('[firestore.ts] Attempting to write to users collection with payload:', userDataToCreate);
+    await setDoc(userRef, userDataToCreate, { merge: true });
+    console.log('[firestore.ts] Successfully wrote to users collection.');
+  } catch (error) {
+    console.error('[firestore.ts] FAILED to write to users collection:', error);
+    // Note: At this point, the partner doc was created but the user doc failed.
+    // This could be handled with a compensating transaction (e.g., delete partner doc), but for now, we just log and throw.
     throw error;
   }
 }

@@ -13,7 +13,7 @@ import {
   User,
 } from 'firebase/auth';
 import { auth } from './firebase';
-import { createUserInFirestore, createPartnerInFirestore } from './firestore';
+import { createUserInFirestore } from './firestore';
 
 const actionCodeSettings = {
   url:
@@ -57,6 +57,7 @@ async function createServerSession(user: User) {
 }
 
 export async function signUpWithEmail(email: string, password: string, displayName: string) {
+  console.log('[auth.ts] signUpWithEmail called for:', email);
   try {
     const userCredential = await createUserWithEmailAndPassword(
       auth,
@@ -64,13 +65,16 @@ export async function signUpWithEmail(email: string, password: string, displayNa
       password
     );
     const user = userCredential.user;
+    console.log('[auth.ts] Auth user created in Firebase Auth. UID:', user.uid);
 
     // Update the Firebase Auth user profile (displayName, photoURL, etc.)
     await updateProfile(user, { displayName });
+    console.log('[auth.ts] Firebase Auth profile updated with displayName.');
     
     // Create server session after user creation and profile update
     await createServerSession(user);
 
+    console.log('[auth.ts] signUpWithEmail successful. Returning user object.');
     return { user, error: null };
   } catch (error) {
     console.error('[v3] [auth.ts] Error during email sign-up:', error);
