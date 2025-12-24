@@ -18,8 +18,8 @@ const profileFetcher = async ([, uid]) => {
     if (userDocSnap.exists()) {
       userDoc = userDocSnap.data();
     }
-  } catch (serverError) {
-    // Non-partners might not have a 'users' doc, which is fine, but a permission error is a real error.
+  } catch (serverError: any) {
+    // A permission error is a real error.
     if (serverError.code === 'permission-denied') {
         const permissionError = new FirestorePermissionError({ path: userDocRef.path, operation: 'get' });
         errorEmitter.emit('permission-error', permissionError);
@@ -29,22 +29,26 @@ const profileFetcher = async ([, uid]) => {
     console.warn("Could not fetch from 'users' collection for UID:", uid, serverError);
   }
 
-  // If the user document says the role is 'partner', fetch from the partners collection.
-  if (userDoc?.role === 'partner') {
+  // If the user document says the role is 'partner' OR if no user doc was found
+  // (which is the case for newly signed-up partners), we check the partners collection.
+  if (userDoc?.role === 'partner' || !userDoc) {
     const partnerDocRef = doc(db, 'partners', uid);
     try {
       const partnerDocSnap = await getDoc(partnerDocRef);
       if (partnerDocSnap.exists()) {
         const partnerData = partnerDocSnap.data();
+        // The role for a partner comes from the custom claim or the partners doc, not the users doc.
+        // We explicitly set it here to ensure correctness.
         return {
-          ...userDoc, // includes uid, email, photoURL from the users collection
+          ...userDoc, // includes uid, email, photoURL from the users collection if they exist
           ...partnerData, // includes name, status, etc. from the partners collection
           role: 'partner',
           displayName: partnerData.name, // The business name is the main display name
           partnerProfile: partnerData, // Keep nested structure for compatibility
         };
       }
-    } catch (serverError) {
+    } catch (serverError: any) {
+      // If we fail to read from the partners collection, it's a critical error.
       const permissionError = new FirestorePermissionError({ path: partnerDocRef.path, operation: 'get' });
       errorEmitter.emit('permission-error', permissionError);
       throw permissionError;
