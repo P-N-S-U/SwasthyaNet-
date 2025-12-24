@@ -127,4 +127,4 @@ There are three primary user roles and one admin role:
 - **Real-time Video**: WebRTC, with Firestore used as the signaling server.
 - **Security**: Firestore Security Rules define access control for all collections based on `request.auth` (user's UID and role).
 
-The diagram should clearly distinguish between client-side components, Next.js server actions, Firebase services, and Genkit flows.
+The diagram should use clear visual cues (like swimlanes or color-coding) to distinguish between the different user roles (Patient, Doctor, Partner, Admin). It should also clearly differentiate between client-side components, Next.js server actions, Firebase services, and Genkit flows for maximum clarity.
