@@ -101,7 +101,6 @@ export function PartnerAuthForm() {
 
   const handleSignIn = async (values: z.infer<typeof signInSchema>) => {
     setIsLoading(true);
-    // The signInWithEmail function should handle session creation now.
     const { error } = await signInWithEmail(values.email, values.password);
     if (error) {
       toast({
@@ -162,7 +161,7 @@ export function PartnerAuthForm() {
       };
       console.log('[PartnerAuthForm] Step 3: Prepared partner document data:', partnerDocData);
   
-      // Step 4: Create document in 'partners' collection
+      // Step 4: Create document in 'partners' collection and user in 'users' collection
       console.log('[PartnerAuthForm] Step 4: Calling createPartnerInFirestore...');
       await createPartnerInFirestore(user, partnerDocData);
       console.log('[PartnerAuthForm] Step 4 SUCCESS: createPartnerInFirestore completed.');
