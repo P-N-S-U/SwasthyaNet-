@@ -39,27 +39,29 @@ export async function createPartnerInFirestore(user: User, partnerData: any) {
   try {
     const dataToCreate = {
       uid: user.uid,
+      ownerUID: user.uid, // ✅ REQUIRED BY RULES
       email: user.email,
       role: 'partner',
+      status: 'pending', // ✅ REQUIRED BY RULES
       ...partnerData,
       createdAt: serverTimestamp(),
     };
 
     await setDoc(partnerRef, dataToCreate);
 
-    // Also update the user's role in the 'users' collection for consistent role management
+    // Update user role
     await setDoc(
       doc(db, 'users', user.uid),
-      { role: 'partner',
+      {
+        role: 'partner',
         uid: user.uid,
         email: user.email,
         displayName: user.displayName,
         photoURL: user.photoURL,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
       },
       { merge: true }
     );
-
   } catch (error) {
     console.error('Partner creation failed:', error);
     // Re-throw the original error for better debugging in the component.
