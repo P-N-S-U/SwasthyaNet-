@@ -33,9 +33,9 @@ service cloud.firestore {
       // A partner can always read their own data.
       allow read: if request.auth != null && (resource.data.status == 'approved' || request.auth.uid == partnerId);
       
-      // Allow authenticated users to CREATE their own partner document
+      // Allow authenticated users to CREATE their own partner document.
+      // The `ownerUID` in the new document must match their own auth UID.
       allow create: if request.auth != null
-        && request.auth.uid == partnerId
         && request.resource.data.ownerUID == request.auth.uid
         && request.resource.data.status == "pending";
 
