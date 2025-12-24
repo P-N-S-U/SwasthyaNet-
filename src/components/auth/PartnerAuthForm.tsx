@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useForm } from 'react-hook-form';
@@ -35,8 +36,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2 } from 'lucide-react';
 import React, { useEffect, useState, useActionState } from 'react';
 import { signInWithEmail } from '@/lib/firebase/auth';
-import { auth } from '@/lib/firebase/firebase';
 import { signUpPartner, partnerSignIn } from '@/app/partners/actions';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
 const signInSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
@@ -73,11 +74,15 @@ export function PartnerAuthForm() {
   const [activeTab, setActiveTab] = useState(
     searchParams.get('action') || 'signin'
   );
+  
+  const [signupSuccess, setSignupSuccess] = useState(false);
 
-  const [signInState, signInAction, isSignInPending] = useActionState(partnerSignIn, initialActionState);
+  const [signInState, setSignInState] = useState(initialActionState);
+  const [isSignInLoading, setIsSignInLoading] = useState(false);
+
   const [signUpState, signUpAction, isSignUpPending] = useActionState(signUpPartner, initialActionState);
 
-  const isLoading = isSignInPending || isSignUpPending;
+  const isLoading = isSignInLoading || isSignUpPending;
 
   useEffect(() => {
     const action = searchParams.get('action');
@@ -86,41 +91,47 @@ export function PartnerAuthForm() {
     }
   }, [searchParams]);
 
-  // Effect for Sign-In Action
-  useEffect(() => {
-    if (signInState.error) {
-      toast({
-        title: 'Sign In Failed',
-        description: signInState.error,
-        variant: 'destructive',
-      });
-    }
-    if (signInState.success) {
-      toast({
-        title: 'Signed In Successfully',
-        description: 'Welcome back!',
-      });
-      router.push('/dashboard');
-    }
-  }, [signInState, router, toast]);
-
   // Effect for Sign-Up Action
   useEffect(() => {
     if (signUpState.error) {
+      setSignupSuccess(false);
       toast({
         title: 'Sign Up Failed',
         description: signUpState.error,
         variant: 'destructive',
       });
     }
+    // A redirect will happen from the server action, but we can also handle success state here
     if (signUpState.success) {
+      setSignupSuccess(true);
       toast({
-        title: 'Account Created',
-        description: 'Welcome! Your account is pending approval.',
+        title: 'Account Created!',
+        description: 'Please sign in with your new credentials.',
       });
-      router.push('/dashboard');
+      // The server action will redirect to the signin tab.
     }
   }, [signUpState, router, toast]);
+
+  const handleSignIn = async (values: z.infer<typeof signInSchema>) => {
+    setIsSignInLoading(true);
+    const { error } = await signInWithEmail(values.email, values.password);
+    if (error) {
+        setSignInState({ success: false, error: error.message });
+        toast({
+            title: 'Sign In Failed',
+            description: error.message,
+            variant: 'destructive'
+        });
+    } else {
+        setSignInState({ success: true, error: null });
+        toast({
+            title: 'Signed In Successfully',
+            description: 'Welcome back!'
+        });
+        router.push('/dashboard');
+    }
+    setIsSignInLoading(false);
+  }
 
 
   const signInForm = useForm<z.infer<typeof signInSchema>>({
@@ -159,8 +170,22 @@ export function PartnerAuthForm() {
             </CardDescription>
           </CardHeader>
           <Form {...signInForm}>
-            <form action={signInAction}>
+            <form onSubmit={signInForm.handleSubmit(handleSignIn)}>
               <CardContent className="space-y-4">
+                {signupSuccess && (
+                  <Alert variant="default" className="border-green-500/50 text-green-400 [&>svg]:text-green-400">
+                    <AlertTitle>Account Created!</AlertTitle>
+                    <AlertDescription>
+                      Your registration is complete. Please sign in to continue.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                 {signInState.error && (
+                    <Alert variant="destructive">
+                      <AlertTitle>Sign In Failed</AlertTitle>
+                      <AlertDescription>{signInState.error}</AlertDescription>
+                    </Alert>
+                )}
                 <FormField
                   control={signInForm.control}
                   name="email"
@@ -173,7 +198,6 @@ export function PartnerAuthForm() {
                           placeholder="contact@mypharmacy.com"
                           {...field}
                           disabled={isLoading}
-                          name="email"
                         />
                       </FormControl>
                       <FormMessage />
@@ -191,7 +215,6 @@ export function PartnerAuthForm() {
                           type="password"
                           {...field}
                           disabled={isLoading}
-                          name="password"
                         />
                       </FormControl>
                       <FormMessage />
@@ -205,7 +228,7 @@ export function PartnerAuthForm() {
                   type="submit"
                   disabled={isLoading}
                 >
-                  {isSignInPending && (
+                  {isSignInLoading && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   Sign In
