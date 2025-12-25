@@ -67,6 +67,7 @@ export async function bookAppointment(prevState: any, formData: FormData) {
       patientPhotoURL: patientData.photoURL || null,
       doctorId,
       doctorName: doctorData.displayName || 'Anonymous Doctor',
+      doctorPhotoURL: doctorData.photoURL || null,
       doctorSpecialization: doctorData.specialization || 'Not Specified',
       appointmentDate: Timestamp.fromDate(appointmentDate),
       status: 'Confirmed',

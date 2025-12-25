@@ -33,6 +33,7 @@ interface Appointment {
   patientPhotoURL?: string;
   doctorId: string;
   doctorName: string;
+  doctorPhotoURL?: string;
   doctorSpecialization?: string;
   appointmentDate: Timestamp;
   status: 'Confirmed' | 'Completed' | 'Cancelled';
@@ -205,6 +206,7 @@ export default async function AppointmentsManagementPage() {
                         <FloatingAvatar
                           name={appt.doctorName}
                           id={appt.doctorId}
+                          photoURL={appt.doctorPhotoURL}
                           role="doctor"
                           isPatient={false}
                         />
