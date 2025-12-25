@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -18,7 +19,11 @@ import React from 'react';
 
 const NavLink = ({ href, children, icon: Icon, onClick }) => {
   const pathname = usePathname();
-  const isActive = pathname.startsWith(href);
+  // The dashboard link should only be active on an exact match.
+  // Other links can be active if the pathname starts with their href.
+  const isActive = href === '/obviouslynotadmin' 
+    ? pathname === href 
+    : pathname.startsWith(href);
 
   return (
     <Link href={href} passHref>
