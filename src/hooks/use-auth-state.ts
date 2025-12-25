@@ -10,17 +10,14 @@ export function useAuthState() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<string | null>(null);
-  const [isRoleDetermined, setIsRoleDetermined] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setLoading(true);
-      setIsRoleDetermined(false);
       setUser(currentUser);
       if (currentUser) {
         try {
           const tokenResult = await currentUser.getIdTokenResult();
-          const userRole = (tokenResult.claims.role as string) || null;
+          const userRole = (tokenResult.claims.role as string) || 'patient';
           setRole(userRole);
         } catch (error) {
           console.error("Error fetching user role from token:", error);
@@ -29,7 +26,6 @@ export function useAuthState() {
       } else {
         setRole(null);
       }
-      setIsRoleDetermined(true);
       setLoading(false);
     });
 
@@ -53,6 +49,6 @@ export function useAuthState() {
     user,
     role,
     profile: finalProfile,
-    loading: loading || (user && !isRoleDetermined) || (user && profileIsLoading),
+    loading: loading || (user && !role) || (user && profileIsLoading),
   };
 }
