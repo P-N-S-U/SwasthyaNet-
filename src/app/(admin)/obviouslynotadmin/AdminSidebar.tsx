@@ -16,6 +16,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetClose } from '@/components/ui/s
 import { Button } from '@/components/ui/button';
 import { signOut } from './actions';
 import React from 'react';
+import { cn } from '@/lib/utils';
 
 const NavLink = ({ href, children, icon: Icon, onClick }) => {
   const pathname = usePathname();
@@ -28,8 +29,11 @@ const NavLink = ({ href, children, icon: Icon, onClick }) => {
   return (
     <Link href={href} passHref>
       <Button
-        variant={isActive ? 'secondary' : 'ghost'}
-        className="w-full justify-start !text-gray-100 hover:!bg-red-500/20"
+        variant={'ghost'}
+        className={cn(
+            "w-full justify-start !text-gray-100 hover:!bg-red-500/20",
+            isActive && "!bg-red-500/30"
+        )}
         onClick={onClick}
       >
         <Icon className="mr-2 h-4 w-4" />
