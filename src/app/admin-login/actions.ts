@@ -11,7 +11,11 @@ export async function authenticate(
     const username = formData.get('username') as string;
     const password = formData.get('password') as string;
 
-    if (username === 'admin' && password === 'admin@123') {
+    // Compare against environment variables for security
+    if (
+      username === process.env.ADMIN_USERNAME &&
+      password === process.env.ADMIN_PASSWORD
+    ) {
       await createAdminSession();
     } else {
       return 'Invalid username or password.';
