@@ -161,12 +161,7 @@ export default async function AppointmentsManagementPage() {
               const apptDate = appt.appointmentDate.toDate();
               return (
                 <div key={appt.id} className="relative flex items-center gap-6">
-                  {/* Timeline Dot */}
-                  <div className="absolute left-[38px] z-10 flex h-8 w-8 items-center justify-center rounded-full bg-gray-700 ring-8 ring-gray-900">
-                    <CalendarDays className="h-4 w-4 text-red-400" />
-                  </div>
-
-                  <Card className="flex-1 border-red-500/20 bg-gray-800">
+                  <Card className="flex-1 border-red-500/20 bg-gray-800 ml-12">
                     <CardHeader className="flex flex-row items-center justify-between pb-3">
                       <div>
                         <CardTitle className="text-sm font-medium text-gray-400">
