@@ -155,8 +155,8 @@ export function PharmacyFinder({ prescriptionId }: PharmacyFinderProps) {
   );
 
   return (
-    <div className="grid grid-cols-1 gap-8 md:grid-cols-3 h-full">
-      <div className="relative h-[400px] md:h-full overflow-hidden rounded-lg border border-border/30 bg-background md:col-span-2">
+    <div className="grid grid-cols-1 gap-8 md:grid-cols-5 h-full">
+      <div className="relative h-[500px] md:h-full overflow-hidden rounded-lg border border-border/30 bg-background md:col-span-3">
           <MapWrapper userLocation={userLocation} pharmacies={pharmacies} />
           
           {loadingLocation && (
@@ -176,7 +176,7 @@ export function PharmacyFinder({ prescriptionId }: PharmacyFinderProps) {
           )}
       </div>
 
-      <div className="md:col-span-1 h-full flex flex-col">
+      <div className="md:col-span-2 h-full flex flex-col">
         <Card className="h-full border-border/30 bg-background flex flex-col">
           <CardHeader>
             <div className="flex items-center gap-3">
