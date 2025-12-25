@@ -1,15 +1,16 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useActionState } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Loader2, List, Navigation } from 'lucide-react';
+import { Loader2, List, Navigation, Send } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
-import { findNearbyPharmacies } from '@/app/patient/pharmacies/actions';
+import { findNearbyPharmacies, forwardPrescriptionToPartner } from '@/app/patient/pharmacies/actions';
 import { haversineDistance } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 const MapWrapper = dynamic(() => import('./MapWrapper'), {
   ssr: false,
@@ -30,7 +31,38 @@ interface Location {
   lng: number;
 }
 
-export function PharmacyFinder() {
+interface PharmacyFinderProps {
+    prescriptionId?: string;
+}
+
+const initialActionState = { success: false, error: null };
+
+function SendButton({ partnerId, prescriptionId }: { partnerId: string; prescriptionId: string }) {
+    const [state, formAction, pending] = useActionState(forwardPrescriptionToPartner, initialActionState);
+    const { toast } = useToast();
+
+    useEffect(() => {
+        if (state.error) {
+            toast({ title: 'Error', description: state.error, variant: 'destructive' });
+        }
+        if (state.success) {
+            toast({ title: 'Success', description: 'Your prescription has been forwarded to the pharmacy.' });
+        }
+    }, [state, toast]);
+    
+    return (
+        <form action={formAction}>
+            <input type="hidden" name="partnerId" value={partnerId} />
+            <input type="hidden" name="prescriptionId" value={prescriptionId} />
+            <Button size="sm" variant="default" type="submit" disabled={pending}>
+                {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                Send
+            </Button>
+        </form>
+    )
+}
+
+export function PharmacyFinder({ prescriptionId }: PharmacyFinderProps) {
   const [userLocation, setUserLocation] = useState<Location | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingLocation, setLoadingLocation] = useState(true);
@@ -123,8 +155,8 @@ export function PharmacyFinder() {
   );
 
   return (
-    <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
-      <div className="relative h-[400px] md:h-[500px] overflow-hidden rounded-lg border border-border/30 bg-background md:col-span-2">
+    <div className="grid grid-cols-1 gap-8 md:grid-cols-3 h-full">
+      <div className="relative h-[400px] md:h-full overflow-hidden rounded-lg border border-border/30 bg-background md:col-span-2">
           <MapWrapper userLocation={userLocation} pharmacies={pharmacies} />
           
           {loadingLocation && (
@@ -144,15 +176,15 @@ export function PharmacyFinder() {
           )}
       </div>
 
-      <div className="md:col-span-1">
-        <Card className="h-full border-border/30 bg-background">
+      <div className="md:col-span-1 h-full flex flex-col">
+        <Card className="h-full border-border/30 bg-background flex flex-col">
           <CardHeader>
             <div className="flex items-center gap-3">
               <List className="h-6 w-6 text-primary" />
-              <CardTitle className="font-headline text-xl md:text-2xl">Nearby</CardTitle>
+              <CardTitle className="font-headline text-xl md:text-2xl">Nearby Pharmacies</CardTitle>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-grow overflow-y-auto">
             {isFetchingPharmacies || loadingLocation ? (
               <PharmacyListSkeleton />
             ) : pharmacies.length > 0 ? (
@@ -177,14 +209,20 @@ export function PharmacyFinder() {
                            </p>
                         )}
                       </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openInGoogleMaps(pharmacy.lat, pharmacy.lng)}
-                      >
-                        <Navigation className="mr-2 h-4 w-4" />
-                        Visit
-                      </Button>
+                       <div className="flex gap-2">
+                        {prescriptionId ? (
+                            <SendButton partnerId={pharmacy.id} prescriptionId={prescriptionId} />
+                        ) : (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openInGoogleMaps(pharmacy.lat, pharmacy.lng)}
+                            >
+                                <Navigation className="mr-2 h-4 w-4" />
+                                Visit
+                            </Button>
+                        )}
+                      </div>
                     </li>
                   )
                 })}

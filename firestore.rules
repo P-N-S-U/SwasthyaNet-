@@ -74,5 +74,12 @@ service cloud.firestore {
       // Prescriptions are part of the medical record and should not be deleted.
       allow delete: if false;
     }
+
+    match /prescriptionRequests/{requestId} {
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.patientId;
+      allow read, list: if request.auth != null && (request.auth.uid == resource.data.patientId || request.auth.uid == resource.data.partnerId);
+      allow update: if request.auth != null && request.auth.uid == resource.data.partnerId;
+      allow delete: if false;
+    }
   }
 }

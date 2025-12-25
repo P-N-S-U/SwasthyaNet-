@@ -4,7 +4,7 @@ import { useAuthState } from '@/hooks/use-auth-state';
 import useSWR from 'swr';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/firebase';
-import { Loader2, ArrowLeft, Download, Stethoscope, User, Calendar, FileText } from 'lucide-react';
+import { Loader2, ArrowLeft, Download, Stethoscope, User, Calendar, FileText, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,6 +13,8 @@ import { Badge } from '@/components/ui/badge';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { PharmacyFinder } from '@/components/patient/PharmacyFinder';
 
 const prescriptionFetcher = async ([, prescriptionId, userId]) => {
   if (!prescriptionId || !userId) return null;
@@ -107,10 +109,28 @@ export default function ViewPrescriptionPage({ params }: { params: { id: string 
               Back
             </Link>
           </Button>
-          <Button variant="default" disabled>
-             <Download className="mr-2 h-4 w-4" />
-            Download PDF
-          </Button>
+          <div className="flex gap-2">
+            <Dialog>
+              <DialogTrigger asChild>
+                 <Button variant="default" disabled={role === 'doctor'}>
+                    <Send className="mr-2 h-4 w-4" />
+                    Send to Pharmacy
+                 </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+                <DialogHeader>
+                  <DialogTitle>Forward Prescription to a Pharmacy</DialogTitle>
+                </DialogHeader>
+                <div className="flex-grow overflow-hidden">
+                  <PharmacyFinder prescriptionId={prescription.id} />
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Button variant="outline" disabled>
+              <Download className="mr-2 h-4 w-4" />
+              Download PDF
+            </Button>
+          </div>
         </div>
 
         {isLoading ? <PrescriptionSkeleton/> : (

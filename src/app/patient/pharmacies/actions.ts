@@ -1,6 +1,8 @@
 
 'use server';
 import { adminDb } from '@/lib/firebase/server-auth';
+import { getSession } from '@/lib/firebase/server-auth';
+import { FieldValue } from 'firebase-admin/firestore';
 
 interface Location {
   lat: number;
@@ -58,4 +60,33 @@ export async function findNearbyPharmacies(location: Location | null) {
   }
 }
 
+export async function forwardPrescriptionToPartner(prevState: any, formData: FormData) {
+    const session = await getSession();
+    if (!session) {
+        return { success: false, error: 'You must be logged in to perform this action.' };
+    }
+
+    const partnerId = formData.get('partnerId') as string;
+    const prescriptionId = formData.get('prescriptionId') as string;
+
+    if (!partnerId || !prescriptionId) {
+        return { success: false, error: 'Missing required information for forwarding.' };
+    }
+
+    try {
+        const requestRef = adminDb.collection('prescriptionRequests').doc();
+        await requestRef.set({
+            prescriptionId,
+            partnerId,
+            patientId: session.uid,
+            status: 'pending',
+            createdAt: FieldValue.serverTimestamp(),
+        });
+        
+        return { success: true, error: null };
+    } catch(e: any) {
+        console.error('Error forwarding prescription:', e);
+        return { success: false, error: 'An unexpected error occurred.' };
+    }
+}
     
