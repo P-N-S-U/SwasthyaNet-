@@ -56,6 +56,13 @@ export default function MapWrapper({ userLocation, pharmacies }: any) {
     ? [userLocation.lat, userLocation.lng] 
     : [20.5937, 78.9629]; // Default to center of India
 
+  const pharmacyIcon = new L.DivIcon({
+      html: `<div style="background-color: hsl(var(--primary)); border-radius: 50%; width: 24px; height: 24px; display: flex; justify-content: center; align-items: center; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--primary-foreground))" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg></div>`,
+      className: '',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+  });
+
   return (
     <div id="map-container" className="h-full w-full rounded-md z-10">
       <MapContainer
@@ -69,7 +76,7 @@ export default function MapWrapper({ userLocation, pharmacies }: any) {
         <UserMarker userLocation={userLocation} />
         {pharmacies?.map((p: any) => {
           return (
-            <Marker key={p.id} position={[p.lat, p.lng]}>
+            <Marker key={p.id} position={[p.lat, p.lng]} icon={pharmacyIcon}>
               <Popup>
                 <b>{p.name}</b>
                 <br />
