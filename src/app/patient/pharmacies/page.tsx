@@ -33,7 +33,7 @@ export default function PharmaciesPage() {
               get directions.
             </p>
           </div>
-          <PharmacyFinder />
+          <PharmacyFinder variant="page" />
         </div>
       </main>
       <Footer />

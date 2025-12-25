@@ -122,7 +122,7 @@ export default function ViewPrescriptionPage({ params }: { params: { id: string 
                   <DialogTitle>Forward Prescription to a Pharmacy</DialogTitle>
                 </DialogHeader>
                 <div className="flex-grow overflow-hidden">
-                  <PharmacyFinder prescriptionId={prescription.id} />
+                  <PharmacyFinder prescriptionId={prescription.id} variant="dialog" />
                 </div>
               </DialogContent>
             </Dialog>
