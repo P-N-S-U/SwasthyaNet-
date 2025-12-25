@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useActionState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ import { findNearbyPharmacies, forwardPrescriptionToPartner } from '@/app/patien
 import { haversineDistance } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { useActionState } from 'react';
 
 
 const MapWrapper = dynamic(() => import('./MapWrapper'), {
@@ -74,11 +75,8 @@ export function PharmacyFinder({ prescriptionId, variant = 'page' }: PharmacyFin
   const fetchAndSetPharmacies = useCallback(async (location: Location) => {
     setIsFetchingPharmacies(true);
     setError(null);
-    console.log('[DEBUG] Calling findNearbyPharmacies with location:', location);
     
     const result = await findNearbyPharmacies(location);
-    console.log('[DEBUG] Raw data from findNearbyPharmacies action:', result);
-
 
     if (result.error) {
       setError(result.error);
@@ -91,7 +89,6 @@ export function PharmacyFinder({ prescriptionId, variant = 'page' }: PharmacyFin
         }))
         .sort((a, b) => (a.distance || 0) - (b.distance || 0));
 
-      console.log('[DEBUG] Processed and sorted pharmacies with distance:', locationsWithDistance);
       setPharmacies(locationsWithDistance);
     }
     setIsFetchingPharmacies(false);
@@ -99,7 +96,6 @@ export function PharmacyFinder({ prescriptionId, variant = 'page' }: PharmacyFin
 
   useEffect(() => {
     setLoadingLocation(true);
-    console.log('[DEBUG] Kicking off location search...');
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -107,24 +103,20 @@ export function PharmacyFinder({ prescriptionId, variant = 'page' }: PharmacyFin
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           };
-          console.log('[DEBUG] Geolocation success:', location);
           setUserLocation(location);
           setLoadingLocation(false);
-          // Only fetch pharmacies AFTER location is confirmed.
           fetchAndSetPharmacies(location);
         },
         (err) => {
-          console.error('[DEBUG] Geolocation error:', err);
           setError(
             'Location access denied. Please enable location services to find nearby pharmacies.'
           );
           setLoadingLocation(false);
-          setIsFetchingPharmacies(false); // Stop loading if location fails
+          setIsFetchingPharmacies(false);
         },
         { enableHighAccuracy: true }
       );
     } else {
-      console.log('[DEBUG] Geolocation not supported by browser.');
       setError('Geolocation is not supported by your browser.');
       setLoadingLocation(false);
       setIsFetchingPharmacies(false);
@@ -199,7 +191,6 @@ export function PharmacyFinder({ prescriptionId, variant = 'page' }: PharmacyFin
             ) : pharmacies.length > 0 ? (
               <ul className="space-y-4">
                 {pharmacies.map(pharmacy => {
-                  console.log('[DEBUG] Rendering pharmacy in list:', pharmacy.name);
                   return (
                     <li
                       key={pharmacy.id}

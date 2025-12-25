@@ -20,7 +20,6 @@ const UserMarker = ({ userLocation }: any) => {
     const map = useMap();
     useEffect(() => {
         if (userLocation) {
-            console.log('[DEBUG] Map flying to user location:', userLocation);
             map.flyTo([userLocation.lat, userLocation.lng], 14);
         }
     }, [userLocation, map]);
@@ -28,19 +27,30 @@ const UserMarker = ({ userLocation }: any) => {
     if (!userLocation) return null;
 
     // Quick style to make user marker stand out.
+    const userIcon = new L.Icon({
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41],
+        className: 'user-marker'
+    });
+
     const style = document.createElement('style');
     style.innerHTML = `.user-marker { filter: hue-rotate(120deg) saturate(1.5) brightness(1.1); }`;
     document.head.appendChild(style);
 
+
     return (
-        <Marker position={[userLocation.lat, userLocation.lng]} className="user-marker">
+        <Marker position={[userLocation.lat, userLocation.lng]} icon={userIcon}>
           <Popup>Your Location</Popup>
         </Marker>
     )
 }
 
 export default function MapWrapper({ userLocation, pharmacies }: any) {
-  console.log('[DEBUG] MapWrapper received props - userLocation:', userLocation, 'pharmacies:', pharmacies);
 
   const initialCenter: [number, number] = userLocation 
     ? [userLocation.lat, userLocation.lng] 
@@ -58,7 +68,6 @@ export default function MapWrapper({ userLocation, pharmacies }: any) {
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <UserMarker userLocation={userLocation} />
         {pharmacies?.map((p: any) => {
-          console.log('[DEBUG] Creating marker for pharmacy:', p.name, 'at', [p.lat, p.lng]);
           return (
             <Marker key={p.id} position={[p.lat, p.lng]}>
               <Popup>

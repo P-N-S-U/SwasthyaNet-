@@ -24,11 +24,8 @@ export async function findNearbyPharmacies(location: Location | null) {
     const snapshot = await q.get();
 
     if (snapshot.empty) {
-      console.log('[SERVER DEBUG] Firestore query returned no documents.');
       return { data: [] };
     }
-
-    console.log(`[SERVER DEBUG] Firestore query returned ${snapshot.docs.length} documents.`);
 
     const pharmacies = snapshot.docs.map(doc => {
       const data = doc.data();
@@ -43,15 +40,12 @@ export async function findNearbyPharmacies(location: Location | null) {
           lng: data.location.lng,
           address: data.address || 'Address not available',
         };
-        console.log(`[SERVER DEBUG] Found valid pharmacy: ${pharmacyData.name}`);
         return pharmacyData;
       } else {
-        console.log(`[SERVER DEBUG] Document ${doc.id} filtered out because it's missing a location.`);
         return null;
       }
     }).filter((p): p is NonNullable<typeof p> => p !== null);
 
-    console.log(`[SERVER DEBUG] Returning ${pharmacies.length} valid pharmacies to client.`);
     return { data: pharmacies };
 
   } catch (e: any) {
