@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -42,7 +41,7 @@ const getInitials = (name: string | null | undefined) => {
 
 const NavLink = ({ href, children, icon: Icon, onClick }) => {
   const pathname = usePathname();
-  const isActive = pathname === href;
+  const isActive = pathname.startsWith(href);
 
   return (
     <Link href={href} passHref>
@@ -79,7 +78,7 @@ const NavContent = ({ user, onLinkClick }) => {
             <NavLink href="/partner/dashboard" icon={LayoutDashboard} onClick={onLinkClick}>
             Dashboard
             </NavLink>
-            <NavLink href="#" icon={FileText} onClick={onLinkClick}>
+            <NavLink href="/partner/requests" icon={FileText} onClick={onLinkClick}>
             Requests
             </NavLink>
         </nav>
