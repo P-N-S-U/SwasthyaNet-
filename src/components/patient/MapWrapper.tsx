@@ -83,7 +83,7 @@ export default function MapWrapper({ userLocation, pharmacies }: any) {
     : [20.5937, 78.9629]; // Default to center of India
 
   const pharmacyIcon = new L.DivIcon({
-      html: `<div style="background-color: hsl(var(--primary)); border-radius: 50%; width: 28px; height: 28px; display: flex; justify-content: center; align-items: center; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--primary-foreground))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.334 2.046 2.046 10.334a4.32 4.32 0 0 0 0 6.109l6.109 6.109a4.32 4.32 0 0 0 6.109 0l8.288-8.288a4.32 4.32 0 0 0 0-6.109l-6.109-6.109a4.32 4.32 0 0 0-6.109 0Z"></path><path d="m14.5 9.5 2 2"></path><path d="m12.5 11.5 2 2"></path><path d="m10.5 13.5 2 2"></path><path d="m8.5 15.5 2 2"></path></svg></div>`,
+      html: `<div style="background-color: hsl(var(--primary)); border-radius: 50%; width: 28px; height: 28px; display: flex; justify-content: center; align-items: center; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--primary-foreground))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"></path><path d="m8.5 8.5 7 7"></path></svg></div>`,
       className: '',
       iconSize: [28, 28],
       iconAnchor: [14, 14]
