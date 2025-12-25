@@ -67,7 +67,7 @@ const RecenterButton = ({ userLocation }: { userLocation: { lat: number, lng: nu
             disabled={!userLocation}
             variant="outline"
             size="icon"
-            className="absolute top-4 left-4 z-[1000] bg-background/80 backdrop-blur-sm"
+            className="absolute top-4 right-4 z-[1000] bg-background/80 backdrop-blur-sm"
             aria-label="Recenter map"
         >
             <LocateFixed className="h-4 w-4" />
@@ -83,7 +83,7 @@ export default function MapWrapper({ userLocation, pharmacies }: any) {
     : [20.5937, 78.9629]; // Default to center of India
 
   const pharmacyIcon = new L.DivIcon({
-      html: `<div style="background-color: hsl(var(--primary)); border-radius: 50%; width: 28px; height: 28px; display: flex; justify-content: center; align-items: center; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--primary-foreground))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"></path><path d="m8.5 8.5 7 7"></path></svg></div>`,
+      html: `<div style="background-color: hsl(var(--primary)); border-radius: 50%; width: 28px; height: 28px; display: flex; justify-content: center; align-items: center; border: 2px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--primary-foreground))" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pill"><path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"></path><path d="m8.5 8.5 7 7"></path></svg></div>`,
       className: '',
       iconSize: [28, 28],
       iconAnchor: [14, 14]
