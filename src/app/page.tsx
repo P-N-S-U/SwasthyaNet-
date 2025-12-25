@@ -85,14 +85,18 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    // If the role is loaded and it's a doctor, redirect them immediately.
-    if (!loading && user && role === 'doctor') {
-      router.replace('/doctor/dashboard');
+    // If the role is loaded, redirect doctors and partners to their respective dashboards.
+    if (!loading && user && role) {
+      if (role === 'doctor') {
+        router.replace('/doctor/dashboard');
+      } else if (role === 'partner') {
+        router.replace('/partner/dashboard');
+      }
     }
   }, [user, role, loading, router]);
   
-  // While loading or if the user is a doctor (and about to be redirected), show a loader.
-  if (loading || (user && role === 'doctor')) {
+  // While loading or if the user has a role that requires redirection, show a loader.
+  if (loading || (user && (role === 'doctor' || role === 'partner'))) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
